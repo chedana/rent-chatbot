@@ -1,0 +1,29 @@
+# ===== Python =====
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# ===== Virtual Envs =====
+chatbot/
+.venv/
+venv/
+
+# ===== Env files =====
+.env
+
+# ===== Jupyter =====
+.ipynb_checkpoints/
+
+# ===== HuggingFace / Cache =====
+.cache/
+hf_cache/
+
+# ===== Models (IMPORTANT) =====
+Qwen2.5-14B-Instruct/
+models/
+
+# ===== Logs =====
+wandb/
+logs/
+data/
