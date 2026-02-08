@@ -419,6 +419,30 @@ def format_listing_row(r: Dict[str, Any], i: int) -> str:
         bits.append("   " + " | ".join(line2))
     if url:
         bits.append("   " + url)
+
+    # scoring breakdown (if ranking fields exist)
+    if r.get("final_score", None) is not None:
+        def f(x):
+            try:
+                return f"{float(x):.4f}"
+            except:
+                return "0.0000"
+
+        bits.append(
+            "   "
+            + f"score: final={f(r.get('final_score'))} = "
+            + f"faiss_norm({f(r.get('faiss_score_norm'))}) + "
+            + f"pref({f(r.get('preference_score'))}) - "
+            + f"unknown({f(r.get('unknown_penalty'))}) - "
+            + f"soft_miss({f(r.get('violation_soft_penalty'))})"
+        )
+
+        unknown_reason = str(r.get("unknown_penalty_reasons", "") or "").strip()
+        soft_reason = str(r.get("soft_penalty_reasons", "") or "").strip()
+        if unknown_reason:
+            bits.append("   " + f"unknown_penalty_reasons: {unknown_reason}")
+        if soft_reason:
+            bits.append("   " + f"soft_penalty_reasons: {soft_reason}")
     return "\n".join(bits)
 
 
@@ -640,11 +664,32 @@ def run_chat():
 
             filtered["unknown_penalty"] = filtered["unknown_penalty"].clip(upper=UNKNOWN_PENALTY_CAP)
 
+            # per-row reason strings for unknown penalties
+            def _unknown_reasons(row: pd.Series) -> str:
+                reasons = []
+                if c.get("bedrooms") is not None:
+                    if "bedrooms" not in filtered.columns or pd.isna(row.get("bedrooms")):
+                        reasons.append(f"bedrooms(+{UNKNOWN_PENALTY_WEIGHTS['bedrooms']})")
+                if c.get("bathrooms") is not None:
+                    if "bathrooms" not in filtered.columns or pd.isna(row.get("bathrooms")):
+                        reasons.append(f"bathrooms(+{UNKNOWN_PENALTY_WEIGHTS['bathrooms']})")
+                if c.get("max_rent_pcm") is not None:
+                    if (not rent_col) or (rent_col not in filtered.columns) or pd.isna(row.get(rent_col)):
+                        reasons.append(f"price(+{UNKNOWN_PENALTY_WEIGHTS['price']})")
+                if c.get("available_from") is not None:
+                    dt = pd.to_datetime(row.get("available_from"), errors="coerce")
+                    if ("available_from" not in filtered.columns) or pd.isna(dt):
+                        reasons.append(f"available_from(+{UNKNOWN_PENALTY_WEIGHTS['available_from']})")
+                return ", ".join(reasons)
+
+            filtered["unknown_penalty_reasons"] = filtered.apply(_unknown_reasons, axis=1)
+
             # soft must-have preferences: miss => penalty, hit => bonus
             ###
             must_keywords = [str(x).strip().lower() for x in (c.get("must_have_keywords") or []) if str(x).strip()]
             filtered["preference_score"] = 0.0
             filtered["violation_soft_penalty"] = 0.0
+            filtered["soft_penalty_reasons"] = ""
 
             if must_keywords:
                 text_cols = [col for col in ["title", "address", "description", "features", "stations", "schools"] if col in filtered.columns]
@@ -660,6 +705,15 @@ def run_chat():
                 miss_counts = len(must_keywords) - hit_counts
                 filtered["preference_score"] = (hit_counts * SOFT_MUST_HIT_BONUS).clip(upper=SOFT_MUST_MAX_BONUS)
                 filtered["violation_soft_penalty"] = (miss_counts * SOFT_MUST_MISS_PENALTY).clip(upper=SOFT_MUST_MAX_PENALTY)
+
+                def _soft_reasons(text: str) -> str:
+                    misses = []
+                    for kw in must_keywords:
+                        if not re.search(re.escape(kw), str(text).lower()):
+                            misses.append(f"{kw}(+{SOFT_MUST_MISS_PENALTY})")
+                    return ", ".join(misses)
+
+                filtered["soft_penalty_reasons"] = combo.apply(_soft_reasons)
 
             filtered["final_score"] = (
                 filtered["faiss_score_norm"]
