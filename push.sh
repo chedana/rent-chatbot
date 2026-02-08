@@ -10,24 +10,20 @@ MSG="$1"
 REMOTE="${REMOTE_NAME:-origin}"
 BRANCH="$(git rev-parse --abbrev-ref HEAD)"
 
-# Ensure we're in a git repo
-git rev-parse --is-inside-work-tree >/dev/null
-
-echo "== Repo:   $(basename "$(git rev-parse --show-toplevel)")"
-echo "== Branch: $BRANCH"
-echo "== Remote: $REMOTE"
-
-# Stage everything (including new files)
+# 1) stage everything (including new files)
 git add -A
 
-# If nothing staged, exit gracefully
-if git diff --cached --quiet; then
-  echo "⚠️  Nothing to commit."
-  git status -sb
-  exit 0
+# 2) commit if there is anything staged
+if ! git diff --cached --quiet; then
+  git commit -m "$MSG"
 fi
 
-git commit -m "$MSG"
-git push "$REMOTE" "$BRANCH"
+# 3) push if we have commits ahead (or if a new commit was created)
+AHEAD="$(git rev-list --count @{u}..HEAD 2>/dev/null || echo 0)"
+if [[ "$AHEAD" != "0" ]]; then
+  git push "$REMOTE" "$BRANCH"
+else
+  echo "Nothing to push."
+fi
 
-echo "✅ pushed."
+git status -sb
