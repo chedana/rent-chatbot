@@ -275,7 +275,7 @@ def embed_query(embedder: SentenceTransformer, q: str) -> np.ndarray:
 # ----------------------------
 # Retrieval
 # ----------------------------
-def faiss_search(index, embedder, meta: pd.DataFrame, query: str, recall: int, k: int) -> pd.DataFrame:
+def faiss_search(index, embedder, meta: pd.DataFrame, query: str, recall: int) -> pd.DataFrame:
     qx = embed_query(embedder, query)
     scores, ids = index.search(qx, recall)
 
@@ -300,7 +300,9 @@ def faiss_search(index, embedder, meta: pd.DataFrame, query: str, recall: int, k
     if not rows:
         return meta.head(0).copy()
 
-    return pd.DataFrame(rows).head(k).reset_index(drop=True)
+    # IMPORTANT:
+    # Do not truncate to k before hard filters. We need a larger recall pool first.
+    return pd.DataFrame(rows).reset_index(drop=True)
 
 def format_listing_row(r: Dict[str, Any], i: int) -> str:
     title = str(r.get("title", "") or "").strip()
@@ -489,12 +491,13 @@ def run_chat():
         query = user_in if not hint else (user_in + " || " + hint)
         
         # --- 3) retrieve ---
-        df = faiss_search(index, embedder, meta, query=query, recall=recall, k=k)
+        df = faiss_search(index, embedder, meta, query=query, recall=recall)
 
 
         # --- Stage 2: hard filters (no fallback) ---
         c = state["constraints"] or {}
         filtered = df.copy()
+        pre_filter_n = len(filtered)
         
         # bedrooms: hard gate (>= or ==)
         if c.get("bedrooms") is not None and "bedrooms" in filtered.columns:
@@ -519,6 +522,8 @@ def run_chat():
         if c.get("max_rent_pcm") is not None and rent_col:
             filtered[rent_col] = pd.to_numeric(filtered[rent_col], errors="coerce")
             filtered = filtered[filtered[rent_col].notna() & (filtered[rent_col] <= float(c["max_rent_pcm"]))]
+
+        print(f"[debug] retrieved={pre_filter_n}, after_hard_filters={len(filtered)}, k={k}, recall={recall}")
         
         # no fallback: if insufficient, tell user
         k = int(c.get("k", DEFAULT_K) or DEFAULT_K)
