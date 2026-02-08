@@ -66,6 +66,43 @@ def as_list(x: Any) -> List[str]:
     s = str(x).strip()
     if not s or s.lower() == ASK.lower():
         return []
+
+    # JSON string case (common after "all-string" postprocess):
+    # examples:
+    # - '[{"name":"Canary Wharf Station","miles":0.2}, ...]'
+    # - '["feature a","feature b"]'
+    if (s.startswith("[") and s.endswith("]")) or (s.startswith("{") and s.endswith("}")):
+        try:
+            parsed = json.loads(s)
+            out: List[str] = []
+            if isinstance(parsed, list):
+                for item in parsed:
+                    if item is None:
+                        continue
+                    if isinstance(item, dict):
+                        name = str(item.get("name", "")).strip()
+                        miles = item.get("miles", None)
+                        if name:
+                            if miles is None or str(miles).strip() == "":
+                                out.append(name)
+                            else:
+                                out.append(f"{name} ({miles} miles)")
+                        continue
+                    t = str(item).strip()
+                    if t and t.lower() != ASK.lower():
+                        out.append(t)
+                return out
+            if isinstance(parsed, dict):
+                name = str(parsed.get("name", "")).strip()
+                miles = parsed.get("miles", None)
+                if name:
+                    if miles is None or str(miles).strip() == "":
+                        return [name]
+                    return [f"{name} ({miles} miles)"]
+        except Exception:
+            # fallback to legacy parsing below
+            pass
+
     if "|" in s:
         parts = [p.strip() for p in s.split("|")]
         return [p for p in parts if p and p.lower() != ASK.lower()]
@@ -141,6 +178,7 @@ def enforce_parquet_all_str_except_ids(df: pd.DataFrame, id_cols: List[str]) -> 
 # ----------------------------
 def build_indexes():
     os.makedirs(OUT_DIR, exist_ok=True)
+    faiss.omp_set_num_threads(max(1, (os.cpu_count() or 1) - 1))
 
     rows = load_jsonl(IN_JSONL)
     if not rows:
