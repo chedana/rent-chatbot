@@ -23,6 +23,9 @@ Schema:
 {
   "max_rent_pcm": number|null,
   "bedrooms": int|null,
+  "bedrooms_op": string|null,
+  "bathrooms": number|null,
+  "bathrooms_op": string|null,
   "location_keywords": string[],
   "must_have_keywords": string[],
   "k": int|null
@@ -30,6 +33,16 @@ Schema:
 Rules:
 - location_keywords are place names/areas/postcodes (e.g., "Canary Wharf", "E14", "Shoreditch").
 - must_have_keywords are requirements/features (e.g., "balcony", "pet friendly", "near tube").
+- bedrooms_op must be one of: "eq", "gte", or null.
+- Set bedrooms/bedrooms_op only for hard constraints:
+  - "at least/minimum/>= X bedrooms" -> {"bedrooms": X, "bedrooms_op": "gte"}
+  - "exactly/only X bedrooms" -> {"bedrooms": X, "bedrooms_op": "eq"}
+  - soft wording (prefer/ideally/nice to have) -> bedrooms = null, bedrooms_op = null
+- bathrooms_op must be one of: "eq", "gte", or null.
+- Set bathrooms/bathrooms_op only for hard constraints:
+  - "at least/minimum/>= X bathrooms" -> {"bathrooms": X, "bathrooms_op": "gte"}
+  - "exactly/only X bathrooms" -> {"bathrooms": X, "bathrooms_op": "eq"}
+  - soft wording (prefer/ideally/nice to have) -> bathrooms = null, bathrooms_op = null
 - If unknown use null or [].
 """
 
@@ -66,6 +79,9 @@ def llm_extract(user_text: str, existing_constraints: Optional[dict]) -> dict:
     )
     obj = _extract_json_obj(txt)
     obj.setdefault("k", None)
+    obj.setdefault("bedrooms_op", None)
+    obj.setdefault("bathrooms", None)
+    obj.setdefault("bathrooms_op", None)
     obj.setdefault("location_keywords", [])
     obj.setdefault("must_have_keywords", [])
     return obj
@@ -91,6 +107,50 @@ def normalize_budget_to_pcm(c: dict) -> dict:
 
     return c
 def normalize_constraints(c: dict) -> dict:
+    # normalize bedrooms hard-constraint operator
+    bed_op = c.get("bedrooms_op")
+    if bed_op is not None:
+        bed_op = str(bed_op).strip().lower()
+        if bed_op in ("==", "=", "exact", "exactly", "eq"):
+            bed_op = "eq"
+        elif bed_op in (">=", "min", "minimum", "at_least", "at least", "gte"):
+            bed_op = "gte"
+        else:
+            bed_op = None
+    c["bedrooms_op"] = bed_op
+
+    if c.get("bedrooms") is not None:
+        try:
+            c["bedrooms"] = int(float(c["bedrooms"]))
+        except:
+            c["bedrooms"] = None
+
+    # default to strict equality when bedrooms is set but operator is absent
+    if c.get("bedrooms") is not None and c.get("bedrooms_op") is None:
+        c["bedrooms_op"] = "eq"
+
+    # normalize bathrooms hard-constraint operator
+    op = c.get("bathrooms_op")
+    if op is not None:
+        op = str(op).strip().lower()
+        if op in ("==", "=", "exact", "exactly", "eq"):
+            op = "eq"
+        elif op in (">=", "min", "minimum", "at_least", "at least", "gte"):
+            op = "gte"
+        else:
+            op = None
+    c["bathrooms_op"] = op
+
+    if c.get("bathrooms") is not None:
+        try:
+            c["bathrooms"] = float(c["bathrooms"])
+        except:
+            c["bathrooms"] = None
+
+    # default to strict equality when bathrooms is set but operator is absent
+    if c.get("bathrooms") is not None and c.get("bathrooms_op") is None:
+        c["bathrooms_op"] = "eq"
+
     locs = []
     must = set([str(x).strip() for x in (c.get("must_have_keywords") or []) if str(x).strip()])
     for x in (c.get("location_keywords") or []):
@@ -111,7 +171,7 @@ def merge_constraints(old: Optional[dict], new: dict) -> dict:
     out = dict(old)
 
     # scalar fields: new overrides if not null
-    for key in ["max_rent_pcm", "bedrooms", "k"]:
+    for key in ["max_rent_pcm", "bedrooms", "bedrooms_op", "bathrooms", "bathrooms_op", "k"]:
         if new.get(key) is not None:
             out[key] = new.get(key)
 
@@ -143,7 +203,17 @@ def merge_constraints(old: Optional[dict], new: dict) -> dict:
 def constraints_to_query_hint(c: dict) -> str:
     parts = []
     if c.get("bedrooms") is not None:
-        parts.append(f"{int(c['bedrooms'])} bedroom")
+        bed_op = c.get("bedrooms_op", "eq")
+        if bed_op == "gte":
+            parts.append(f"at least {int(c['bedrooms'])} bedroom")
+        else:
+            parts.append(f"{int(c['bedrooms'])} bedroom")
+    if c.get("bathrooms") is not None:
+        op = c.get("bathrooms_op", "eq")
+        if op == "gte":
+            parts.append(f"at least {float(c['bathrooms']):g} bathroom")
+        else:
+            parts.append(f"{float(c['bathrooms']):g} bathroom")
     if c.get("max_rent_pcm") is not None:
         parts.append(f"budget {float(c['max_rent_pcm'])} pcm")
     for x in (c.get("location_keywords") or [])[:5]:
@@ -357,7 +427,16 @@ def run_chat():
                 state["k"] = n
                 # 关键：同时写入 constraints.k，保证后面用到的是新值
                 if state["constraints"] is None:
-                    state["constraints"] = {"k": n, "location_keywords": [], "must_have_keywords": [], "max_rent_pcm": None, "bedrooms": None}
+                    state["constraints"] = {
+                        "k": n,
+                        "location_keywords": [],
+                        "must_have_keywords": [],
+                        "max_rent_pcm": None,
+                        "bedrooms": None,
+                        "bedrooms_op": None,
+                        "bathrooms": None,
+                        "bathrooms_op": None,
+                    }
                 else:
                     state["constraints"]["k"] = n
                 print(f"OK. k = {n}")
@@ -417,10 +496,23 @@ def run_chat():
         c = state["constraints"] or {}
         filtered = df.copy()
         
-        # bedrooms: strict ==
+        # bedrooms: hard gate (>= or ==)
         if c.get("bedrooms") is not None and "bedrooms" in filtered.columns:
             filtered["bedrooms"] = pd.to_numeric(filtered["bedrooms"], errors="coerce")
-            filtered = filtered[filtered["bedrooms"] == int(c["bedrooms"])]
+            bed_op = str(c.get("bedrooms_op") or "eq").lower()
+            if bed_op == "gte":
+                filtered = filtered[filtered["bedrooms"].notna() & (filtered["bedrooms"] >= int(c["bedrooms"]))]
+            else:
+                filtered = filtered[filtered["bedrooms"] == int(c["bedrooms"])]
+
+        # bathrooms: hard gate (>= or ==)
+        if c.get("bathrooms") is not None and "bathrooms" in filtered.columns:
+            filtered["bathrooms"] = pd.to_numeric(filtered["bathrooms"], errors="coerce")
+            op = str(c.get("bathrooms_op") or "eq").lower()
+            if op == "gte":
+                filtered = filtered[filtered["bathrooms"].notna() & (filtered["bathrooms"] >= float(c["bathrooms"]))]
+            else:
+                filtered = filtered[filtered["bathrooms"] == float(c["bathrooms"])]
         
         # budget: strict <=
         rent_col = "price_pcm" if "price_pcm" in filtered.columns else ("rent_pcm" if "rent_pcm" in filtered.columns else None)
@@ -431,7 +523,7 @@ def run_chat():
         # no fallback: if insufficient, tell user
         k = int(c.get("k", DEFAULT_K) or DEFAULT_K)
         if len(filtered) < k:
-            print("\nBot> 符合当前价格/卧室条件的房源不足。你可以放宽预算或修改卧室数。")
+            print("\nBot> 符合当前价格/卧室/卫生间条件的房源不足。你可以放宽预算或修改卧室/卫生间条件。")
             df = filtered.reset_index(drop=True)
         else:
             df = filtered.head(k).reset_index(drop=True)
@@ -439,7 +531,7 @@ def run_chat():
 
         
         if df is None or len(df) == 0:
-            out = "I couldn't find any matching listings. Try different keywords (area, budget, bedrooms)."
+            out = "I couldn't find any matching listings. Try different keywords (area, budget, bedrooms, bathrooms)."
             print("\nBot> " + out)
             state["history"].append((user_in, out))
             state["last_query"] = query
