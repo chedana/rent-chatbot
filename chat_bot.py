@@ -272,11 +272,11 @@ def constraints_to_query_hint(c: dict) -> str:
 
 # project root = this file's directory
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+NEW_INDEX_DIR = os.path.join(ROOT_DIR, "artifacts", "hnsw", "index")
+LEGACY_INDEX_DIR = os.path.join(ROOT_DIR, "data", "HNSW", "index")
+DEFAULT_INDEX_DIR = NEW_INDEX_DIR if os.path.exists(NEW_INDEX_DIR) else LEGACY_INDEX_DIR
 
-OUT_DIR = os.environ.get(
-    "RENT_INDEX_DIR",
-    os.path.join(ROOT_DIR, "data/HNSW/index")
-)
+OUT_DIR = os.environ.get("RENT_INDEX_DIR", DEFAULT_INDEX_DIR)
 
 LIST_INDEX_PATH = os.path.join(OUT_DIR, "listings_hnsw.faiss")
 LIST_META_PATH  = os.path.join(OUT_DIR, "listings_meta.parquet")

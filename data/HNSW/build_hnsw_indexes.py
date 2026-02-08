@@ -1,6 +1,8 @@
 import os
 import json
 import hashlib
+import argparse
+import glob
 from typing import Any, Dict, List
 
 import numpy as np
@@ -12,14 +14,10 @@ from sentence_transformers import SentenceTransformer
 # ----------------------------
 # Config
 # ----------------------------
-IN_JSONL = "../web_data/properties_clean.jsonl"
-OUT_DIR  = "./index"
-
-LIST_INDEX_PATH = os.path.join(OUT_DIR, "listings_hnsw.faiss")
-LIST_META_PATH  = os.path.join(OUT_DIR, "listings_meta.parquet")
-
-EVI_INDEX_PATH  = os.path.join(OUT_DIR, "evidence_hnsw.faiss")
-EVI_META_PATH   = os.path.join(OUT_DIR, "evidence_meta.parquet")
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, "..", ".."))
+DEFAULT_HNSW_OUT_DIR = os.path.join(PROJECT_ROOT, "artifacts", "hnsw", "index")
+LEGACY_WEB_CLEAN_JSONL = os.path.join(PROJECT_ROOT, "data", "web_data", "properties_clean.jsonl")
 
 EMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 BATCH = 256
@@ -173,16 +171,55 @@ def enforce_parquet_all_str_except_ids(df: pd.DataFrame, id_cols: List[str]) -> 
     return df
 
 
+def find_latest_clean_jsonl(web_output_root: str) -> str:
+    pattern = os.path.join(web_output_root, "*", "properties_clean.jsonl")
+    candidates = [p for p in glob.glob(pattern) if os.path.isfile(p)]
+    if candidates:
+        candidates.sort(key=lambda p: os.path.getmtime(p), reverse=True)
+        return candidates[0]
+    if os.path.isfile(LEGACY_WEB_CLEAN_JSONL):
+        return LEGACY_WEB_CLEAN_JSONL
+    raise RuntimeError(
+        "No properties_clean.jsonl found. "
+        f"Checked: {pattern} and legacy path {LEGACY_WEB_CLEAN_JSONL}"
+    )
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--in-jsonl",
+        default=None,
+        help="Input cleaned JSONL path. If omitted, auto-pick latest artifacts/web_data/*/properties_clean.jsonl.",
+    )
+    parser.add_argument(
+        "--web-output-root",
+        default=os.path.join(PROJECT_ROOT, "artifacts", "web_data"),
+        help="Root web output folder used when auto-resolving input.",
+    )
+    parser.add_argument(
+        "--out-dir",
+        default=DEFAULT_HNSW_OUT_DIR,
+        help="Output directory for HNSW indexes and metadata.",
+    )
+    return parser.parse_args()
+
+
 # ----------------------------
 # Main
 # ----------------------------
-def build_indexes():
-    os.makedirs(OUT_DIR, exist_ok=True)
+def build_indexes(in_jsonl: str, out_dir: str):
+    os.makedirs(out_dir, exist_ok=True)
     faiss.omp_set_num_threads(max(1, (os.cpu_count() or 1) - 1))
 
-    rows = load_jsonl(IN_JSONL)
+    list_index_path = os.path.join(out_dir, "listings_hnsw.faiss")
+    list_meta_path = os.path.join(out_dir, "listings_meta.parquet")
+    evi_index_path = os.path.join(out_dir, "evidence_hnsw.faiss")
+    evi_meta_path = os.path.join(out_dir, "evidence_meta.parquet")
+
+    rows = load_jsonl(in_jsonl)
     if not rows:
-        raise RuntimeError(f"No records found in {IN_JSONL}")
+        raise RuntimeError(f"No records found in {in_jsonl}")
 
     # ---------- Listing corpus ----------
     listing_meta: List[Dict[str, Any]] = []
@@ -272,7 +309,7 @@ def build_indexes():
     list_index = make_hnsw_ip_index(dim)
     list_index.add(list_x)  # faiss_id = 0..N-1
 
-    faiss.write_index(list_index, LIST_INDEX_PATH)
+    faiss.write_index(list_index, list_index_path)
 
     # 给 listing_meta 补 faiss_id（严格对应 add() 的顺序）
     for i, m in enumerate(listing_meta):
@@ -280,30 +317,34 @@ def build_indexes():
 
     df_list = pd.DataFrame(listing_meta)
     df_list = enforce_parquet_all_str_except_ids(df_list, id_cols=["faiss_id", "listing_int_id"])
-    df_list.to_parquet(LIST_META_PATH, index=False)
+    df_list.to_parquet(list_meta_path, index=False)
 
-    print(f"Saved: {LIST_INDEX_PATH}")
-    print(f"Saved: {LIST_META_PATH}")
+    print(f"Saved: {list_index_path}")
+    print(f"Saved: {list_meta_path}")
 
     if evi_x is not None and len(evi_texts) > 0:
         evi_index = make_hnsw_ip_index(dim)
         evi_index.add(evi_x)  # evidence faiss_id = 0..M-1
 
-        faiss.write_index(evi_index, EVI_INDEX_PATH)
+        faiss.write_index(evi_index, evi_index_path)
 
         for i, m in enumerate(evi_meta):
             m["faiss_id"] = i
 
         df_evi = pd.DataFrame(evi_meta)
         df_evi = enforce_parquet_all_str_except_ids(df_evi, id_cols=["faiss_id", "listing_int_id"])
-        df_evi.to_parquet(EVI_META_PATH, index=False)
+        df_evi.to_parquet(evi_meta_path, index=False)
 
-        print(f"Saved: {EVI_INDEX_PATH}")
-        print(f"Saved: {EVI_META_PATH}")
+        print(f"Saved: {evi_index_path}")
+        print(f"Saved: {evi_meta_path}")
     else:
         print("No evidence texts found; evidence index not created.")
 
     print("Done.")
 
 if __name__ == "__main__":
-    build_indexes()
+    args = parse_args()
+    in_jsonl = args.in_jsonl or find_latest_clean_jsonl(args.web_output_root)
+    print(f"Input JSONL: {in_jsonl}")
+    print(f"Output dir : {args.out_dir}")
+    build_indexes(in_jsonl=in_jsonl, out_dir=args.out_dir)

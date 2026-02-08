@@ -19,6 +19,9 @@ from get_urls import (
 DEFAULT_LISTING_URLS_FILE = "listing_urls.txt"
 DEFAULT_PROPERTIES_FILE = "properties.jsonl"
 ASK_AGENT = "Ask agent"
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, "..", ".."))
+DEFAULT_WEB_OUTPUT_ROOT = os.path.join(PROJECT_ROOT, "artifacts", "web_data")
 
 
 def slugify_area(text: str) -> str:
@@ -166,7 +169,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-listings", type=int, default=1000, help="Cap listing count before detail crawling. Use 0 to disable cap.")
 
     parser.add_argument("--properties-out", default=None, help="Output JSONL for crawled properties (defaults to area folder).")
-    parser.add_argument("--output-root", default=".", help="Root folder where area-named result folders are created.")
+    parser.add_argument(
+        "--output-root",
+        default=DEFAULT_WEB_OUTPUT_ROOT,
+        help="Root folder where area-named result folders are created.",
+    )
     parser.add_argument(
         "--postprocess",
         default="none",

@@ -20,3 +20,10 @@ checkpoints/
 
 # system
 .DS_Store
+
+# runtime outputs / artifacts
+artifacts/
+data/web_data/*.jsonl
+data/web_data/listing_urls*.txt
+data/HNSW/index/*.faiss
+data/HNSW/index/*.parquet
