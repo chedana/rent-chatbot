@@ -13,7 +13,7 @@ from sentence_transformers import SentenceTransformer
 from openai import OpenAI
 
 QWEN_BASE_URL = os.environ.get("QWEN_BASE_URL", "http://127.0.0.1:8000/v1")
-QWEN_MODEL    = os.environ.get("QWEN_MODEL", "Qwen2.5-7B-Instruct")  # 你启动时的 model 名称
+QWEN_MODEL    = os.environ.get("QWEN_MODEL", "./Qwen2.5-7B-Instruct")  # 你启动时的 model 名称
 QWEN_API_KEY  = os.environ.get("OPENAI_API_KEY", "dummy")
 
 qwen_client = OpenAI(base_url=QWEN_BASE_URL, api_key=QWEN_API_KEY)
@@ -26,6 +26,8 @@ Schema:
   "bedrooms_op": string|null,
   "bathrooms": number|null,
   "bathrooms_op": string|null,
+  "available_from": string|null,
+  "available_from_op": string|null,
   "location_keywords": string[],
   "must_have_keywords": string[],
   "k": int|null
@@ -43,6 +45,12 @@ Rules:
   - "at least/minimum/>= X bathrooms" -> {"bathrooms": X, "bathrooms_op": "gte"}
   - "exactly/only X bathrooms" -> {"bathrooms": X, "bathrooms_op": "eq"}
   - soft wording (prefer/ideally/nice to have) -> bathrooms = null, bathrooms_op = null
+- available_from should be an ISO date string "YYYY-MM-DD" when possible.
+- available_from_op must be one of: "eq", "gte", "lte", or null.
+- Set available_from/available_from_op only for hard constraints:
+  - "from/after/no earlier than DATE" -> {"available_from": "DATE", "available_from_op": "gte"}
+  - "by/before/no later than DATE" -> {"available_from": "DATE", "available_from_op": "lte"}
+  - "on DATE exactly" -> {"available_from": "DATE", "available_from_op": "eq"}
 - If unknown use null or [].
 """
 
@@ -82,6 +90,8 @@ def llm_extract(user_text: str, existing_constraints: Optional[dict]) -> dict:
     obj.setdefault("bedrooms_op", None)
     obj.setdefault("bathrooms", None)
     obj.setdefault("bathrooms_op", None)
+    obj.setdefault("available_from", None)
+    obj.setdefault("available_from_op", None)
     obj.setdefault("location_keywords", [])
     obj.setdefault("must_have_keywords", [])
     return obj
@@ -151,6 +161,31 @@ def normalize_constraints(c: dict) -> dict:
     if c.get("bathrooms") is not None and c.get("bathrooms_op") is None:
         c["bathrooms_op"] = "eq"
 
+    # normalize available_from hard-constraint operator
+    date_op = c.get("available_from_op")
+    if date_op is not None:
+        date_op = str(date_op).strip().lower()
+        if date_op in ("==", "=", "exact", "exactly", "eq"):
+            date_op = "eq"
+        elif date_op in (">=", "after", "from", "no_earlier_than", "no earlier than", "gte"):
+            date_op = "gte"
+        elif date_op in ("<=", "before", "by", "no_later_than", "no later than", "lte"):
+            date_op = "lte"
+        else:
+            date_op = None
+    c["available_from_op"] = date_op
+
+    if c.get("available_from") is not None:
+        dt = pd.to_datetime(c.get("available_from"), errors="coerce")
+        if pd.notna(dt):
+            c["available_from"] = dt.date().isoformat()
+        else:
+            c["available_from"] = None
+
+    # default to strict equality when available_from is set but operator is absent
+    if c.get("available_from") is not None and c.get("available_from_op") is None:
+        c["available_from_op"] = "eq"
+
     locs = []
     must = set([str(x).strip() for x in (c.get("must_have_keywords") or []) if str(x).strip()])
     for x in (c.get("location_keywords") or []):
@@ -171,7 +206,16 @@ def merge_constraints(old: Optional[dict], new: dict) -> dict:
     out = dict(old)
 
     # scalar fields: new overrides if not null
-    for key in ["max_rent_pcm", "bedrooms", "bedrooms_op", "bathrooms", "bathrooms_op", "k"]:
+    for key in [
+        "max_rent_pcm",
+        "bedrooms",
+        "bedrooms_op",
+        "bathrooms",
+        "bathrooms_op",
+        "available_from",
+        "available_from_op",
+        "k",
+    ]:
         if new.get(key) is not None:
             out[key] = new.get(key)
 
@@ -216,6 +260,14 @@ def constraints_to_query_hint(c: dict) -> str:
             parts.append(f"{float(c['bathrooms']):g} bathroom")
     if c.get("max_rent_pcm") is not None:
         parts.append(f"budget {float(c['max_rent_pcm'])} pcm")
+    if c.get("available_from") is not None:
+        dt_op = c.get("available_from_op", "eq")
+        if dt_op == "gte":
+            parts.append(f"available from {c['available_from']}")
+        elif dt_op == "lte":
+            parts.append(f"available by {c['available_from']}")
+        else:
+            parts.append(f"available on {c['available_from']}")
     for x in (c.get("location_keywords") or [])[:5]:
         parts.append(x)
     for x in (c.get("must_have_keywords") or [])[:5]:
@@ -438,6 +490,8 @@ def run_chat():
                         "bedrooms_op": None,
                         "bathrooms": None,
                         "bathrooms_op": None,
+                        "available_from": None,
+                        "available_from_op": None,
                     }
                 else:
                     state["constraints"]["k"] = n
@@ -523,12 +577,25 @@ def run_chat():
             filtered[rent_col] = pd.to_numeric(filtered[rent_col], errors="coerce")
             filtered = filtered[filtered[rent_col].notna() & (filtered[rent_col] <= float(c["max_rent_pcm"]))]
 
+        # available_from: hard gate (<=, >=, or ==)
+        if c.get("available_from") is not None and "available_from" in filtered.columns:
+            listing_dates = pd.to_datetime(filtered["available_from"], errors="coerce")
+            target_date = pd.to_datetime(c["available_from"], errors="coerce")
+            dt_op = str(c.get("available_from_op") or "eq").lower()
+            if pd.notna(target_date):
+                if dt_op == "gte":
+                    filtered = filtered[listing_dates.notna() & (listing_dates >= target_date)]
+                elif dt_op == "lte":
+                    filtered = filtered[listing_dates.notna() & (listing_dates <= target_date)]
+                else:
+                    filtered = filtered[listing_dates.notna() & (listing_dates == target_date)]
+
         print(f"[debug] retrieved={pre_filter_n}, after_hard_filters={len(filtered)}, k={k}, recall={recall}")
         
         # no fallback: if insufficient, tell user
         k = int(c.get("k", DEFAULT_K) or DEFAULT_K)
         if len(filtered) < k:
-            print("\nBot> 符合当前价格/卧室/卫生间条件的房源不足。你可以放宽预算或修改卧室/卫生间条件。")
+            print("\nBot> 符合当前价格/卧室/卫生间/入住时间条件的房源不足。你可以放宽预算或修改约束。")
             df = filtered.reset_index(drop=True)
         else:
             df = filtered.head(k).reset_index(drop=True)
@@ -536,7 +603,7 @@ def run_chat():
 
         
         if df is None or len(df) == 0:
-            out = "I couldn't find any matching listings. Try different keywords (area, budget, bedrooms, bathrooms)."
+            out = "I couldn't find any matching listings. Try different keywords (area, budget, bedrooms, bathrooms, available date)."
             print("\nBot> " + out)
             state["history"].append((user_in, out))
             state["last_query"] = query
