@@ -298,6 +298,56 @@ SOFT_MUST_HIT_BONUS = 0.04
 SOFT_MUST_MISS_PENALTY = 0.06
 SOFT_MUST_MAX_BONUS = 0.20
 SOFT_MUST_MAX_PENALTY = 0.30
+FAISS_SCORE_WEIGHT = float(os.environ.get("RENT_FAISS_WEIGHT", "0.35"))
+PREFERENCE_SCORE_WEIGHT = float(os.environ.get("RENT_PREF_WEIGHT", "1.0"))
+UNKNOWN_PENALTY_WEIGHT = float(os.environ.get("RENT_UNKNOWN_PENALTY_WEIGHT", "1.0"))
+SOFT_PENALTY_WEIGHT = float(os.environ.get("RENT_SOFT_PENALTY_WEIGHT", "1.0"))
+
+ROUTE_WEIGHT_TEMPLATES = {
+    "HARD_DOMINANT": {
+        "w_faiss": 0.15,
+        "w_pref": 0.80,
+        "w_unknown": 1.20,
+        "w_soft": 0.80,
+    },
+    "HYBRID": {
+        "w_faiss": 0.25,
+        "w_pref": 1.00,
+        "w_unknown": 1.00,
+        "w_soft": 1.00,
+    },
+    "SEMANTIC_DOMINANT": {
+        "w_faiss": 0.40,
+        "w_pref": 1.10,
+        "w_unknown": 0.80,
+        "w_soft": 1.10,
+    },
+}
+
+def decide_route(c: dict) -> str:
+    if c is None:
+        return "HYBRID"
+
+    hard_fields = [
+        "max_rent_pcm",
+        "bedrooms",
+        "bathrooms",
+        "available_from",
+        "furnish_type",
+        "let_type",
+        "property_type",
+    ]
+    hard_count = sum(1 for k in hard_fields if c.get(k) is not None)
+
+    semantic_count = 0
+    semantic_count += len([x for x in (c.get("must_have_keywords") or []) if str(x).strip()])
+    semantic_count += len([x for x in (c.get("location_keywords") or []) if str(x).strip()])
+
+    if hard_count >= 3 and semantic_count <= 1:
+        return "HARD_DOMINANT"
+    if hard_count <= 1 and semantic_count >= 2:
+        return "SEMANTIC_DOMINANT"
+    return "HYBRID"
 
 
 # ----------------------------
@@ -428,14 +478,20 @@ def format_listing_row(r: Dict[str, Any], i: int) -> str:
             except:
                 return "0.0000"
 
+        w_faiss = r.get("w_faiss", FAISS_SCORE_WEIGHT)
+        w_pref = r.get("w_pref", PREFERENCE_SCORE_WEIGHT)
+        w_unknown = r.get("w_unknown", UNKNOWN_PENALTY_WEIGHT)
+        w_soft = r.get("w_soft", SOFT_PENALTY_WEIGHT)
+        route = str(r.get("route", "HYBRID"))
         bits.append(
             "   "
             + f"score: final={f(r.get('final_score'))} = "
-            + f"faiss_norm({f(r.get('faiss_score_norm'))}) + "
-            + f"pref({f(r.get('preference_score'))}) - "
-            + f"unknown({f(r.get('unknown_penalty'))}) - "
-            + f"soft_miss({f(r.get('violation_soft_penalty'))})"
+            + f"{f(w_faiss)}*faiss_norm({f(r.get('faiss_score_norm'))}) + "
+            + f"{f(w_pref)}*pref({f(r.get('preference_score'))}) - "
+            + f"{f(w_unknown)}*unknown({f(r.get('unknown_penalty'))}) - "
+            + f"{f(w_soft)}*soft_miss({f(r.get('violation_soft_penalty'))})"
         )
+        bits.append("   " + f"route: {route}")
 
         unknown_reason = str(r.get("unknown_penalty_reasons", "") or "").strip()
         soft_reason = str(r.get("soft_penalty_reasons", "") or "").strip()
@@ -580,6 +636,13 @@ def run_chat():
 
         # --- Stage 2: hard filters (no fallback) ---
         c = state["constraints"] or {}
+        route = decide_route(c)
+        route_weights = ROUTE_WEIGHT_TEMPLATES.get(route, ROUTE_WEIGHT_TEMPLATES["HYBRID"])
+        w_faiss = float(route_weights["w_faiss"])
+        w_pref = float(route_weights["w_pref"])
+        w_unknown = float(route_weights["w_unknown"])
+        w_soft = float(route_weights["w_soft"])
+
         filtered = df.copy()
         pre_filter_n = len(filtered)
 
@@ -620,7 +683,10 @@ def run_chat():
                 keep_mask = listing_dates.isna() | (listing_dates <= target_date)
                 filtered = filtered[keep_mask]
 
-        print(f"[debug] retrieved={pre_filter_n}, after_hard_filters={len(filtered)}, k={k}, recall={recall}")
+        print(
+            f"[debug] route={route}, retrieved={pre_filter_n}, after_hard_filters={len(filtered)}, "
+            f"k={k}, recall={recall}, weights={{faiss:{w_faiss}, pref:{w_pref}, unknown:{w_unknown}, soft:{w_soft}}}"
+        )
 
         # --- Stage 3: ranking with unknown penalty + soft preference penalty ---
         if len(filtered) > 0:
@@ -716,11 +782,16 @@ def run_chat():
                 filtered["soft_penalty_reasons"] = combo.apply(_soft_reasons)
 
             filtered["final_score"] = (
-                filtered["faiss_score_norm"]
-                + filtered["preference_score"]
-                - filtered["unknown_penalty"]
-                - filtered["violation_soft_penalty"]
+                (w_faiss * filtered["faiss_score_norm"])
+                + (w_pref * filtered["preference_score"])
+                - (w_unknown * filtered["unknown_penalty"])
+                - (w_soft * filtered["violation_soft_penalty"])
             )
+            filtered["route"] = route
+            filtered["w_faiss"] = w_faiss
+            filtered["w_pref"] = w_pref
+            filtered["w_unknown"] = w_unknown
+            filtered["w_soft"] = w_soft
             filtered = filtered.sort_values(["final_score", "faiss_score_norm"], ascending=False)
 
         # no fallback: if insufficient, tell user

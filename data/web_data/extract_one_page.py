@@ -864,6 +864,7 @@
 import argparse
 import json
 import re
+import time
 from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
@@ -1028,21 +1029,63 @@ def click_tab(page, name: str, timeout_ms: int = 5000) -> None:
         f'button:has-text("{name}")',
         f'a:has-text("{name}")',
         f'[role="button"]:has-text("{name}")',
-        f'text={name}',
     ]
     last = None
+    deadline = time.time() + max(timeout_ms, 500) / 1000.0
     for sel in selectors:
-        try:
-            loc = page.locator(sel).first
-            loc.wait_for(state="visible", timeout=timeout_ms)
-            loc.click(timeout=timeout_ms)
-            page.wait_for_timeout(300)
-            return
-        except Exception as e:
-            last = e
-            continue
+        while time.time() < deadline:
+            try:
+                loc = page.locator(sel)
+                cnt = loc.count()
+                if cnt == 0:
+                    page.wait_for_timeout(150)
+                    continue
+                for i in range(min(cnt, 12)):
+                    item = loc.nth(i)
+                    try:
+                        if item.is_visible():
+                            item.click(timeout=1500)
+                            page.wait_for_timeout(300)
+                            return
+                    except Exception as e:
+                        last = e
+                        continue
+                page.wait_for_timeout(150)
+            except Exception as e:
+                last = e
+                page.wait_for_timeout(150)
+                continue
     if last:
         raise last
+    raise RuntimeError(f"Tab not clickable: {name}")
+
+
+def wait_tab_active(page, name: str, timeout_ms: int = 7000) -> None:
+    page.wait_for_function(
+        """
+        (tabName) => {
+          const norm = (s) => (s || '').replace(/\\s+/g, ' ').trim().toLowerCase();
+          const want = norm(tabName);
+          const tabs = Array.from(document.querySelectorAll('[role="tab"], button, a'));
+          for (const el of tabs) {
+            const txt = norm(el.innerText || el.textContent || '');
+            if (!txt) continue;
+            if (txt !== want && !txt.includes(want)) continue;
+            const rect = el.getBoundingClientRect();
+            if (!(rect.width > 0 && rect.height > 0)) continue;
+
+            const aria = (el.getAttribute('aria-selected') || '').toLowerCase();
+            const cls = (el.className || '').toString().toLowerCase();
+            if (aria === 'true' || cls.includes('active') || cls.includes('selected')) {
+              return true;
+            }
+          }
+          return false;
+        }
+        """,
+        arg=name,
+        timeout=timeout_ms,
+    )
 
 def wait_nearest_header(page, header_text: str, timeout_ms: int = 9000) -> None:
     page.wait_for_function(
@@ -1055,21 +1098,103 @@ def wait_nearest_header(page, header_text: str, timeout_ms: int = 9000) -> None:
         arg=header_text,
         timeout=timeout_ms,
     )
+
+
+def _extract_nearby_with_retry(page, header_text: str, timeout_ms: int = 10_000) -> List[Dict[str, Any]]:
+    """
+    Retry extractor because the panel content often hydrates after tab click.
+    """
+    deadline = time.time() + max(timeout_ms, 500) / 1000.0
+    last_rows: List[Dict[str, Any]] = []
+    while time.time() < deadline:
+        try:
+            rows = extract_nearby_by_header(page, header_text)
+            if rows:
+                return rows
+            last_rows = rows
+        except Exception:
+            pass
+        try:
+            rows2 = extract_nearby_from_text_fallback(page, header_text)
+            if rows2:
+                return rows2
+        except Exception:
+            pass
+        page.wait_for_timeout(250)
+    return last_rows
+
+
+def click_tab_js_fallback(page, name: str) -> bool:
+    """
+    JS fallback click for tabs when Playwright locator-based clicks are flaky.
+    """
+    try:
+        ok = page.evaluate(
+            """
+            (tabName) => {
+              const norm = (s) => (s || '').replace(/\\s+/g, ' ').trim().toLowerCase();
+              const want = norm(tabName);
+              const candidates = Array.from(document.querySelectorAll('[role="tab"], button, a, [role="button"]'));
+              for (const el of candidates) {
+                const txt = norm(el.innerText || el.textContent || '');
+                if (!txt) continue;
+                if (txt !== want && !txt.includes(want)) continue;
+                const rect = el.getBoundingClientRect();
+                const visible = rect.width > 0 && rect.height > 0;
+                if (!visible) continue;
+                try { el.scrollIntoView({block: 'center', inline: 'center'}); } catch (e) {}
+                el.click();
+                return true;
+              }
+              return false;
+            }
+            """,
+            name,
+        )
+        return bool(ok)
+    except Exception:
+        return False
+
+
+def activate_tab(page, name: str, timeout_ms: int = 7000) -> None:
+    last = None
+    try:
+        click_tab(page, name, timeout_ms=timeout_ms)
+        wait_tab_active(page, name, timeout_ms=timeout_ms)
+        return
+    except Exception as e:
+        last = e
+
+    try:
+        if click_tab_js_fallback(page, name):
+            page.wait_for_timeout(300)
+            wait_tab_active(page, name, timeout_ms=timeout_ms)
+            return
+    except Exception as e:
+        last = e
+
+    if last:
+        raise last
+    raise RuntimeError(f"Failed to activate tab: {name}")
+
+
 def extract_nearby_by_header(page, header_text: str) -> List[Dict[str, Any]]:
     """
-    Parse rows like: "<name> 0.2 miles" from the container that includes header_text.
+    Parse nearby rows by DOM structure:
+    - locate the target panel by header_text
+    - for each "<num> miles" node, resolve its row container
+    - pick the primary title line from that row as name
     """
     data = page.evaluate(
         """
         (hdr) => {
           const norm = (s) => (s || '').replace(/\\u00a0/g,' ').replace(/\\s+/g,' ').trim();
           const hdrLower = (hdr || '').toLowerCase();
-          const mileRe = /(\\d+(?:\\.\\d+)?)\\s*miles?/i;
+          const mileRe = /^(\\d+(?:\\.\\d+)?)\\s*miles?$/i;
 
           const els = Array.from(document.querySelectorAll('*'));
           let headerEl = null;
 
-          // Find header element by text match (exact or contains)
           for (const el of els) {
             const t = norm(el.innerText);
             if (!t) continue;
@@ -1081,49 +1206,248 @@ def extract_nearby_by_header(page, header_text: str) -> List[Dict[str, Any]]:
           }
           if (!headerEl) return [];
 
-          // Climb up to a container that likely holds the list
           let container = headerEl;
-          for (let i=0; i<12; i++) {
+          for (let i = 0; i < 12; i++) {
             if (!container.parentElement) break;
             const cand = container.parentElement;
-            const txt = norm(cand.innerText);
-            const matches = (txt.match(new RegExp(mileRe.source, 'ig')) || []).length;
-            if (matches >= 1) container = cand;
+            const lines = norm(cand.innerText).split(/\\n+/).map(norm).filter(Boolean);
+            const mileCount = lines.filter(x => mileRe.test(x)).length;
+            if (mileCount >= 1) container = cand;
             else break;
           }
-
-          const lines = (container.innerText || '').split(/\\n+/).map(norm).filter(Boolean);
 
           const out = [];
           const seen = new Set();
 
-          for (const line of lines) {
-            const m = line.match(/^(.+?)\\s+(\\d+(?:\\.\\d+)?)\\s*miles?$/i);
-            if (!m) continue;
+          const invalidLine = (line) => {
+            const low = norm(line).toLowerCase();
+            if (!low) return true;
+            if (mileRe.test(low)) return true;
+            if (low.includes('nearest stations') || low.includes('nearest schools')) return true;
+            if (low === 'stations' || low === 'schools' || low === 'my places') return true;
+            if (low.startsWith('type:') || low.startsWith('rating:') || low.startsWith('ofsted:')) return true;
+            if (low === 'state school' || low === 'independent school') return true;
+            if (low.startsWith('state school') || low.startsWith('independent school')) return true;
+            if (low.includes(' | ')) return true;
+            return false;
+          };
 
-            const name = norm(m[1]);
-            const miles = parseFloat(m[2]);
-            if (!name || Number.isNaN(miles)) continue;
+          const parseRow = (rowEl) => {
+            const rowLines = norm(rowEl.innerText).split(/\\n+/).map(norm).filter(Boolean);
+            if (!rowLines.length) return null;
 
-            const low = name.toLowerCase();
-            if (low.includes('open map') || low.includes('street view')) continue;
-            if (low.includes('nearest stations') || low.includes('nearest schools')) continue;
-            if (low === 'stations' || low === 'schools' || low === 'my places') continue;
+            let miles = null;
+            let mileIdx = -1;
+            for (let i = 0; i < rowLines.length; i++) {
+              const mm = rowLines[i].match(mileRe);
+              if (mm) {
+                miles = parseFloat(mm[1]);
+                mileIdx = i;
+                break;
+              }
+            }
+            if (miles === null || Number.isNaN(miles)) return null;
 
-            const key = name + '|' + miles;
-            if (seen.has(key)) continue;
-            seen.add(key);
+            let name = null;
+            // Prefer explicit title-like nodes (a/h*) over free text lines.
+            const anchors = Array.from(rowEl.querySelectorAll('a, h3, h2, [role="link"]'));
+            for (const a of anchors) {
+              const t = norm(a.innerText || a.textContent || '');
+              if (!invalidLine(t)) {
+                name = t;
+                break;
+              }
+            }
 
-            out.push({ name, miles });
+            if (!name && mileIdx > 0) {
+              for (let i = mileIdx - 1; i >= 0; i--) {
+                const cand = rowLines[i];
+                if (!invalidLine(cand)) {
+                  name = cand;
+                  break;
+                }
+              }
+            }
+
+            if (!name || invalidLine(name)) return null;
+            return { name, miles };
+          };
+
+          // Strategy A (preferred): icon-anchored row extraction.
+          // Schools rows have a leading icon; using it is more stable than text heuristics.
+          const iconSelectors = [
+            'svg',
+            'img',
+            '[data-testid*="icon"]',
+            '[class*="icon"]',
+          ];
+          const iconNodes = [];
+          for (const sel of iconSelectors) {
+            for (const n of Array.from(container.querySelectorAll(sel))) {
+              iconNodes.push(n);
+            }
           }
 
-          out.sort((a,b) => a.miles - b.miles);
+          for (const icon of iconNodes) {
+            let row = icon;
+            let found = false;
+            for (let i = 0; i < 8; i++) {
+              if (!row) break;
+              const txt = norm(row.innerText);
+              if (txt && txt.split(/\\n+/).some(line => mileRe.test(norm(line)))) {
+                found = true;
+                break;
+              }
+              row = row.parentElement;
+            }
+            if (!found || !row) continue;
+
+            const parsed = parseRow(row);
+            if (!parsed) continue;
+            const key = parsed.name + '|' + parsed.miles;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            out.push(parsed);
+          }
+
+          if (out.length > 0) {
+            out.sort((a, b) => a.miles - b.miles);
+            return out;
+          }
+
+          // Strategy B: distance-node anchored fallback.
+          const all = Array.from(container.querySelectorAll('*'));
+          const mileNodes = all.filter(el => mileRe.test(norm(el.innerText)));
+
+          for (const node of mileNodes) {
+            const milesText = norm(node.innerText);
+            const mm = milesText.match(mileRe);
+            if (!mm) continue;
+
+            let row = node;
+            for (let i = 0; i < 6; i++) {
+              if (!row.parentElement) break;
+              row = row.parentElement;
+              const txt = norm(row.innerText);
+              if (!txt) continue;
+              const lines = txt.split(/\\n+/).map(norm).filter(Boolean);
+              if (lines.length >= 2) break;
+            }
+
+            const parsed = parseRow(row);
+            if (!parsed) continue;
+            const key = parsed.name + '|' + parsed.miles;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            out.push(parsed);
+          }
+
+          out.sort((a, b) => a.miles - b.miles);
           return out;
         }
         """,
         header_text,
     )
     return data if isinstance(data, list) else []
+
+
+def extract_nearby_from_text_fallback(page, header_text: str) -> List[Dict[str, Any]]:
+    """
+    Text-based fallback parser for Rightmove tabs.
+    Works when DOM selectors are unstable but the tab text is visible.
+    """
+    body_text = page.inner_text("body")
+    lines = [clean_text(x) for x in body_text.splitlines()]
+    lines = [x for x in lines if x]
+    hdr = header_text.lower()
+
+    start = -1
+    for i, line in enumerate(lines):
+        if hdr in line.lower():
+            start = i
+            break
+    if start < 0:
+        return []
+
+    out: List[Dict[str, Any]] = []
+    miles_only_re = re.compile(r"^(\d+(?:\.\d+)?)\s*miles?$", re.IGNORECASE)
+    full_re = re.compile(r"^(.+?)\s+(\d+(?:\.\d+)?)\s*miles?$", re.IGNORECASE)
+
+    stop_tokens = {
+        "show more on map",
+        "my places",
+        "stations",
+        "schools",
+        "nearest stations",
+        "nearest schools",
+    }
+    meta_prefixes = ("type:", "rating:", "ofsted:", "state school", "independent school")
+
+    for line in lines[start + 1 : start + 200]:
+        low = line.lower()
+        if low in stop_tokens:
+            continue
+        if "ofsted information displayed" in low:
+            break
+        if "show more on map" in low:
+            break
+        if low.startswith("to check broadband") or low.startswith("council tax"):
+            break
+        if low.startswith(meta_prefixes):
+            continue
+        if " | " in line and ("ofsted" in low or "state school" in low):
+            continue
+
+        m_full = full_re.match(line)
+        if m_full:
+            name = clean_text(m_full.group(1))
+            miles = float(m_full.group(2))
+            out.append({"name": name, "miles": miles})
+            continue
+
+        m_miles = miles_only_re.match(line)
+        if m_miles and out:
+            # Distance may appear on next line after school name.
+            if out[-1].get("miles") is None:
+                out[-1]["miles"] = float(m_miles.group(1))
+            continue
+
+        # Candidate school/station name line without distance on same line.
+        if (
+            not low.startswith(meta_prefixes)
+            and " miles" not in low
+            and " | " not in line
+            and ":" not in line
+            and len(line) > 2
+            and len(line) < 120
+            and not low.startswith("nearest ")
+        ):
+            out.append({"name": line, "miles": None})
+
+    # Keep only rows with name and miles.
+    cleaned: List[Dict[str, Any]] = []
+    seen = set()
+    for row in out:
+        name = clean_text(str(row.get("name") or ""))
+        miles = row.get("miles")
+        low_name = name.lower()
+        if (
+            not name
+            or miles is None
+            or low_name.startswith(meta_prefixes)
+            or low_name == "state school"
+            or low_name == "independent school"
+            or low_name in stop_tokens
+        ):
+            continue
+        key = f"{name}|{miles}"
+        if key in seen:
+            continue
+        seen.add(key)
+        cleaned.append({"name": name, "miles": float(miles)})
+
+    cleaned.sort(key=lambda x: x["miles"])
+    return cleaned
 
 
 def dismiss_onetrust(page) -> None:
@@ -1179,15 +1503,35 @@ def fetch_rendered_html_and_nearby(url: str, timeout_ms: int = 45_000) -> Tuple[
         )
         page.wait_for_timeout(500)
 
-        # Stations tab -> wait -> extract
-        click_tab(page, "Stations", timeout_ms=6000)
-        wait_nearest_header(page, "NEAREST STATIONS", timeout_ms=12000)
-        stations = extract_nearby_by_header(page, "NEAREST STATIONS")
+        stations: List[Dict[str, Any]] = []
+        schools: List[Dict[str, Any]] = []
 
-        # Schools tab -> wait -> extract
-        click_tab(page, "Schools", timeout_ms=6000)
-        wait_nearest_header(page, "NEAREST SCHOOLS", timeout_ms=12000)
-        schools = extract_nearby_by_header(page, "NEAREST SCHOOLS")
+        # Stations and schools are optional enrichments: extraction failure should not fail the listing.
+        try:
+            activate_tab(page, "Stations", timeout_ms=7000)
+            wait_nearest_header(page, "NEAREST STATIONS", timeout_ms=12000)
+            stations = _extract_nearby_with_retry(page, "NEAREST STATIONS", timeout_ms=8000)
+        except Exception as e:
+            print(f"Warn: station extraction skipped for {url}: {e}")
+
+        try:
+            activate_tab(page, "Schools", timeout_ms=7000)
+            try:
+                wait_nearest_header(page, "NEAREST SCHOOLS", timeout_ms=12000)
+            except Exception:
+                # Some pages render schools rows first and header later.
+                page.wait_for_function(
+                    """
+                    () => {
+                      const t = (document.body.innerText || '').toLowerCase();
+                      return t.includes('type:') || t.includes('rating:') || t.includes('nearest schools');
+                    }
+                    """,
+                    timeout=10000,
+                )
+            schools = _extract_nearby_with_retry(page, "NEAREST SCHOOLS", timeout_ms=10000)
+        except Exception as e:
+            print(f"Warn: school extraction skipped for {url}: {e}")
 
         html = page.content()
         browser.close()
@@ -1517,6 +1861,8 @@ def build_record_from_html(
     # 所以这里也可以用 check_val，或者视情况调整
     rec.description = extract_description(soup) or "Ask agent" 
     rec.features    = extract_features(soup) or "Ask agent"
+    rec.stations = stations if stations else "Ask agent"
+    rec.schools = schools if schools else "Ask agent"
 
     return rec
 
