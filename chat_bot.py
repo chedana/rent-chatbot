@@ -30,6 +30,12 @@ Schema:
   "bathrooms_op": string|null,
   "available_from": string|null,
   "available_from_op": string|null,
+  "furnish_type": string|null,
+  "let_type": string|null,
+  "property_type": string|null,
+  "min_tenancy_months": number|null,
+  "min_size_sqm": number|null,
+  "min_size_sqft": number|null,
   "location_keywords": string[],
   "must_have_keywords": string[],
   "k": int|null
@@ -52,6 +58,13 @@ Rules:
 - Set available_from/available_from_op as:
   - "available from DATE" -> {"available_from": "DATE", "available_from_op": "gte"}
   - "available by/before DATE" -> {"available_from": "DATE", "available_from_op": "lte"}
+- furnish_type should be one of: "furnished", "unfurnished", "part-furnished", or null.
+- let_type examples: "long term", "short term", or null.
+- property_type examples: "flat", "apartment", "studio", "house", or null.
+- min_tenancy_months is numeric months (e.g., 6, 12) when user specifies tenancy term.
+- size constraints:
+  - "at least X sqm/sq m/m2" -> min_size_sqm = X
+  - "at least X sqft/sq ft/ft2" -> min_size_sqft = X
 - If unknown use null or [].
 """
 
@@ -93,6 +106,12 @@ def llm_extract(user_text: str, existing_constraints: Optional[dict]) -> dict:
     obj.setdefault("bathrooms_op", None)
     obj.setdefault("available_from", None)
     obj.setdefault("available_from_op", None)
+    obj.setdefault("furnish_type", None)
+    obj.setdefault("let_type", None)
+    obj.setdefault("property_type", None)
+    obj.setdefault("min_tenancy_months", None)
+    obj.setdefault("min_size_sqm", None)
+    obj.setdefault("min_size_sqft", None)
     obj.setdefault("location_keywords", [])
     obj.setdefault("must_have_keywords", [])
     return obj
@@ -185,6 +204,47 @@ def normalize_constraints(c: dict) -> dict:
     if c.get("available_from") is not None and c.get("available_from_op") is None:
         c["available_from_op"] = "gte"
 
+    def _norm_cat_text(v: Any) -> Optional[str]:
+        s = _safe_text(v).lower()
+        if not s:
+            return None
+        s = s.replace("_", " ").replace("-", " ")
+        s = re.sub(r"\s+", " ", s).strip()
+        return s or None
+
+    furn = _norm_cat_text(c.get("furnish_type"))
+    if furn:
+        if "unfurn" in furn:
+            furn = "unfurnished"
+        elif "part" in furn and "furnish" in furn:
+            furn = "part-furnished"
+        elif "furnish" in furn:
+            furn = "furnished"
+    c["furnish_type"] = furn
+    c["let_type"] = _norm_cat_text(c.get("let_type"))
+    c["property_type"] = _norm_cat_text(c.get("property_type"))
+
+    if c.get("min_tenancy_months") is not None:
+        try:
+            c["min_tenancy_months"] = float(c.get("min_tenancy_months"))
+        except Exception:
+            c["min_tenancy_months"] = None
+
+    if c.get("min_size_sqm") is not None:
+        try:
+            c["min_size_sqm"] = float(c.get("min_size_sqm"))
+        except Exception:
+            c["min_size_sqm"] = None
+    if c.get("min_size_sqft") is not None:
+        try:
+            c["min_size_sqft"] = float(c.get("min_size_sqft"))
+        except Exception:
+            c["min_size_sqft"] = None
+    # merge size constraints into a single canonical hard filter in sqm
+    if c.get("min_size_sqm") is None and c.get("min_size_sqft") is not None:
+        c["min_size_sqm"] = float(c["min_size_sqft"]) * 0.092903
+    c.pop("min_size_sqft", None)
+
     locs = []
     must = set([str(x).strip() for x in (c.get("must_have_keywords") or []) if str(x).strip()])
     for x in (c.get("location_keywords") or []):
@@ -213,6 +273,12 @@ def merge_constraints(old: Optional[dict], new: dict) -> dict:
         "bathrooms_op",
         "available_from",
         "available_from_op",
+        "furnish_type",
+        "let_type",
+        "property_type",
+        "min_tenancy_months",
+        "min_size_sqm",
+        "min_size_sqft",
         "k",
     ]:
         if new.get(key) is not None:
@@ -266,6 +332,7 @@ def summarize_constraint_changes(old_c: Optional[dict], new_c: dict) -> str:
         "bathrooms", "bathrooms_op",
         "available_from", "available_from_op",
         "furnish_type", "let_type", "property_type",
+        "min_tenancy_months", "min_size_sqm",
         "k",
     ]
     changes = []
@@ -313,6 +380,7 @@ def compact_constraints_view(c: Optional[dict]) -> dict:
         "bathrooms", "bathrooms_op",
         "available_from", "available_from_op",
         "furnish_type", "let_type", "property_type",
+        "min_tenancy_months", "min_size_sqm",
         "location_keywords", "must_have_keywords",
         "k",
     ]
@@ -347,6 +415,16 @@ def constraints_to_query_hint(c: dict) -> str:
             parts.append(f"available from {c['available_from']}")
         else:
             parts.append(f"available by {c['available_from']}")
+    if c.get("furnish_type"):
+        parts.append(str(c.get("furnish_type")))
+    if c.get("let_type"):
+        parts.append(str(c.get("let_type")))
+    if c.get("property_type"):
+        parts.append(str(c.get("property_type")))
+    if c.get("min_tenancy_months") is not None:
+        parts.append(f"min tenancy {float(c['min_tenancy_months']):g} months")
+    if c.get("min_size_sqm") is not None:
+        parts.append(f"at least {float(c['min_size_sqm']):g} sqm")
     for x in (c.get("location_keywords") or [])[:5]:
         parts.append(x)
     for x in (c.get("must_have_keywords") or [])[:5]:
@@ -458,6 +536,8 @@ def decide_route(c: dict) -> str:
         "furnish_type",
         "let_type",
         "property_type",
+        "min_tenancy_months",
+        "min_size_sqm",
     ]
     hard_count = sum(1 for k in hard_fields if c.get(k) is not None)
 
@@ -646,6 +726,11 @@ def split_query_signals(user_in: str, c: Dict[str, Any]) -> Dict[str, Any]:
             "bathrooms_op": c.get("bathrooms_op"),
             "available_from": c.get("available_from"),
             "available_from_op": c.get("available_from_op"),
+            "furnish_type": c.get("furnish_type"),
+            "let_type": c.get("let_type"),
+            "property_type": c.get("property_type"),
+            "min_tenancy_months": c.get("min_tenancy_months"),
+            "min_size_sqm": c.get("min_size_sqm"),
         },
         "location_intent": location_intent,
         "topic_preferences": {
@@ -692,6 +777,38 @@ def apply_hard_filters_with_audit(df: pd.DataFrame, c: Dict[str, Any]) -> Tuple[
         reasons: List[str] = []
         checks: Dict[str, Any] = {}
 
+        def _norm_cat_text(v: Any) -> str:
+            s = _safe_text(v).lower()
+            if not s:
+                return ""
+            s = s.replace("_", " ").replace("-", " ")
+            s = re.sub(r"\s+", " ", s).strip()
+            return s
+
+        def _norm_furnish(v: Any) -> str:
+            s = _norm_cat_text(v)
+            if not s:
+                return ""
+            if "unfurn" in s:
+                return "unfurnished"
+            if "part" in s and "furnish" in s:
+                return "part-furnished"
+            if "furnish" in s:
+                return "furnished"
+            return s
+
+        def _parse_months(v: Any) -> Optional[float]:
+            s = _safe_text(v).lower()
+            if not s:
+                return None
+            m = re.search(r"(\d+(?:\.\d+)?)", s)
+            if not m:
+                return None
+            try:
+                return float(m.group(1))
+            except Exception:
+                return None
+
         bed_req = c.get("bedrooms")
         if bed_req is not None:
             bed_val = _to_float(r.get("bedrooms"))
@@ -734,6 +851,51 @@ def apply_hard_filters_with_audit(df: pd.DataFrame, c: Dict[str, Any]) -> Tuple[
                 reasons.append(
                     f"available_from {listing_dt.date().isoformat()} > {req_dt.date().isoformat()}"
                 )
+
+        furnish_req = _norm_furnish(c.get("furnish_type"))
+        if furnish_req:
+            furnish_val = _norm_furnish(r.get("furnish_type"))
+            checks["furnish_type"] = {"actual": furnish_val or None, "required": furnish_req, "op": "eq"}
+            if furnish_val and furnish_val != furnish_req:
+                reasons.append(f"furnish_type '{furnish_val}' != '{furnish_req}'")
+
+        let_req = _norm_cat_text(c.get("let_type"))
+        if let_req:
+            let_val = _norm_cat_text(r.get("let_type"))
+            checks["let_type"] = {"actual": let_val or None, "required": let_req, "op": "eq"}
+            if let_val and let_val != let_req:
+                reasons.append(f"let_type '{let_val}' != '{let_req}'")
+
+        prop_req = _norm_cat_text(c.get("property_type"))
+        if prop_req:
+            prop_val = _norm_cat_text(r.get("property_type"))
+            checks["property_type"] = {"actual": prop_val or None, "required": prop_req, "op": "eq"}
+            if prop_val and prop_val != prop_req:
+                reasons.append(f"property_type '{prop_val}' != '{prop_req}'")
+
+        tenancy_req = c.get("min_tenancy_months")
+        if tenancy_req is not None:
+            tenancy_val = _parse_months(r.get("min_tenancy"))
+            checks["min_tenancy_months"] = {
+                "actual": tenancy_val,
+                "required": float(tenancy_req),
+                "op": "eq",
+            }
+            if tenancy_val is not None and tenancy_val != float(tenancy_req):
+                reasons.append(f"min_tenancy_months {tenancy_val:g} != {float(tenancy_req):g}")
+
+        size_req = c.get("min_size_sqm")
+        if size_req is not None:
+            size_sqm = _to_float(r.get("size_sqm"))
+            size_sqft = _to_float(r.get("size_sqft"))
+            actual_sqm = size_sqm if size_sqm is not None else (size_sqft * 0.092903 if size_sqft is not None else None)
+            checks["min_size_sqm"] = {
+                "actual": actual_sqm,
+                "required": float(size_req),
+                "op": "gte",
+            }
+            if actual_sqm is not None and actual_sqm < float(size_req):
+                reasons.append(f"size_sqm {actual_sqm:g} < {float(size_req):g}")
 
         hard_pass = len(reasons) == 0
         if hard_pass:
@@ -1041,6 +1203,29 @@ def build_evidence_for_row(r: Dict[str, Any], c: Dict[str, Any], user_query: str
         fields["available_required"] = str(c["available_from"])
         fields["available_op"] = str(c.get("available_from_op") or "gte")
 
+    if c.get("min_tenancy_months") is not None:
+        try:
+            raw_t = _safe_text(r.get("min_tenancy"))
+            m = re.search(r"(\d+(?:\.\d+)?)", raw_t)
+            fields["min_tenancy_months"] = float(m.group(1)) if m else None
+            fields["min_tenancy_required_months"] = float(c["min_tenancy_months"])
+        except Exception:
+            fields["min_tenancy_months"] = None
+
+    if c.get("min_size_sqm") is not None:
+        try:
+            sq_m = pd.to_numeric(r.get("size_sqm"), errors="coerce")
+            sq_ft = pd.to_numeric(r.get("size_sqft"), errors="coerce")
+            actual_sqm = None
+            if not pd.isna(sq_m):
+                actual_sqm = float(sq_m)
+            elif not pd.isna(sq_ft):
+                actual_sqm = float(sq_ft) * 0.092903
+            fields["size_sqm"] = actual_sqm
+            fields["min_size_required_sqm"] = float(c["min_size_sqm"])
+        except Exception:
+            fields["size_sqm"] = None
+
     # Always include key listing fields, even when no hard constraints were extracted.
     fields["price_pcm"] = None if pd.isna(pd.to_numeric(r.get("price_pcm"), errors="coerce")) else float(pd.to_numeric(r.get("price_pcm"), errors="coerce"))
     fields["bedrooms"] = None if pd.isna(pd.to_numeric(r.get("bedrooms"), errors="coerce")) else int(float(pd.to_numeric(r.get("bedrooms"), errors="coerce")))
@@ -1170,6 +1355,11 @@ def run_chat():
                         "bathrooms_op": None,
                         "available_from": None,
                         "available_from_op": None,
+                        "furnish_type": None,
+                        "let_type": None,
+                        "property_type": None,
+                        "min_tenancy_months": None,
+                        "min_size_sqm": None,
                     }
                 else:
                     state["constraints"]["k"] = n
@@ -1298,7 +1488,7 @@ def run_chat():
         )
 
         if len(filtered) < k:
-            print("\nBot> 符合当前价格/卧室/卫生间/入住时间条件的房源不足。你可以放宽预算或修改约束。")
+            print("\nBot> 符合当前硬性条件（价格/卧室/卫生间/入住时间/配置/租期/面积）的房源不足。你可以放宽预算或修改约束。")
             df = ranked.reset_index(drop=True)
         else:
             df = ranked.head(k).reset_index(drop=True)
