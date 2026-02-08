@@ -641,6 +641,7 @@ def run_chat():
             filtered["unknown_penalty"] = filtered["unknown_penalty"].clip(upper=UNKNOWN_PENALTY_CAP)
 
             # soft must-have preferences: miss => penalty, hit => bonus
+            ###
             must_keywords = [str(x).strip().lower() for x in (c.get("must_have_keywords") or []) if str(x).strip()]
             filtered["preference_score"] = 0.0
             filtered["violation_soft_penalty"] = 0.0
