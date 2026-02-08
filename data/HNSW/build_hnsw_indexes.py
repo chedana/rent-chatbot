@@ -106,7 +106,22 @@ def as_list(x: Any) -> List[str]:
         return [p for p in parts if p and p.lower() != ASK.lower()]
     return [s]
 
-def build_listing_text(r: Dict[str, Any]) -> str:
+def clean_description(desc: Any, max_paras: int, max_chars: int = 2400) -> str:
+    raw = safe_str(desc)
+    if not raw:
+        return ""
+    paras = [p.strip() for p in raw.split(PARA_DELIM) if p.strip()]
+    out = " ".join(paras[:max_paras]).strip()
+    if len(out) > max_chars:
+        out = out[:max_chars].rsplit(" ", 1)[0].strip()
+    return out
+
+def join_items(items: List[str], max_items: int) -> str:
+    if not items:
+        return ""
+    return "; ".join([x for x in items[:max_items] if x.strip()])
+
+def build_listing_text(r: Dict[str, Any], cfg: Dict[str, int]) -> str:
     title = safe_str(r.get("title"))
     addr  = safe_str(r.get("address"))
     let_type = safe_str(r.get("let_type"))
@@ -117,7 +132,16 @@ def build_listing_text(r: Dict[str, Any]) -> str:
     price = safe_str(r.get("price_pcm"))
 
     feats = as_list(r.get("features"))
-    feats_txt = "; ".join(feats[:30])
+    stations = as_list(r.get("stations"))
+    schools = as_list(r.get("schools"))
+    desc = clean_description(
+        r.get("description"),
+        max_paras=cfg["max_desc_paras"],
+        max_chars=cfg["max_desc_chars"],
+    )
+    feats_txt = join_items(feats, cfg["max_features"])
+    stations_txt = join_items(stations, cfg["max_stations"])
+    schools_txt = join_items(schools, cfg["max_schools"])
 
     parts = [
         title,
@@ -126,9 +150,25 @@ def build_listing_text(r: Dict[str, Any]) -> str:
         f"Price: {price} pcm" if price else "",
         f"Let: {let_type} | Furnished: {furn}" if (let_type or furn) else "",
         f"Type: {ptype}" if ptype else "",
-        f"Features: {feats_txt}" if feats_txt else "",
-        f"Features: {feats_txt}" if feats_txt else "",  # mild weighting
     ]
+    if feats_txt:
+        for _ in range(max(1, cfg["w_features"])):
+            parts.append(f"Features: {feats_txt}")
+    if stations_txt:
+        for _ in range(max(1, cfg["w_stations"])):
+            parts.append(f"Stations: {stations_txt}")
+    if schools_txt:
+        for _ in range(max(1, cfg["w_schools"])):
+            parts.append(f"Schools: {schools_txt}")
+    if desc:
+        for _ in range(max(1, cfg["w_description"])):
+            parts.append(f"Description: {desc}")
+
+    parts.extend([
+        f"Nearby transport: {stations_txt}" if stations_txt else "",
+        f"Nearby schools: {schools_txt}" if schools_txt else "",
+        f"About this home: {desc}" if desc else "",
+    ])
     return "\n".join([p for p in parts if p]).strip()
 
 def make_hnsw_ip_index(dim: int) -> faiss.Index:
@@ -202,13 +242,22 @@ def parse_args() -> argparse.Namespace:
         default=DEFAULT_HNSW_OUT_DIR,
         help="Output directory for HNSW indexes and metadata.",
     )
+    parser.add_argument("--max-desc-paras", type=int, default=8, help="Max description paragraphs included per listing.")
+    parser.add_argument("--max-desc-chars", type=int, default=2400, help="Max description chars included per listing.")
+    parser.add_argument("--max-features", type=int, default=40, help="Max feature items included per listing.")
+    parser.add_argument("--max-stations", type=int, default=20, help="Max station items included per listing.")
+    parser.add_argument("--max-schools", type=int, default=20, help="Max school items included per listing.")
+    parser.add_argument("--w-features", type=int, default=2, help="Embedding text weight for features section.")
+    parser.add_argument("--w-stations", type=int, default=3, help="Embedding text weight for stations section.")
+    parser.add_argument("--w-schools", type=int, default=2, help="Embedding text weight for schools section.")
+    parser.add_argument("--w-description", type=int, default=2, help="Embedding text weight for description section.")
     return parser.parse_args()
 
 
 # ----------------------------
 # Main
 # ----------------------------
-def build_indexes(in_jsonl: str, out_dir: str):
+def build_indexes(in_jsonl: str, out_dir: str, cfg: Dict[str, int]):
     os.makedirs(out_dir, exist_ok=True)
     faiss.omp_set_num_threads(max(1, (os.cpu_count() or 1) - 1))
 
@@ -230,9 +279,18 @@ def build_indexes(in_jsonl: str, out_dir: str):
         if not url:
             continue
 
-        text = build_listing_text(r)
+        text = build_listing_text(r, cfg)
         if not text:
             continue
+
+        features_txt = join_items(as_list(r.get("features")), cfg["max_features"])
+        stations_txt = join_items(as_list(r.get("stations")), cfg["max_stations"])
+        schools_txt = join_items(as_list(r.get("schools")), cfg["max_schools"])
+        desc_txt = clean_description(
+            r.get("description"),
+            max_paras=cfg["max_desc_paras"],
+            max_chars=cfg["max_desc_chars"],
+        )
 
         listing_texts.append(text)
 
@@ -251,6 +309,10 @@ def build_indexes(in_jsonl: str, out_dir: str):
             "property_type": r.get("property_type", ""),
             "available_from": r.get("available_from", ""),
             "added_date": r.get("added_date", ""),
+            "description": desc_txt,
+            "features": features_txt,
+            "stations": stations_txt,
+            "schools": schools_txt,
             "text_for_embedding": text,
         })
 
@@ -345,6 +407,18 @@ def build_indexes(in_jsonl: str, out_dir: str):
 if __name__ == "__main__":
     args = parse_args()
     in_jsonl = args.in_jsonl or find_latest_clean_jsonl(args.web_output_root)
+    cfg = {
+        "max_desc_paras": max(1, int(args.max_desc_paras)),
+        "max_desc_chars": max(200, int(args.max_desc_chars)),
+        "max_features": max(1, int(args.max_features)),
+        "max_stations": max(1, int(args.max_stations)),
+        "max_schools": max(1, int(args.max_schools)),
+        "w_features": max(1, int(args.w_features)),
+        "w_stations": max(1, int(args.w_stations)),
+        "w_schools": max(1, int(args.w_schools)),
+        "w_description": max(1, int(args.w_description)),
+    }
     print(f"Input JSONL: {in_jsonl}")
     print(f"Output dir : {args.out_dir}")
-    build_indexes(in_jsonl=in_jsonl, out_dir=args.out_dir)
+    print(f"Build cfg  : {json.dumps(cfg, ensure_ascii=False)}")
+    build_indexes(in_jsonl=in_jsonl, out_dir=args.out_dir, cfg=cfg)

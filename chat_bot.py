@@ -2,6 +2,8 @@ import os
 import sys
 import re
 import json
+from datetime import datetime
+from urllib.parse import urlparse
 from typing import Dict, Any, List, Tuple, Optional
 
 import numpy as np
@@ -352,6 +354,29 @@ def constraints_to_query_hint(c: dict) -> str:
     return " | ".join(parts)
 
 
+def infer_soft_keywords_from_query(user_text: str) -> List[str]:
+    if not user_text:
+        return []
+    stop_words = {
+        "the", "and", "for", "with", "near", "from", "rent", "flat", "apartment",
+        "bed", "bath", "budget", "pcm", "in", "to", "of", "a", "an", "at",
+        "need", "want", "looking", "around", "about", "please", "london",
+    }
+    toks = re.findall(r"[A-Za-z0-9]{3,}", user_text.lower())
+    out = []
+    seen = set()
+    for t in toks:
+        if t in stop_words:
+            continue
+        if t.isdigit():
+            continue
+        if t in seen:
+            continue
+        seen.add(t)
+        out.append(t)
+    return out
+
+
 # project root = this file's directory
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 NEW_INDEX_DIR = os.path.join(ROOT_DIR, "artifacts", "hnsw", "index")
@@ -384,6 +409,21 @@ FAISS_SCORE_WEIGHT = float(os.environ.get("RENT_FAISS_WEIGHT", "0.35"))
 PREFERENCE_SCORE_WEIGHT = float(os.environ.get("RENT_PREF_WEIGHT", "1.0"))
 UNKNOWN_PENALTY_WEIGHT = float(os.environ.get("RENT_UNKNOWN_PENALTY_WEIGHT", "1.0"))
 SOFT_PENALTY_WEIGHT = float(os.environ.get("RENT_SOFT_PENALTY_WEIGHT", "1.0"))
+RANKING_LOG_PATH = os.environ.get(
+    "RENT_RANKING_LOG_PATH",
+    os.path.join(ROOT_DIR, "artifacts", "debug", "ranking_log.jsonl"),
+)
+
+TRANSIT_KEYWORDS = [
+    "tube", "station", "underground", "metro", "rail", "dlr", "overground",
+    "line", "jubilee", "elizabeth", "central", "northern", "victoria",
+    "piccadilly", "district", "circle", "bakerloo", "waterloo", "city",
+    "crossrail", "commute",
+]
+SCHOOL_KEYWORDS = [
+    "school", "schools", "university", "college", "campus", "ucl",
+    "imperial", "kcl", "kings", "lse", "qmul", "queen mary", "student",
+]
 
 ROUTE_WEIGHT_TEMPLATES = {
     "HARD_DOMINANT": {
@@ -494,6 +534,357 @@ def faiss_search(index, embedder, meta: pd.DataFrame, query: str, recall: int) -
     # Do not truncate to k before hard filters. We need a larger recall pool first.
     return pd.DataFrame(rows).reset_index(drop=True)
 
+
+def _safe_text(v: Any) -> str:
+    if v is None:
+        return ""
+    s = str(v).strip()
+    if s.lower() in ("", "nan", "none", "ask agent"):
+        return ""
+    return s
+
+
+def _to_float(v: Any) -> Optional[float]:
+    try:
+        if v is None:
+            return None
+        s = re.sub(r"[^\d\.\-]", "", str(v))
+        if not s:
+            return None
+        return float(s)
+    except Exception:
+        return None
+
+
+def parse_jsonish_items(v: Any) -> List[str]:
+    s = _safe_text(v)
+    if not s:
+        return []
+    if isinstance(v, list):
+        out = []
+        for it in v:
+            t = _safe_text(it)
+            if t:
+                out.append(t)
+        return out
+    if s.startswith("[") or s.startswith("{"):
+        try:
+            parsed = json.loads(s)
+            out: List[str] = []
+            if isinstance(parsed, list):
+                for it in parsed:
+                    if isinstance(it, dict):
+                        name = _safe_text(it.get("name"))
+                        miles = _safe_text(it.get("miles"))
+                        if name and miles:
+                            out.append(f"{name} ({miles} miles)")
+                        elif name:
+                            out.append(name)
+                    else:
+                        t = _safe_text(it)
+                        if t:
+                            out.append(t)
+                return out
+            if isinstance(parsed, dict):
+                name = _safe_text(parsed.get("name"))
+                miles = _safe_text(parsed.get("miles"))
+                if name and miles:
+                    return [f"{name} ({miles} miles)"]
+                if name:
+                    return [name]
+        except Exception:
+            pass
+    if "|" in s:
+        return [_safe_text(x) for x in s.split("|") if _safe_text(x)]
+    return [s]
+
+
+def tokenize_query(s: str) -> List[str]:
+    if not s:
+        return []
+    return re.findall(r"[a-z0-9]{2,}", s.lower())
+
+
+def split_query_signals(user_in: str, c: Dict[str, Any]) -> Dict[str, Any]:
+    c = c or {}
+    must_keywords = [str(x).strip().lower() for x in (c.get("must_have_keywords") or []) if str(x).strip()]
+    location_intent = [str(x).strip() for x in (c.get("location_keywords") or []) if str(x).strip()]
+
+    transit_terms: List[str] = []
+    school_terms: List[str] = []
+    for kw in must_keywords:
+        if any(t in kw for t in TRANSIT_KEYWORDS):
+            transit_terms.append(kw)
+        elif any(t in kw for t in SCHOOL_KEYWORDS):
+            school_terms.append(kw)
+
+    raw_tokens = infer_soft_keywords_from_query(user_in)
+    for tok in raw_tokens:
+        if tok in transit_terms or tok in school_terms:
+            continue
+        if any(t in tok for t in TRANSIT_KEYWORDS):
+            transit_terms.append(tok)
+        elif any(t in tok for t in SCHOOL_KEYWORDS):
+            school_terms.append(tok)
+
+    excluded = set([x.lower() for x in transit_terms + school_terms + location_intent])
+    general_semantic = []
+    seen = set()
+    for tok in raw_tokens + must_keywords:
+        t = tok.lower().strip()
+        if not t or t in excluded or t in seen:
+            continue
+        seen.add(t)
+        general_semantic.append(t)
+
+    return {
+        "hard_constraints": {
+            "max_rent_pcm": c.get("max_rent_pcm"),
+            "bedrooms": c.get("bedrooms"),
+            "bedrooms_op": c.get("bedrooms_op"),
+            "bathrooms": c.get("bathrooms"),
+            "bathrooms_op": c.get("bathrooms_op"),
+            "available_from": c.get("available_from"),
+            "available_from_op": c.get("available_from_op"),
+        },
+        "location_intent": location_intent,
+        "topic_preferences": {
+            "transit_terms": list(dict.fromkeys(transit_terms)),
+            "school_terms": list(dict.fromkeys(school_terms)),
+        },
+        "general_semantic": general_semantic,
+    }
+
+
+def build_stage_a_query(signals: Dict[str, Any], user_in: str) -> str:
+    parts: List[str] = []
+    parts.extend([x for x in signals.get("location_intent", []) if str(x).strip()])
+    parts.extend([x for x in signals.get("general_semantic", []) if str(x).strip()])
+    if not parts:
+        return user_in
+    return " | ".join(parts[:20])
+
+
+def candidate_snapshot(r: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "url": _safe_text(r.get("url")),
+        "title": _safe_text(r.get("title")),
+        "address": _safe_text(r.get("address")),
+        "price_pcm": _to_float(r.get("price_pcm")),
+        "bedrooms": _to_float(r.get("bedrooms")),
+        "bathrooms": _to_float(r.get("bathrooms")),
+        "available_from": _safe_text(r.get("available_from")),
+        "faiss_score": _to_float(r.get("faiss_score")),
+        "_faiss_id": int(r.get("_faiss_id")) if r.get("_faiss_id") is not None else None,
+    }
+
+
+def apply_hard_filters_with_audit(df: pd.DataFrame, c: Dict[str, Any]) -> Tuple[pd.DataFrame, List[Dict[str, Any]]]:
+    c = c or {}
+    if df is None or len(df) == 0:
+        return df, []
+
+    keep_indices: List[int] = []
+    audits: List[Dict[str, Any]] = []
+
+    for idx, row in df.iterrows():
+        r = row.to_dict()
+        reasons: List[str] = []
+        checks: Dict[str, Any] = {}
+
+        bed_req = c.get("bedrooms")
+        if bed_req is not None:
+            bed_val = _to_float(r.get("bedrooms"))
+            op = str(c.get("bedrooms_op") or "eq").lower()
+            checks["bedrooms"] = {"actual": bed_val, "required": int(bed_req), "op": op}
+            if bed_val is not None:
+                if op == "gte" and bed_val < float(bed_req):
+                    reasons.append(f"bedrooms {bed_val:g} < {float(bed_req):g}")
+                if op != "gte" and int(round(bed_val)) != int(bed_req):
+                    reasons.append(f"bedrooms {bed_val:g} != {int(bed_req)}")
+
+        bath_req = c.get("bathrooms")
+        if bath_req is not None:
+            bath_val = _to_float(r.get("bathrooms"))
+            op = str(c.get("bathrooms_op") or "eq").lower()
+            checks["bathrooms"] = {"actual": bath_val, "required": float(bath_req), "op": op}
+            if bath_val is not None:
+                if op == "gte" and bath_val < float(bath_req):
+                    reasons.append(f"bathrooms {bath_val:g} < {float(bath_req):g}")
+                if op != "gte" and bath_val != float(bath_req):
+                    reasons.append(f"bathrooms {bath_val:g} != {float(bath_req):g}")
+
+        rent_req = c.get("max_rent_pcm")
+        if rent_req is not None:
+            rent_val = _to_float(r.get("price_pcm"))
+            checks["max_rent_pcm"] = {"actual": rent_val, "required": float(rent_req), "op": "lte"}
+            if rent_val is not None and rent_val > float(rent_req):
+                reasons.append(f"price {rent_val:g} > {float(rent_req):g}")
+
+        avail_req = c.get("available_from")
+        if avail_req is not None:
+            listing_dt = pd.to_datetime(r.get("available_from"), errors="coerce")
+            req_dt = pd.to_datetime(avail_req, errors="coerce")
+            checks["available_from"] = {
+                "actual": None if pd.isna(listing_dt) else listing_dt.date().isoformat(),
+                "required": None if pd.isna(req_dt) else req_dt.date().isoformat(),
+                "op": "lte",
+            }
+            if pd.notna(listing_dt) and pd.notna(req_dt) and listing_dt > req_dt:
+                reasons.append(
+                    f"available_from {listing_dt.date().isoformat()} > {req_dt.date().isoformat()}"
+                )
+
+        hard_pass = len(reasons) == 0
+        if hard_pass:
+            keep_indices.append(idx)
+
+        audits.append(
+            {
+                **candidate_snapshot(r),
+                "hard_pass": hard_pass,
+                "hard_fail_reasons": reasons,
+                "hard_checks": checks,
+                "score_formula": "hard_pass = all(active_hard_constraints_satisfied_or_unknown)",
+                "score": 1.0 if hard_pass else 0.0,
+            }
+        )
+
+    filtered = df.loc[keep_indices].copy().reset_index(drop=True)
+    return filtered, audits
+
+
+def _hit_ratio(text: str, terms: List[str]) -> Tuple[float, List[str]]:
+    if not terms:
+        return 0.0, []
+    text_l = text.lower()
+    hits = []
+    for t in terms:
+        tt = t.lower().strip()
+        if not tt:
+            continue
+        if re.search(re.escape(tt), text_l):
+            hits.append(tt)
+    uniq_hits = list(dict.fromkeys(hits))
+    return (len(uniq_hits) / max(1, len(list(dict.fromkeys([x.lower().strip() for x in terms if x.strip()]))))), uniq_hits
+
+
+def compute_stagec_weights(signals: Dict[str, Any]) -> Dict[str, float]:
+    has_transit = len(signals.get("topic_preferences", {}).get("transit_terms", [])) > 0
+    has_school = len(signals.get("topic_preferences", {}).get("school_terms", [])) > 0
+
+    if has_transit and has_school:
+        base = {"transit": 0.45, "school": 0.35, "preference": 0.20}
+        penalty = 0.35
+    elif has_transit:
+        base = {"transit": 0.65, "school": 0.00, "preference": 0.35}
+        penalty = 0.30
+    elif has_school:
+        base = {"transit": 0.00, "school": 0.65, "preference": 0.35}
+        penalty = 0.30
+    else:
+        base = {"transit": 0.00, "school": 0.00, "preference": 1.00}
+        penalty = 0.20
+    return {**base, "penalty": penalty}
+
+
+def rank_stage_c(filtered: pd.DataFrame, signals: Dict[str, Any]) -> Tuple[pd.DataFrame, Dict[str, float]]:
+    if filtered is None or len(filtered) == 0:
+        return filtered, compute_stagec_weights(signals)
+
+    out = filtered.copy()
+    weights = compute_stagec_weights(signals)
+    transit_terms = signals.get("topic_preferences", {}).get("transit_terms", [])
+    school_terms = signals.get("topic_preferences", {}).get("school_terms", [])
+    pref_terms = signals.get("general_semantic", [])
+    location_terms = [x.lower() for x in signals.get("location_intent", [])]
+
+    out["transit_score"] = 0.0
+    out["school_score"] = 0.0
+    out["preference_score"] = 0.0
+    out["penalty_score"] = 0.0
+    out["location_hit_count"] = 0
+    out["transit_hits"] = ""
+    out["school_hits"] = ""
+    out["preference_hits"] = ""
+    out["penalty_reasons"] = ""
+
+    for idx, row in out.iterrows():
+        r = row.to_dict()
+        stations_items = parse_jsonish_items(r.get("stations"))
+        schools_items = parse_jsonish_items(r.get("schools"))
+
+        title = _safe_text(r.get("title"))
+        address = _safe_text(r.get("address"))
+        desc = _safe_text(r.get("description"))
+        feats = _safe_text(r.get("features"))
+        stations_text = " ; ".join(stations_items)
+        schools_text = " ; ".join(schools_items)
+
+        transit_text = " ".join([stations_text, desc, feats, address]).strip()
+        school_text = " ".join([schools_text, desc, feats, address]).strip()
+        pref_text = " ".join([title, address, desc, feats]).strip()
+        loc_text = " ".join([title, address, desc, feats, stations_text, schools_text]).lower()
+
+        transit_score, transit_hits = _hit_ratio(transit_text, transit_terms)
+        school_score, school_hits = _hit_ratio(school_text, school_terms)
+        pref_score, pref_hits = _hit_ratio(pref_text, pref_terms)
+        loc_hits = sum(1 for loc in location_terms if loc and loc in loc_text)
+
+        penalties = []
+        penalty_score = 0.0
+        if transit_terms and not stations_items:
+            penalty_score += 0.12
+            penalties.append("missing_stations(+0.12)")
+        if school_terms and not schools_items:
+            penalty_score += 0.12
+            penalties.append("missing_schools(+0.12)")
+        if pref_terms and not pref_text:
+            penalty_score += 0.08
+            penalties.append("missing_text(+0.08)")
+
+        out.at[idx, "transit_score"] = float(transit_score)
+        out.at[idx, "school_score"] = float(school_score)
+        out.at[idx, "preference_score"] = float(pref_score)
+        out.at[idx, "penalty_score"] = float(penalty_score)
+        out.at[idx, "location_hit_count"] = int(loc_hits)
+        out.at[idx, "transit_hits"] = ", ".join(transit_hits)
+        out.at[idx, "school_hits"] = ", ".join(school_hits)
+        out.at[idx, "preference_hits"] = ", ".join(pref_hits)
+        out.at[idx, "penalty_reasons"] = ", ".join(penalties)
+
+    out["final_score"] = (
+        weights["transit"] * out["transit_score"]
+        + weights["school"] * out["school_score"]
+        + weights["preference"] * out["preference_score"]
+        - weights["penalty"] * out["penalty_score"]
+    )
+    out["score_formula"] = (
+        f"final = {weights['transit']:.3f}*transit + "
+        f"{weights['school']:.3f}*school + "
+        f"{weights['preference']:.3f}*preference - "
+        f"{weights['penalty']:.3f}*penalty"
+    )
+    out["w_transit"] = weights["transit"]
+    out["w_school"] = weights["school"]
+    out["w_preference"] = weights["preference"]
+    out["w_penalty"] = weights["penalty"]
+
+    out = out.sort_values(
+        ["final_score", "location_hit_count", "faiss_score"],
+        ascending=[False, False, False],
+    ).reset_index(drop=True)
+    return out, weights
+
+
+def append_ranking_log(obj: Dict[str, Any]) -> None:
+    try:
+        os.makedirs(os.path.dirname(RANKING_LOG_PATH), exist_ok=True)
+        with open(RANKING_LOG_PATH, "a", encoding="utf-8") as f:
+            f.write(json.dumps(obj, ensure_ascii=False) + "\n")
+    except Exception as e:
+        print(f"[warn] failed to write ranking log: {e}")
+
 def format_listing_row(r: Dict[str, Any], i: int) -> str:
     title = str(r.get("title", "") or "").strip()
     url = str(r.get("url", "") or "").strip()
@@ -560,27 +951,32 @@ def format_listing_row(r: Dict[str, Any], i: int) -> str:
             except:
                 return "0.0000"
 
-        w_faiss = r.get("w_faiss", FAISS_SCORE_WEIGHT)
-        w_pref = r.get("w_pref", PREFERENCE_SCORE_WEIGHT)
-        w_unknown = r.get("w_unknown", UNKNOWN_PENALTY_WEIGHT)
-        w_soft = r.get("w_soft", SOFT_PENALTY_WEIGHT)
-        route = str(r.get("route", "HYBRID"))
-        bits.append(
-            "   "
-            + f"score: final={f(r.get('final_score'))} = "
-            + f"{f(w_faiss)}*faiss_norm({f(r.get('faiss_score_norm'))}) + "
-            + f"{f(w_pref)}*pref({f(r.get('preference_score'))}) - "
-            + f"{f(w_unknown)}*unknown({f(r.get('unknown_penalty'))}) - "
-            + f"{f(w_soft)}*soft_miss({f(r.get('violation_soft_penalty'))})"
-        )
-        bits.append("   " + f"route: {route}")
+        formula = str(r.get("score_formula", "") or "").strip()
+        if formula:
+            bits.append("   " + f"score: final={f(r.get('final_score'))} | {formula}")
+        else:
+            bits.append("   " + f"score: final={f(r.get('final_score'))}")
 
-        unknown_reason = str(r.get("unknown_penalty_reasons", "") or "").strip()
-        soft_reason = str(r.get("soft_penalty_reasons", "") or "").strip()
-        if unknown_reason:
-            bits.append("   " + f"unknown_penalty_reasons: {unknown_reason}")
-        if soft_reason:
-            bits.append("   " + f"soft_penalty_reasons: {soft_reason}")
+        if r.get("transit_score") is not None or r.get("school_score") is not None:
+            bits.append(
+                "   "
+                + f"components: transit={f(r.get('transit_score'))}, "
+                + f"school={f(r.get('school_score'))}, "
+                + f"preference={f(r.get('preference_score'))}, "
+                + f"penalty={f(r.get('penalty_score'))}"
+            )
+        transit_hits = str(r.get("transit_hits", "") or "").strip()
+        school_hits = str(r.get("school_hits", "") or "").strip()
+        pref_hits = str(r.get("preference_hits", "") or "").strip()
+        penalty_reasons = str(r.get("penalty_reasons", "") or "").strip()
+        if transit_hits:
+            bits.append("   " + f"transit_hits: {transit_hits}")
+        if school_hits:
+            bits.append("   " + f"school_hits: {school_hits}")
+        if pref_hits:
+            bits.append("   " + f"preference_hits: {pref_hits}")
+        if penalty_reasons:
+            bits.append("   " + f"penalty_reasons: {penalty_reasons}")
 
     evidence = r.get("evidence")
     if isinstance(evidence, dict) and evidence:
@@ -588,10 +984,26 @@ def format_listing_row(r: Dict[str, Any], i: int) -> str:
     return "\n".join(bits)
 
 
-def build_evidence_for_row(r: Dict[str, Any], c: Dict[str, Any]) -> Dict[str, Any]:
+def build_evidence_for_row(r: Dict[str, Any], c: Dict[str, Any], user_query: str = "") -> Dict[str, Any]:
+    url = str(r.get("url", "") or "").strip()
+    source = str(r.get("source", "") or "").strip()
+    if not source and url:
+        try:
+            host = (urlparse(url).netloc or "").lower()
+            if "rightmove" in host:
+                source = "rightmove"
+            elif "zoopla" in host:
+                source = "zoopla"
+            elif host:
+                source = host
+        except Exception:
+            source = ""
+    if not source:
+        source = "unknown"
+
     ev: Dict[str, Any] = {
-        "source": str(r.get("source", "") or "").strip() or "unknown",
-        "url": str(r.get("url", "") or "").strip(),
+        "source": source,
+        "url": url,
     }
 
     fields: Dict[str, Any] = {}
@@ -629,6 +1041,13 @@ def build_evidence_for_row(r: Dict[str, Any], c: Dict[str, Any]) -> Dict[str, An
         fields["available_required"] = str(c["available_from"])
         fields["available_op"] = str(c.get("available_from_op") or "gte")
 
+    # Always include key listing fields, even when no hard constraints were extracted.
+    fields["price_pcm"] = None if pd.isna(pd.to_numeric(r.get("price_pcm"), errors="coerce")) else float(pd.to_numeric(r.get("price_pcm"), errors="coerce"))
+    fields["bedrooms"] = None if pd.isna(pd.to_numeric(r.get("bedrooms"), errors="coerce")) else int(float(pd.to_numeric(r.get("bedrooms"), errors="coerce")))
+    fields["bathrooms"] = None if pd.isna(pd.to_numeric(r.get("bathrooms"), errors="coerce")) else float(pd.to_numeric(r.get("bathrooms"), errors="coerce"))
+    dt_any = pd.to_datetime(r.get("available_from"), errors="coerce")
+    fields["available_from"] = None if pd.isna(dt_any) else dt_any.date().isoformat()
+
     text_sources = {
         "title": str(r.get("title", "") or ""),
         "address": str(r.get("address", "") or ""),
@@ -639,6 +1058,25 @@ def build_evidence_for_row(r: Dict[str, Any], c: Dict[str, Any]) -> Dict[str, An
     }
     hits: List[Dict[str, str]] = []
     all_keywords = [str(x).strip() for x in (c.get("location_keywords") or []) + (c.get("must_have_keywords") or []) if str(x).strip()]
+    # Fallback to raw query tokens so evidence stays informative even when extractor outputs empty keyword lists.
+    if user_query:
+        stop_words = {"the", "and", "for", "with", "near", "from", "rent", "flat", "apartment", "bed", "bath", "budget", "pcm", "in", "to", "of"}
+        query_tokens = re.findall(r"[A-Za-z0-9]{3,}", user_query.lower())
+        for tok in query_tokens:
+            if tok in stop_words:
+                continue
+            all_keywords.append(tok)
+    # de-dup while keeping order
+    deduped = []
+    seen = set()
+    for kw in all_keywords:
+        k = kw.lower()
+        if k in seen:
+            continue
+        seen.add(k)
+        deduped.append(kw)
+    all_keywords = deduped
+
     for kw in all_keywords:
         kw_l = kw.lower()
         hit_where = None
@@ -651,6 +1089,7 @@ def build_evidence_for_row(r: Dict[str, Any], c: Dict[str, Any]) -> Dict[str, An
 
     ev["fields"] = fields
     ev["keyword_hits"] = hits
+    ev["keyword_miss_count"] = max(0, len(all_keywords) - len(hits))
     return ev
 
 
@@ -685,6 +1124,7 @@ def run_chat():
     print(f"Index: {LIST_INDEX_PATH}")
     print(f"Meta : {LIST_META_PATH}")
     print(f"Embed: {EMBED_MODEL}")
+    print(f"Log  : {RANKING_LOG_PATH}")
     print("----")
 
     while True:
@@ -777,196 +1217,95 @@ def run_chat():
         state["constraints"] = normalize_budget_to_pcm(state["constraints"])
         state["constraints"] = normalize_constraints(state["constraints"])
 
-        # state-machine visibility: what changed this turn + active constraints + selected route
         changes_line = summarize_constraint_changes(prev_constraints, state["constraints"])
         active_line = compact_constraints_view(state["constraints"])
-        preview_route = decide_route(state["constraints"] or {})
+        c = state["constraints"] or {}
+        signals = split_query_signals(user_in, c)
+
         print(f"[state] changes: {changes_line}")
         print(f"[state] active_constraints: {json.dumps(active_line, ensure_ascii=False)}")
-        print(f"[state] route: {preview_route}")
-        
-        k = int(state["constraints"].get("k", DEFAULT_K) or DEFAULT_K)
+        print(f"[state] signals: {json.dumps(signals, ensure_ascii=False)}")
+
+        k = int(c.get("k", DEFAULT_K) or DEFAULT_K)
         recall = int(state["recall"])
-        
-        # --- 2) build retrieval query (user text + constraint hint) ---
-        hint = constraints_to_query_hint(state["constraints"])
-        query = user_in if not hint else (user_in + " || " + hint)
-        
-        # --- 3) retrieve ---
-        df = faiss_search(index, embedder, meta, query=query, recall=recall)
+        query = build_stage_a_query(signals, user_in)
 
+        # Stage A: recall pool
+        stage_a_df = faiss_search(index, embedder, meta, query=query, recall=recall)
+        stage_a_records = []
+        if stage_a_df is not None and len(stage_a_df) > 0:
+            for i, row in stage_a_df.reset_index(drop=True).iterrows():
+                rec = candidate_snapshot(row.to_dict())
+                rec["rank"] = i + 1
+                rec["score"] = rec.get("faiss_score")
+                rec["score_formula"] = "score = faiss_inner_product(query_A, listing_embedding)"
+                stage_a_records.append(rec)
 
-        # --- Stage 2: hard filters (no fallback) ---
-        c = state["constraints"] or {}
-        route = preview_route
-        route_weights = ROUTE_WEIGHT_TEMPLATES.get(route, ROUTE_WEIGHT_TEMPLATES["HYBRID"])
-        w_faiss = float(route_weights["w_faiss"])
-        w_pref = float(route_weights["w_pref"])
-        w_unknown = float(route_weights["w_unknown"])
-        w_soft = float(route_weights["w_soft"])
+        # Stage B: hard filters (audit all candidates)
+        filtered, hard_audits = apply_hard_filters_with_audit(stage_a_df, c)
+        stage_b_pass_records = [x for x in hard_audits if x.get("hard_pass")]
 
-        filtered = df.copy()
-        pre_filter_n = len(filtered)
-
-        # bedrooms: known violations fail; unknown values pass and get penalized in ranking
-        if c.get("bedrooms") is not None and "bedrooms" in filtered.columns:
-            filtered["bedrooms"] = pd.to_numeric(filtered["bedrooms"], errors="coerce")
-            bed_op = str(c.get("bedrooms_op") or "eq").lower()
-            if bed_op == "gte":
-                keep_mask = filtered["bedrooms"].isna() | (filtered["bedrooms"] >= int(c["bedrooms"]))
-            else:
-                keep_mask = filtered["bedrooms"].isna() | (filtered["bedrooms"] == int(c["bedrooms"]))
-            filtered = filtered[keep_mask]
-
-        # bathrooms: known violations fail; unknown values pass and get penalized in ranking
-        if c.get("bathrooms") is not None and "bathrooms" in filtered.columns:
-            filtered["bathrooms"] = pd.to_numeric(filtered["bathrooms"], errors="coerce")
-            op = str(c.get("bathrooms_op") or "eq").lower()
-            if op == "gte":
-                keep_mask = filtered["bathrooms"].isna() | (filtered["bathrooms"] >= float(c["bathrooms"]))
-            else:
-                keep_mask = filtered["bathrooms"].isna() | (filtered["bathrooms"] == float(c["bathrooms"]))
-            filtered = filtered[keep_mask]
-        
-        # budget: known violations fail; unknown values pass and get penalized in ranking
-        rent_col = "price_pcm" if "price_pcm" in filtered.columns else ("rent_pcm" if "rent_pcm" in filtered.columns else None)
-        if c.get("max_rent_pcm") is not None and rent_col:
-            filtered[rent_col] = pd.to_numeric(filtered[rent_col], errors="coerce")
-            keep_mask = filtered[rent_col].isna() | (filtered[rent_col] <= float(c["max_rent_pcm"]))
-            filtered = filtered[keep_mask]
-
-        # available_from:
-        # - "available from DATE" and "available by/before DATE" both map to:
-        #   listing available_from <= tenant target date
-        if c.get("available_from") is not None and "available_from" in filtered.columns:
-            listing_dates = pd.to_datetime(filtered["available_from"], errors="coerce")
-            target_date = pd.to_datetime(c["available_from"], errors="coerce")
-            if pd.notna(target_date):
-                keep_mask = listing_dates.isna() | (listing_dates <= target_date)
-                filtered = filtered[keep_mask]
+        # Stage C: rerank only on topic/preference scores (faiss only tie-break)
+        ranked, stage_c_weights = rank_stage_c(filtered, signals)
+        stage_c_records = []
+        if ranked is not None and len(ranked) > 0:
+            for i, row in ranked.iterrows():
+                rec = candidate_snapshot(row.to_dict())
+                rec["rank"] = i + 1
+                rec["score"] = float(row.get("final_score", 0.0))
+                rec["score_formula"] = str(row.get("score_formula", ""))
+                rec["components"] = {
+                    "transit_score": float(row.get("transit_score", 0.0)),
+                    "school_score": float(row.get("school_score", 0.0)),
+                    "preference_score": float(row.get("preference_score", 0.0)),
+                    "penalty_score": float(row.get("penalty_score", 0.0)),
+                    "weights": stage_c_weights,
+                }
+                rec["hits"] = {
+                    "transit_hits": str(row.get("transit_hits", "") or ""),
+                    "school_hits": str(row.get("school_hits", "") or ""),
+                    "preference_hits": str(row.get("preference_hits", "") or ""),
+                    "penalty_reasons": str(row.get("penalty_reasons", "") or ""),
+                }
+                stage_c_records.append(rec)
 
         print(
-            f"[debug] route={route}, retrieved={pre_filter_n}, after_hard_filters={len(filtered)}, "
-            f"k={k}, recall={recall}, weights={{faiss:{w_faiss}, pref:{w_pref}, unknown:{w_unknown}, soft:{w_soft}}}"
+            f"[debug] stageA_retrieved={len(stage_a_df)}, "
+            f"stageB_after_hard={len(filtered)}, stageC_ranked={len(ranked)}, "
+            f"k={k}, recall={recall}"
         )
 
-        # --- Stage 3: ranking with unknown penalty + soft preference penalty ---
-        if len(filtered) > 0:
-            # base score from FAISS similarity (min-max normalized to 0..1)
-            if "faiss_score" in filtered.columns:
-                fs = pd.to_numeric(filtered["faiss_score"], errors="coerce").fillna(0.0)
-            else:
-                fs = pd.Series(np.zeros(len(filtered), dtype=float), index=filtered.index)
-            fs_min, fs_max = float(fs.min()), float(fs.max())
-            if fs_max > fs_min:
-                filtered["faiss_score_norm"] = (fs - fs_min) / (fs_max - fs_min)
-            else:
-                filtered["faiss_score_norm"] = 0.0
+        append_ranking_log(
+            {
+                "timestamp": datetime.utcnow().isoformat() + "Z",
+                "log_path": RANKING_LOG_PATH,
+                "user_query": user_in,
+                "stage_a_query": query,
+                "constraints": c,
+                "signals": signals,
+                "counts": {
+                    "stage_a": len(stage_a_df),
+                    "stage_b": len(filtered),
+                    "stage_c": len(ranked),
+                    "k": k,
+                    "recall": recall,
+                },
+                "stage_a_candidates": stage_a_records,
+                "stage_b_hard_audit": hard_audits,
+                "stage_b_pass_candidates": stage_b_pass_records,
+                "stage_c_candidates": stage_c_records,
+            }
+        )
 
-            # unknown penalty for hard-constraint fields (only when that constraint is active)
-            filtered["unknown_penalty"] = 0.0
-            if c.get("bedrooms") is not None:
-                if "bedrooms" in filtered.columns:
-                    bed_num = pd.to_numeric(filtered["bedrooms"], errors="coerce")
-                    filtered.loc[bed_num.isna(), "unknown_penalty"] += UNKNOWN_PENALTY_WEIGHTS["bedrooms"]
-                else:
-                    filtered["unknown_penalty"] += UNKNOWN_PENALTY_WEIGHTS["bedrooms"]
-            if c.get("bathrooms") is not None:
-                if "bathrooms" in filtered.columns:
-                    bath_num = pd.to_numeric(filtered["bathrooms"], errors="coerce")
-                    filtered.loc[bath_num.isna(), "unknown_penalty"] += UNKNOWN_PENALTY_WEIGHTS["bathrooms"]
-                else:
-                    filtered["unknown_penalty"] += UNKNOWN_PENALTY_WEIGHTS["bathrooms"]
-            if c.get("max_rent_pcm") is not None:
-                if rent_col and rent_col in filtered.columns:
-                    rent_num = pd.to_numeric(filtered[rent_col], errors="coerce")
-                    filtered.loc[rent_num.isna(), "unknown_penalty"] += UNKNOWN_PENALTY_WEIGHTS["price"]
-                else:
-                    filtered["unknown_penalty"] += UNKNOWN_PENALTY_WEIGHTS["price"]
-            if c.get("available_from") is not None:
-                if "available_from" in filtered.columns:
-                    date_num = pd.to_datetime(filtered["available_from"], errors="coerce")
-                    filtered.loc[date_num.isna(), "unknown_penalty"] += UNKNOWN_PENALTY_WEIGHTS["available_from"]
-                else:
-                    filtered["unknown_penalty"] += UNKNOWN_PENALTY_WEIGHTS["available_from"]
-
-            filtered["unknown_penalty"] = filtered["unknown_penalty"].clip(upper=UNKNOWN_PENALTY_CAP)
-
-            # per-row reason strings for unknown penalties
-            def _unknown_reasons(row: pd.Series) -> str:
-                reasons = []
-                if c.get("bedrooms") is not None:
-                    if "bedrooms" not in filtered.columns or pd.isna(row.get("bedrooms")):
-                        reasons.append(f"bedrooms(+{UNKNOWN_PENALTY_WEIGHTS['bedrooms']})")
-                if c.get("bathrooms") is not None:
-                    if "bathrooms" not in filtered.columns or pd.isna(row.get("bathrooms")):
-                        reasons.append(f"bathrooms(+{UNKNOWN_PENALTY_WEIGHTS['bathrooms']})")
-                if c.get("max_rent_pcm") is not None:
-                    if (not rent_col) or (rent_col not in filtered.columns) or pd.isna(row.get(rent_col)):
-                        reasons.append(f"price(+{UNKNOWN_PENALTY_WEIGHTS['price']})")
-                if c.get("available_from") is not None:
-                    dt = pd.to_datetime(row.get("available_from"), errors="coerce")
-                    if ("available_from" not in filtered.columns) or pd.isna(dt):
-                        reasons.append(f"available_from(+{UNKNOWN_PENALTY_WEIGHTS['available_from']})")
-                return ", ".join(reasons)
-
-            filtered["unknown_penalty_reasons"] = filtered.apply(_unknown_reasons, axis=1)
-
-            # soft must-have preferences: miss => penalty, hit => bonus
-            ###
-            must_keywords = [str(x).strip().lower() for x in (c.get("must_have_keywords") or []) if str(x).strip()]
-            filtered["preference_score"] = 0.0
-            filtered["violation_soft_penalty"] = 0.0
-            filtered["soft_penalty_reasons"] = ""
-
-            if must_keywords:
-                text_cols = [col for col in ["title", "address", "description", "features", "stations", "schools"] if col in filtered.columns]
-                if text_cols:
-                    combo = filtered[text_cols].fillna("").astype(str).agg(" ".join, axis=1).str.lower()
-                else:
-                    combo = pd.Series([""] * len(filtered), index=filtered.index)
-
-                hit_counts = pd.Series(np.zeros(len(filtered), dtype=float), index=filtered.index)
-                for kw in must_keywords:
-                    hit_counts += combo.str.contains(re.escape(kw), regex=True).astype(float)
-
-                miss_counts = len(must_keywords) - hit_counts
-                filtered["preference_score"] = (hit_counts * SOFT_MUST_HIT_BONUS).clip(upper=SOFT_MUST_MAX_BONUS)
-                filtered["violation_soft_penalty"] = (miss_counts * SOFT_MUST_MISS_PENALTY).clip(upper=SOFT_MUST_MAX_PENALTY)
-
-                def _soft_reasons(text: str) -> str:
-                    misses = []
-                    for kw in must_keywords:
-                        if not re.search(re.escape(kw), str(text).lower()):
-                            misses.append(f"{kw}(+{SOFT_MUST_MISS_PENALTY})")
-                    return ", ".join(misses)
-
-                filtered["soft_penalty_reasons"] = combo.apply(_soft_reasons)
-
-            filtered["final_score"] = (
-                (w_faiss * filtered["faiss_score_norm"])
-                + (w_pref * filtered["preference_score"])
-                - (w_unknown * filtered["unknown_penalty"])
-                - (w_soft * filtered["violation_soft_penalty"])
-            )
-            filtered["route"] = route
-            filtered["w_faiss"] = w_faiss
-            filtered["w_pref"] = w_pref
-            filtered["w_unknown"] = w_unknown
-            filtered["w_soft"] = w_soft
-            filtered = filtered.sort_values(["final_score", "faiss_score_norm"], ascending=False)
-
-        # no fallback: if insufficient, tell user
-        k = int(c.get("k", DEFAULT_K) or DEFAULT_K)
         if len(filtered) < k:
             print("\nBot> 符合当前价格/卧室/卫生间/入住时间条件的房源不足。你可以放宽预算或修改约束。")
-            df = filtered.reset_index(drop=True)
+            df = ranked.reset_index(drop=True)
         else:
-            df = filtered.head(k).reset_index(drop=True)
+            df = ranked.head(k).reset_index(drop=True)
 
         if df is not None and len(df) > 0:
             df = df.copy()
-            df["evidence"] = df.apply(lambda row: build_evidence_for_row(row.to_dict(), c), axis=1)
+            df["evidence"] = df.apply(lambda row: build_evidence_for_row(row.to_dict(), c, user_in), axis=1)
 
 
         
