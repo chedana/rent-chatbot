@@ -287,6 +287,17 @@ BATCH = int(os.environ.get("RENT_EMBED_BATCH", "256"))
 
 DEFAULT_K = int(os.environ.get("RENT_K", "5"))
 DEFAULT_RECALL = int(os.environ.get("RENT_RECALL", "200"))  # pull more then slice to k
+UNKNOWN_PENALTY_WEIGHTS = {
+    "price": 0.35,
+    "bedrooms": 0.30,
+    "bathrooms": 0.20,
+    "available_from": 0.15,
+}
+UNKNOWN_PENALTY_CAP = 0.60
+SOFT_MUST_HIT_BONUS = 0.04
+SOFT_MUST_MISS_PENALTY = 0.06
+SOFT_MUST_MAX_BONUS = 0.20
+SOFT_MUST_MAX_PENALTY = 0.30
 
 
 # ----------------------------
@@ -547,30 +558,33 @@ def run_chat():
         c = state["constraints"] or {}
         filtered = df.copy()
         pre_filter_n = len(filtered)
-        
-        # bedrooms: hard gate (>= or ==)
+
+        # bedrooms: known violations fail; unknown values pass and get penalized in ranking
         if c.get("bedrooms") is not None and "bedrooms" in filtered.columns:
             filtered["bedrooms"] = pd.to_numeric(filtered["bedrooms"], errors="coerce")
             bed_op = str(c.get("bedrooms_op") or "eq").lower()
             if bed_op == "gte":
-                filtered = filtered[filtered["bedrooms"].notna() & (filtered["bedrooms"] >= int(c["bedrooms"]))]
+                keep_mask = filtered["bedrooms"].isna() | (filtered["bedrooms"] >= int(c["bedrooms"]))
             else:
-                filtered = filtered[filtered["bedrooms"] == int(c["bedrooms"])]
+                keep_mask = filtered["bedrooms"].isna() | (filtered["bedrooms"] == int(c["bedrooms"]))
+            filtered = filtered[keep_mask]
 
-        # bathrooms: hard gate (>= or ==)
+        # bathrooms: known violations fail; unknown values pass and get penalized in ranking
         if c.get("bathrooms") is not None and "bathrooms" in filtered.columns:
             filtered["bathrooms"] = pd.to_numeric(filtered["bathrooms"], errors="coerce")
             op = str(c.get("bathrooms_op") or "eq").lower()
             if op == "gte":
-                filtered = filtered[filtered["bathrooms"].notna() & (filtered["bathrooms"] >= float(c["bathrooms"]))]
+                keep_mask = filtered["bathrooms"].isna() | (filtered["bathrooms"] >= float(c["bathrooms"]))
             else:
-                filtered = filtered[filtered["bathrooms"] == float(c["bathrooms"])]
+                keep_mask = filtered["bathrooms"].isna() | (filtered["bathrooms"] == float(c["bathrooms"]))
+            filtered = filtered[keep_mask]
         
-        # budget: strict <=
+        # budget: known violations fail; unknown values pass and get penalized in ranking
         rent_col = "price_pcm" if "price_pcm" in filtered.columns else ("rent_pcm" if "rent_pcm" in filtered.columns else None)
         if c.get("max_rent_pcm") is not None and rent_col:
             filtered[rent_col] = pd.to_numeric(filtered[rent_col], errors="coerce")
-            filtered = filtered[filtered[rent_col].notna() & (filtered[rent_col] <= float(c["max_rent_pcm"]))]
+            keep_mask = filtered[rent_col].isna() | (filtered[rent_col] <= float(c["max_rent_pcm"]))
+            filtered = filtered[keep_mask]
 
         # available_from:
         # - "available from DATE" and "available by/before DATE" both map to:
@@ -579,10 +593,81 @@ def run_chat():
             listing_dates = pd.to_datetime(filtered["available_from"], errors="coerce")
             target_date = pd.to_datetime(c["available_from"], errors="coerce")
             if pd.notna(target_date):
-                filtered = filtered[listing_dates.notna() & (listing_dates <= target_date)]
+                keep_mask = listing_dates.isna() | (listing_dates <= target_date)
+                filtered = filtered[keep_mask]
 
         print(f"[debug] retrieved={pre_filter_n}, after_hard_filters={len(filtered)}, k={k}, recall={recall}")
-        
+
+        # --- Stage 3: ranking with unknown penalty + soft preference penalty ---
+        if len(filtered) > 0:
+            # base score from FAISS similarity (min-max normalized to 0..1)
+            if "faiss_score" in filtered.columns:
+                fs = pd.to_numeric(filtered["faiss_score"], errors="coerce").fillna(0.0)
+            else:
+                fs = pd.Series(np.zeros(len(filtered), dtype=float), index=filtered.index)
+            fs_min, fs_max = float(fs.min()), float(fs.max())
+            if fs_max > fs_min:
+                filtered["faiss_score_norm"] = (fs - fs_min) / (fs_max - fs_min)
+            else:
+                filtered["faiss_score_norm"] = 0.0
+
+            # unknown penalty for hard-constraint fields (only when that constraint is active)
+            filtered["unknown_penalty"] = 0.0
+            if c.get("bedrooms") is not None:
+                if "bedrooms" in filtered.columns:
+                    bed_num = pd.to_numeric(filtered["bedrooms"], errors="coerce")
+                    filtered.loc[bed_num.isna(), "unknown_penalty"] += UNKNOWN_PENALTY_WEIGHTS["bedrooms"]
+                else:
+                    filtered["unknown_penalty"] += UNKNOWN_PENALTY_WEIGHTS["bedrooms"]
+            if c.get("bathrooms") is not None:
+                if "bathrooms" in filtered.columns:
+                    bath_num = pd.to_numeric(filtered["bathrooms"], errors="coerce")
+                    filtered.loc[bath_num.isna(), "unknown_penalty"] += UNKNOWN_PENALTY_WEIGHTS["bathrooms"]
+                else:
+                    filtered["unknown_penalty"] += UNKNOWN_PENALTY_WEIGHTS["bathrooms"]
+            if c.get("max_rent_pcm") is not None:
+                if rent_col and rent_col in filtered.columns:
+                    rent_num = pd.to_numeric(filtered[rent_col], errors="coerce")
+                    filtered.loc[rent_num.isna(), "unknown_penalty"] += UNKNOWN_PENALTY_WEIGHTS["price"]
+                else:
+                    filtered["unknown_penalty"] += UNKNOWN_PENALTY_WEIGHTS["price"]
+            if c.get("available_from") is not None:
+                if "available_from" in filtered.columns:
+                    date_num = pd.to_datetime(filtered["available_from"], errors="coerce")
+                    filtered.loc[date_num.isna(), "unknown_penalty"] += UNKNOWN_PENALTY_WEIGHTS["available_from"]
+                else:
+                    filtered["unknown_penalty"] += UNKNOWN_PENALTY_WEIGHTS["available_from"]
+
+            filtered["unknown_penalty"] = filtered["unknown_penalty"].clip(upper=UNKNOWN_PENALTY_CAP)
+
+            # soft must-have preferences: miss => penalty, hit => bonus
+            must_keywords = [str(x).strip().lower() for x in (c.get("must_have_keywords") or []) if str(x).strip()]
+            filtered["preference_score"] = 0.0
+            filtered["violation_soft_penalty"] = 0.0
+
+            if must_keywords:
+                text_cols = [col for col in ["title", "address", "description", "features", "stations", "schools"] if col in filtered.columns]
+                if text_cols:
+                    combo = filtered[text_cols].fillna("").astype(str).agg(" ".join, axis=1).str.lower()
+                else:
+                    combo = pd.Series([""] * len(filtered), index=filtered.index)
+
+                hit_counts = pd.Series(np.zeros(len(filtered), dtype=float), index=filtered.index)
+                for kw in must_keywords:
+                    hit_counts += combo.str.contains(re.escape(kw), regex=True).astype(float)
+
+                miss_counts = len(must_keywords) - hit_counts
+                filtered["preference_score"] = (hit_counts * SOFT_MUST_HIT_BONUS).clip(upper=SOFT_MUST_MAX_BONUS)
+                filtered["violation_soft_penalty"] = (miss_counts * SOFT_MUST_MISS_PENALTY).clip(upper=SOFT_MUST_MAX_PENALTY)
+
+            filtered["final_score"] = (
+                filtered["faiss_score_norm"]
+                + filtered["preference_score"]
+                - filtered["unknown_penalty"]
+                - filtered["violation_soft_penalty"]
+            )
+            filtered = filtered.sort_values(["final_score", "faiss_score_norm"], ascending=False)
+
         # no fallback: if insufficient, tell user
         k = int(c.get("k", DEFAULT_K) or DEFAULT_K)
         if len(filtered) < k:
