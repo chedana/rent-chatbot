@@ -2,6 +2,8 @@ import argparse
 import json
 import math
 import os
+import re
+from urllib.parse import parse_qs, urlparse
 from typing import Any, Dict
 
 from batch_crawl import crawl_urls
@@ -17,6 +19,27 @@ from get_urls import (
 DEFAULT_LISTING_URLS_FILE = "listing_urls.txt"
 DEFAULT_PROPERTIES_FILE = "properties.jsonl"
 ASK_AGENT = "Ask agent"
+
+
+def slugify_area(text: str) -> str:
+    s = (text or "").strip().lower()
+    s = re.sub(r"[^a-z0-9]+", "_", s)
+    s = s.strip("_")
+    return s or "unknown_area"
+
+
+def infer_area_name(search_url: str, search_location: str) -> str:
+    if search_location and search_location.strip():
+        return search_location.strip()
+    if search_url:
+        try:
+            qs = parse_qs(urlparse(search_url).query)
+            v = qs.get("searchLocation", [None])[0]
+            if v:
+                return str(v).strip()
+        except Exception:
+            pass
+    return "unknown_area"
 
 
 def is_nan(x: Any) -> bool:
@@ -139,10 +162,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--end-page", type=int, default=None, help="End page number (exclusive). Overrides --pages when set.")
     parser.add_argument("--per-page", type=int, default=DEFAULT_RESULTS_PER_PAGE, help="Results per page; Rightmove default is 24.")
     parser.add_argument("--collect-workers", type=int, default=1, help="Parallel workers for search result page crawling.")
-    parser.add_argument("--urls-out", default=DEFAULT_LISTING_URLS_FILE, help="Where to save collected listing URLs.")
+    parser.add_argument("--urls-out", default=None, help="Where to save collected listing URLs (defaults to area folder).")
     parser.add_argument("--max-listings", type=int, default=1000, help="Cap listing count before detail crawling. Use 0 to disable cap.")
 
-    parser.add_argument("--properties-out", default=DEFAULT_PROPERTIES_FILE, help="Output JSONL for crawled properties.")
+    parser.add_argument("--properties-out", default=None, help="Output JSONL for crawled properties (defaults to area folder).")
+    parser.add_argument("--output-root", default=".", help="Root folder where area-named result folders are created.")
     parser.add_argument(
         "--postprocess",
         default="none",
@@ -215,6 +239,20 @@ def main() -> None:
         )
 
     print(f"Using search URL:\n{search_url}")
+
+    area_name = infer_area_name(search_url=search_url, search_location=args.search_location)
+    area_slug = slugify_area(area_name)
+    run_dir = os.path.join(args.output_root, area_slug)
+    os.makedirs(run_dir, exist_ok=True)
+
+    urls_out = args.urls_out or os.path.join(run_dir, DEFAULT_LISTING_URLS_FILE)
+    properties_out = args.properties_out or os.path.join(run_dir, DEFAULT_PROPERTIES_FILE)
+    postprocess_out = args.postprocess_out
+    if not postprocess_out and args.postprocess != "none":
+        suffix = "_ask_agent" if args.postprocess == "ask-agent" else "_clean"
+        postprocess_out = os.path.join(run_dir, f"properties{suffix}.jsonl")
+
+    print(f"Area folder: {run_dir}")
     print(
         "Collecting listing URLs from page range "
         f"[{args.start_page}, {end_page}) with collect-workers={max(1, args.collect_workers)}"
@@ -230,24 +268,24 @@ def main() -> None:
         urls = urls[: args.max_listings]
         print(f"Capped to first {len(urls)} listings by --max-listings")
 
-    with open(args.urls_out, "w", encoding="utf-8") as f:
+    with open(urls_out, "w", encoding="utf-8") as f:
         for u in urls:
             f.write(u + "\n")
-    print(f"Saved {len(urls)} listing URLs to {args.urls_out}")
+    print(f"Saved {len(urls)} listing URLs to {urls_out}")
 
     ok, fail = crawl_urls(
         urls=urls,
-        out_jsonl=args.properties_out,
+        out_jsonl=properties_out,
         source_name=args.source_name,
         sleep_sec=args.sleep_sec,
         workers=max(1, args.crawl_workers),
     )
     print(f"Pipeline done. OK={ok}, FAIL={fail}")
-    print(f"Properties JSONL: {args.properties_out}")
+    print(f"Properties JSONL: {properties_out}")
     final_out = postprocess_jsonl(
-        in_path=args.properties_out,
+        in_path=properties_out,
         mode=args.postprocess,
-        out_path=args.postprocess_out,
+        out_path=postprocess_out,
     )
     print(f"Final output: {final_out}")
 
