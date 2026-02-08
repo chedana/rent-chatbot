@@ -241,6 +241,88 @@ def merge_constraints(old: Optional[dict], new: dict) -> dict:
 
     return normalize_constraints(out)
 
+
+def _norm_scalar_for_diff(v: Any) -> Any:
+    if v is None:
+        return None
+    if isinstance(v, float):
+        if np.isnan(v):
+            return None
+        return float(v)
+    if isinstance(v, (int, bool)):
+        return v
+    s = str(v).strip()
+    return s if s != "" else None
+
+
+def summarize_constraint_changes(old_c: Optional[dict], new_c: dict) -> str:
+    old_c = old_c or {}
+    new_c = new_c or {}
+    keys = [
+        "max_rent_pcm",
+        "bedrooms", "bedrooms_op",
+        "bathrooms", "bathrooms_op",
+        "available_from", "available_from_op",
+        "furnish_type", "let_type", "property_type",
+        "k",
+    ]
+    changes = []
+    for k in keys:
+        old_v = _norm_scalar_for_diff(old_c.get(k))
+        new_v = _norm_scalar_for_diff(new_c.get(k))
+        if old_v == new_v:
+            continue
+        if old_v is None and new_v is not None:
+            changes.append(f"added {k}={new_v}")
+        elif old_v is not None and new_v is None:
+            changes.append(f"removed {k}")
+        else:
+            changes.append(f"updated {k}: {old_v} -> {new_v}")
+
+    def _norm_list(x):
+        out = []
+        for i in (x or []):
+            s = str(i).strip()
+            if s:
+                out.append(s)
+        return out
+
+    for k in ["location_keywords", "must_have_keywords"]:
+        old_list = _norm_list(old_c.get(k))
+        new_list = _norm_list(new_c.get(k))
+        old_set = set([x.lower() for x in old_list])
+        new_set = set([x.lower() for x in new_list])
+        added = [x for x in new_list if x.lower() not in old_set]
+        removed = [x for x in old_list if x.lower() not in new_set]
+        if added:
+            changes.append(f"added {k}: {added}")
+        if removed:
+            changes.append(f"removed {k}: {removed}")
+
+    return "; ".join(changes) if changes else "no constraint changes"
+
+
+def compact_constraints_view(c: Optional[dict]) -> dict:
+    c = c or {}
+    out = {}
+    keep_keys = [
+        "max_rent_pcm",
+        "bedrooms", "bedrooms_op",
+        "bathrooms", "bathrooms_op",
+        "available_from", "available_from_op",
+        "furnish_type", "let_type", "property_type",
+        "location_keywords", "must_have_keywords",
+        "k",
+    ]
+    for k in keep_keys:
+        v = c.get(k)
+        if v is None:
+            continue
+        if isinstance(v, list) and len(v) == 0:
+            continue
+        out[k] = v
+    return out
+
 def constraints_to_query_hint(c: dict) -> str:
     parts = []
     if c.get("bedrooms") is not None:
@@ -619,9 +701,19 @@ def run_chat():
         # k = int(state["k"])
         # recall = int(state["recall"])
         # df = faiss_search(index, embedder, meta, query=query, recall=recall, k=k)
+        prev_constraints = dict(state["constraints"] or {})
         extracted = llm_extract(user_in, state["constraints"])
         state["constraints"] = merge_constraints(state["constraints"], extracted)
         state["constraints"] = normalize_budget_to_pcm(state["constraints"])
+        state["constraints"] = normalize_constraints(state["constraints"])
+
+        # state-machine visibility: what changed this turn + active constraints + selected route
+        changes_line = summarize_constraint_changes(prev_constraints, state["constraints"])
+        active_line = compact_constraints_view(state["constraints"])
+        preview_route = decide_route(state["constraints"] or {})
+        print(f"[state] changes: {changes_line}")
+        print(f"[state] active_constraints: {json.dumps(active_line, ensure_ascii=False)}")
+        print(f"[state] route: {preview_route}")
         
         k = int(state["constraints"].get("k", DEFAULT_K) or DEFAULT_K)
         recall = int(state["recall"])
@@ -636,7 +728,7 @@ def run_chat():
 
         # --- Stage 2: hard filters (no fallback) ---
         c = state["constraints"] or {}
-        route = decide_route(c)
+        route = preview_route
         route_weights = ROUTE_WEIGHT_TEMPLATES.get(route, ROUTE_WEIGHT_TEMPLATES["HYBRID"])
         w_faiss = float(route_weights["w_faiss"])
         w_pref = float(route_weights["w_pref"])
