@@ -930,6 +930,9 @@ def _hit_ratio(text: str, terms: List[str]) -> Tuple[float, List[str]]:
     uniq_hits = list(dict.fromkeys(hits))
     return (len(uniq_hits) / max(1, len(list(dict.fromkeys([x.lower().strip() for x in terms if x.strip()]))))), uniq_hits
 
+def _uniq_term_count(terms: List[str]) -> int:
+    return len(list(dict.fromkeys([x.lower().strip() for x in (terms or []) if str(x).strip()])))
+
 
 def compute_stagec_weights(signals: Dict[str, Any]) -> Dict[str, float]:
     has_transit = len(signals.get("topic_preferences", {}).get("transit_terms", [])) > 0
@@ -970,6 +973,10 @@ def rank_stage_c(filtered: pd.DataFrame, signals: Dict[str, Any]) -> Tuple[pd.Da
     out["school_hits"] = ""
     out["preference_hits"] = ""
     out["penalty_reasons"] = ""
+    out["transit_detail"] = ""
+    out["school_detail"] = ""
+    out["preference_detail"] = ""
+    out["penalty_detail"] = ""
 
     for idx, row in out.iterrows():
         r = row.to_dict()
@@ -1014,6 +1021,31 @@ def rank_stage_c(filtered: pd.DataFrame, signals: Dict[str, Any]) -> Tuple[pd.Da
         out.at[idx, "school_hits"] = ", ".join(school_hits)
         out.at[idx, "preference_hits"] = ", ".join(pref_hits)
         out.at[idx, "penalty_reasons"] = ", ".join(penalties)
+        t_total = _uniq_term_count(transit_terms)
+        s_total = _uniq_term_count(school_terms)
+        p_total = _uniq_term_count(pref_terms)
+        out.at[idx, "transit_detail"] = (
+            f"hit_ratio={len(transit_hits)}/{max(1, t_total)}; "
+            f"hits=[{', '.join(transit_hits)}]; "
+            f"terms=[{', '.join(transit_terms)}]; "
+            f"text=stations+description+features+address"
+        )
+        out.at[idx, "school_detail"] = (
+            f"hit_ratio={len(school_hits)}/{max(1, s_total)}; "
+            f"hits=[{', '.join(school_hits)}]; "
+            f"terms=[{', '.join(school_terms)}]; "
+            f"text=schools+description+features+address"
+        )
+        out.at[idx, "preference_detail"] = (
+            f"hit_ratio={len(pref_hits)}/{max(1, p_total)}; "
+            f"hits=[{', '.join(pref_hits)}]; "
+            f"terms=[{', '.join(pref_terms)}]; "
+            f"text=title+address+description+features"
+        )
+        out.at[idx, "penalty_detail"] = (
+            f"sum(active_penalties)={penalty_score:.4f}; "
+            f"triggers=[{', '.join(penalties)}]"
+        )
 
     out["final_score"] = (
         weights["transit"] * out["transit_score"]
@@ -1131,6 +1163,10 @@ def format_listing_row(r: Dict[str, Any], i: int) -> str:
         school_hits = str(r.get("school_hits", "") or "").strip()
         pref_hits = str(r.get("preference_hits", "") or "").strip()
         penalty_reasons = str(r.get("penalty_reasons", "") or "").strip()
+        transit_detail = str(r.get("transit_detail", "") or "").strip()
+        school_detail = str(r.get("school_detail", "") or "").strip()
+        preference_detail = str(r.get("preference_detail", "") or "").strip()
+        penalty_detail = str(r.get("penalty_detail", "") or "").strip()
         if transit_hits:
             bits.append("   " + f"transit_hits: {transit_hits}")
         if school_hits:
@@ -1139,6 +1175,14 @@ def format_listing_row(r: Dict[str, Any], i: int) -> str:
             bits.append("   " + f"preference_hits: {pref_hits}")
         if penalty_reasons:
             bits.append("   " + f"penalty_reasons: {penalty_reasons}")
+        if transit_detail:
+            bits.append("   " + f"transit_calc: {transit_detail}")
+        if school_detail:
+            bits.append("   " + f"school_calc: {school_detail}")
+        if preference_detail:
+            bits.append("   " + f"preference_calc: {preference_detail}")
+        if penalty_detail:
+            bits.append("   " + f"penalty_calc: {penalty_detail}")
 
     evidence = r.get("evidence")
     if isinstance(evidence, dict) and evidence:
@@ -1249,12 +1293,23 @@ def build_evidence_for_row(r: Dict[str, Any], c: Dict[str, Any], user_query: str
         "features": str(r.get("features", "") or ""),
         "stations": str(r.get("stations", "") or ""),
         "schools": str(r.get("schools", "") or ""),
+        # Include structured fields so evidence reflects hard-filtered matches too.
+        "furnish_type": str(r.get("furnish_type", "") or ""),
+        "let_type": str(r.get("let_type", "") or ""),
+        "property_type": str(r.get("property_type", "") or ""),
+        "min_tenancy": str(r.get("min_tenancy", "") or ""),
+        "size_sqm": str(r.get("size_sqm", "") or ""),
+        "size_sqft": str(r.get("size_sqft", "") or ""),
     }
     hits: List[Dict[str, str]] = []
     all_keywords = [str(x).strip() for x in (c.get("location_keywords") or []) + (c.get("must_have_keywords") or []) if str(x).strip()]
     # Fallback to raw query tokens so evidence stays informative even when extractor outputs empty keyword lists.
     if user_query:
-        stop_words = {"the", "and", "for", "with", "near", "from", "rent", "flat", "apartment", "bed", "bath", "budget", "pcm", "in", "to", "of"}
+        stop_words = {
+            "the", "and", "for", "with", "near", "from", "rent", "flat", "apartment",
+            "bed", "bath", "budget", "pcm", "in", "to", "of",
+            "want", "need", "looking", "please",
+        }
         query_tokens = re.findall(r"[A-Za-z0-9]{3,}", user_query.lower())
         for tok in query_tokens:
             if tok in stop_words:
