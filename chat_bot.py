@@ -1148,6 +1148,9 @@ def format_listing_row(r: Dict[str, Any], i: int) -> str:
                 bits.append("   " + f"keyword_miss_count: {int(kmc)}")
             except Exception:
                 bits.append("   " + f"keyword_miss_count: {kmc}")
+        km = evidence.get("keyword_misses")
+        if isinstance(km, list) and len(km) > 0:
+            bits.append("   " + "keyword_misses: " + ", ".join([str(x) for x in km]))
         bits.append("   evidence: " + json.dumps(evidence, ensure_ascii=False))
     return "\n".join(bits)
 
@@ -1277,9 +1280,20 @@ def build_evidence_for_row(r: Dict[str, Any], c: Dict[str, Any], user_query: str
                 break
         if hit_where:
             hits.append({"keyword": kw, "matched_in": hit_where})
+    hit_set = set()
+    for h in hits:
+        k = str(h.get("keyword", "")).strip().lower()
+        if k:
+            hit_set.add(k)
+    misses: List[str] = []
+    for kw in all_keywords:
+        k = str(kw).strip().lower()
+        if k and k not in hit_set:
+            misses.append(str(kw))
 
     ev["fields"] = fields
     ev["keyword_hits"] = hits
+    ev["keyword_misses"] = misses
     ev["keyword_miss_count"] = max(0, len(all_keywords) - len(hits))
     return ev
 
