@@ -46,11 +46,10 @@ Rules:
   - "exactly/only X bathrooms" -> {"bathrooms": X, "bathrooms_op": "eq"}
   - soft wording (prefer/ideally/nice to have) -> bathrooms = null, bathrooms_op = null
 - available_from should be an ISO date string "YYYY-MM-DD" when possible.
-- available_from_op must be one of: "eq", "gte", "lte", or null.
-- Set available_from/available_from_op only for hard constraints:
-  - "from/after/no earlier than DATE" -> {"available_from": "DATE", "available_from_op": "gte"}
-  - "by/before/no later than DATE" -> {"available_from": "DATE", "available_from_op": "lte"}
-  - "on DATE exactly" -> {"available_from": "DATE", "available_from_op": "eq"}
+- available_from_op must be one of: "gte", "lte", or null.
+- Set available_from/available_from_op as:
+  - "available from DATE" -> {"available_from": "DATE", "available_from_op": "gte"}
+  - "available by/before DATE" -> {"available_from": "DATE", "available_from_op": "lte"}
 - If unknown use null or [].
 """
 
@@ -165,9 +164,7 @@ def normalize_constraints(c: dict) -> dict:
     date_op = c.get("available_from_op")
     if date_op is not None:
         date_op = str(date_op).strip().lower()
-        if date_op in ("==", "=", "exact", "exactly", "eq"):
-            date_op = "eq"
-        elif date_op in (">=", "after", "from", "no_earlier_than", "no earlier than", "gte"):
+        if date_op in (">=", "after", "from", "available from", "no_earlier_than", "no earlier than", "gte"):
             date_op = "gte"
         elif date_op in ("<=", "before", "by", "no_later_than", "no later than", "lte"):
             date_op = "lte"
@@ -182,9 +179,9 @@ def normalize_constraints(c: dict) -> dict:
         else:
             c["available_from"] = None
 
-    # default to strict equality when available_from is set but operator is absent
+    # default to "available from" style when date exists but op is absent
     if c.get("available_from") is not None and c.get("available_from_op") is None:
-        c["available_from_op"] = "eq"
+        c["available_from_op"] = "gte"
 
     locs = []
     must = set([str(x).strip() for x in (c.get("must_have_keywords") or []) if str(x).strip()])
@@ -261,13 +258,11 @@ def constraints_to_query_hint(c: dict) -> str:
     if c.get("max_rent_pcm") is not None:
         parts.append(f"budget {float(c['max_rent_pcm'])} pcm")
     if c.get("available_from") is not None:
-        dt_op = c.get("available_from_op", "eq")
+        dt_op = c.get("available_from_op", "gte")
         if dt_op == "gte":
             parts.append(f"available from {c['available_from']}")
-        elif dt_op == "lte":
-            parts.append(f"available by {c['available_from']}")
         else:
-            parts.append(f"available on {c['available_from']}")
+            parts.append(f"available by {c['available_from']}")
     for x in (c.get("location_keywords") or [])[:5]:
         parts.append(x)
     for x in (c.get("must_have_keywords") or [])[:5]:
@@ -577,18 +572,14 @@ def run_chat():
             filtered[rent_col] = pd.to_numeric(filtered[rent_col], errors="coerce")
             filtered = filtered[filtered[rent_col].notna() & (filtered[rent_col] <= float(c["max_rent_pcm"]))]
 
-        # available_from: hard gate (<=, >=, or ==)
+        # available_from:
+        # - "available from DATE" and "available by/before DATE" both map to:
+        #   listing available_from <= tenant target date
         if c.get("available_from") is not None and "available_from" in filtered.columns:
             listing_dates = pd.to_datetime(filtered["available_from"], errors="coerce")
             target_date = pd.to_datetime(c["available_from"], errors="coerce")
-            dt_op = str(c.get("available_from_op") or "eq").lower()
             if pd.notna(target_date):
-                if dt_op == "gte":
-                    filtered = filtered[listing_dates.notna() & (listing_dates >= target_date)]
-                elif dt_op == "lte":
-                    filtered = filtered[listing_dates.notna() & (listing_dates <= target_date)]
-                else:
-                    filtered = filtered[listing_dates.notna() & (listing_dates == target_date)]
+                filtered = filtered[listing_dates.notna() & (listing_dates <= target_date)]
 
         print(f"[debug] retrieved={pre_filter_n}, after_hard_filters={len(filtered)}, k={k}, recall={recall}")
         
