@@ -581,7 +581,77 @@ def format_listing_row(r: Dict[str, Any], i: int) -> str:
             bits.append("   " + f"unknown_penalty_reasons: {unknown_reason}")
         if soft_reason:
             bits.append("   " + f"soft_penalty_reasons: {soft_reason}")
+
+    evidence = r.get("evidence")
+    if isinstance(evidence, dict) and evidence:
+        bits.append("   evidence: " + json.dumps(evidence, ensure_ascii=False))
     return "\n".join(bits)
+
+
+def build_evidence_for_row(r: Dict[str, Any], c: Dict[str, Any]) -> Dict[str, Any]:
+    ev: Dict[str, Any] = {
+        "source": str(r.get("source", "") or "").strip() or "unknown",
+        "url": str(r.get("url", "") or "").strip(),
+    }
+
+    fields: Dict[str, Any] = {}
+
+    if c.get("max_rent_pcm") is not None:
+        try:
+            p = pd.to_numeric(r.get("price_pcm"), errors="coerce")
+            fields["price_pcm"] = None if pd.isna(p) else float(p)
+            fields["max_rent_pcm"] = float(c["max_rent_pcm"])
+            fields["within_budget"] = None if pd.isna(p) else (float(p) <= float(c["max_rent_pcm"]))
+        except Exception:
+            fields["within_budget"] = None
+
+    if c.get("bedrooms") is not None:
+        try:
+            b = pd.to_numeric(r.get("bedrooms"), errors="coerce")
+            fields["bedrooms"] = None if pd.isna(b) else int(float(b))
+            fields["bedrooms_required"] = int(c["bedrooms"])
+            fields["bedrooms_op"] = str(c.get("bedrooms_op") or "eq")
+        except Exception:
+            fields["bedrooms"] = None
+
+    if c.get("bathrooms") is not None:
+        try:
+            b = pd.to_numeric(r.get("bathrooms"), errors="coerce")
+            fields["bathrooms"] = None if pd.isna(b) else float(b)
+            fields["bathrooms_required"] = float(c["bathrooms"])
+            fields["bathrooms_op"] = str(c.get("bathrooms_op") or "eq")
+        except Exception:
+            fields["bathrooms"] = None
+
+    if c.get("available_from") is not None:
+        dt = pd.to_datetime(r.get("available_from"), errors="coerce")
+        fields["available_from"] = None if pd.isna(dt) else dt.date().isoformat()
+        fields["available_required"] = str(c["available_from"])
+        fields["available_op"] = str(c.get("available_from_op") or "gte")
+
+    text_sources = {
+        "title": str(r.get("title", "") or ""),
+        "address": str(r.get("address", "") or ""),
+        "description": str(r.get("description", "") or ""),
+        "features": str(r.get("features", "") or ""),
+        "stations": str(r.get("stations", "") or ""),
+        "schools": str(r.get("schools", "") or ""),
+    }
+    hits: List[Dict[str, str]] = []
+    all_keywords = [str(x).strip() for x in (c.get("location_keywords") or []) + (c.get("must_have_keywords") or []) if str(x).strip()]
+    for kw in all_keywords:
+        kw_l = kw.lower()
+        hit_where = None
+        for src_name, src_text in text_sources.items():
+            if kw_l in src_text.lower():
+                hit_where = src_name
+                break
+        if hit_where:
+            hits.append({"keyword": kw, "matched_in": hit_where})
+
+    ev["fields"] = fields
+    ev["keyword_hits"] = hits
+    return ev
 
 
 # ----------------------------
@@ -893,6 +963,10 @@ def run_chat():
             df = filtered.reset_index(drop=True)
         else:
             df = filtered.head(k).reset_index(drop=True)
+
+        if df is not None and len(df) > 0:
+            df = df.copy()
+            df["evidence"] = df.apply(lambda row: build_evidence_for_row(row.to_dict(), c), axis=1)
 
 
         
