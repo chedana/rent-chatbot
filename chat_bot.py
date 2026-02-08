@@ -1142,6 +1142,12 @@ def format_listing_row(r: Dict[str, Any], i: int) -> str:
 
     evidence = r.get("evidence")
     if isinstance(evidence, dict) and evidence:
+        kmc = evidence.get("keyword_miss_count")
+        if kmc is not None:
+            try:
+                bits.append("   " + f"keyword_miss_count: {int(kmc)}")
+            except Exception:
+                bits.append("   " + f"keyword_miss_count: {kmc}")
         bits.append("   evidence: " + json.dumps(evidence, ensure_ascii=False))
     return "\n".join(bits)
 
