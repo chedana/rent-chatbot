@@ -28,7 +28,10 @@
       "London Bridge Station"
     ],
     "normalized_for_batch_collector": true,
-    "normalized_at": "2026-02-09"
+    "normalized_at": "2026-02-09",
+    "manual_override_prompts": [
+      "St James's, South West London"
+    ]
   },
   "results": [
     {
@@ -264,16 +267,17 @@
       "is_london": true,
       "location_type": "MANUAL",
       "resolved_search_location": "St James's, South West London",
-      "location_identifier": null,
-      "display_location_identifier": null,
+      "location_identifier": "REGION^85267",
+      "display_location_identifier": "St-Jamess.html",
       "candidate_count": null,
-      "probe_url": null,
-      "final_url": null,
+      "probe_url": "https://www.rightmove.co.uk/property-to-rent/find.html?useLocationIdentifier=true&locationIdentifier=REGION%5E85267&radius=0.0&_includeLetAgreed=on&index=0&sortType=6&channel=RENT&transactionType=LETTING&displayLocationIdentifier=St-Jamess.html",
+      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?useLocationIdentifier=true&locationIdentifier=REGION%5E85267&radius=0.0&_includeLetAgreed=on&index=0&sortType=6&channel=RENT&transactionType=LETTING&displayLocationIdentifier=St-Jamess.html",
       "manual_override": true,
       "manual_source": "user_confirmed_mapping_2026-02-09",
       "prompt": "St James's, South West London",
       "usable": true,
-      "reason": ""
+      "reason": "",
+      "search_url": "https://www.rightmove.co.uk/property-to-rent/find.html?useLocationIdentifier=true&locationIdentifier=REGION%5E85267&radius=0.0&_includeLetAgreed=on&index=0&sortType=6&channel=RENT&transactionType=LETTING&displayLocationIdentifier=St-Jamess.html"
     },
     {
       "area": "Victoria",

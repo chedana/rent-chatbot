@@ -14,6 +14,7 @@
       "High Street Kensington Station",
       "King's Cross St. Pancras Station",
       "Old Street Station",
+      "South Kensington Station",
       "St James's Park Station",
       "St Paul's Station",
       "Temple Station",
@@ -661,12 +662,13 @@
       "prompt": "South Kensington Station",
       "usable": true,
       "reason": "",
-      "resolved_search_location": "Southend Airport Station",
-      "location_identifier": "STATION^15066",
-      "display_location_identifier": null,
-      "candidate_count": 10,
-      "probe_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Southend+Airport+Station&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=STATION%5E15066",
-      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Southend+Airport+Station&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=STATION%5E15066"
+      "resolved_search_location": "South Kensington Station",
+      "location_identifier": "REGION^85252",
+      "display_location_identifier": "South-Kensington.html",
+      "candidate_count": null,
+      "probe_url": "https://www.rightmove.co.uk/property-to-rent/find.html?radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=STATION%5E8414&index=0&displayLocationIdentifier=South-Kensington-Station.html",
+      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=STATION%5E8414&index=0&displayLocationIdentifier=South-Kensington-Station.html",
+      "manual_override": true
     },
     {
       "prompt": "Southwark Station",
