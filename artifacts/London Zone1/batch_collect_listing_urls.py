@@ -7,7 +7,7 @@ import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, List, Optional
-from urllib.parse import quote, urlencode
+from urllib.parse import parse_qs, quote, urlencode, urlparse
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, "..", ".."))
@@ -221,11 +221,45 @@ def load_inputs(args: argparse.Namespace) -> List[Dict]:
                     }
                 )
 
+    if args.search_urls:
+        for u in args.search_urls:
+            u = (u or "").strip()
+            if not u:
+                continue
+            qs = parse_qs(urlparse(u).query)
+            q = (qs.get("searchLocation", [""])[0] or "").strip() or u
+            items.append(
+                {
+                    "query": q,
+                    "preset_probe_url": u,
+                    "preset_location_identifier": (qs.get("locationIdentifier", [""])[0] or None),
+                    "preset_resolved_search_location": q,
+                }
+            )
+
+    if args.search_urls_file:
+        with open(args.search_urls_file, "r", encoding="utf-8") as f:
+            for line in f:
+                u = line.strip()
+                if not u:
+                    continue
+                qs = parse_qs(urlparse(u).query)
+                q = (qs.get("searchLocation", [""])[0] or "").strip() or u
+                items.append(
+                    {
+                        "query": q,
+                        "preset_probe_url": u,
+                        "preset_location_identifier": (qs.get("locationIdentifier", [""])[0] or None),
+                        "preset_resolved_search_location": q,
+                    }
+                )
+
     seen = set()
     out = []
     for it in items:
         q = it["query"]
-        k = q.lower()
+        u = (it.get("preset_probe_url") or "").strip().lower()
+        k = f"{q.lower()}|{u}"
         if k not in seen:
             seen.add(k)
             out.append(it)
@@ -315,6 +349,17 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--queries", nargs="*", default=None, help="Queries to process.")
     parser.add_argument("--queries-file", default=None, help="Text file; one query per line.")
+    parser.add_argument(
+        "--search-urls",
+        nargs="*",
+        default=None,
+        help="Full Rightmove search URLs to process directly.",
+    )
+    parser.add_argument(
+        "--search-urls-file",
+        default=None,
+        help="Text file; one full Rightmove search URL per line.",
+    )
     parser.add_argument(
         "--station-results-json",
         default=os.path.join(SCRIPT_DIR, "zone1_station_prompt_test_results.json"),
