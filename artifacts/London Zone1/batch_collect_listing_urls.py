@@ -1,4 +1,5 @@
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -22,7 +23,13 @@ def slugify(text: str) -> str:
     s = (text or "").strip().lower()
     s = re.sub(r"[^a-z0-9]+", "_", s)
     s = s.strip("_")
-    return s or "unknown"
+    if not s:
+        return "unknown"
+    if len(s) <= 80:
+        return s
+    # Keep names filesystem-safe and deterministic for long URL inputs.
+    digest = hashlib.sha1((text or "").encode("utf-8")).hexdigest()[:10]
+    return f"{s[:60].rstrip('_')}_{digest}"
 
 
 def build_probe_url(
@@ -395,11 +402,26 @@ def parse_args() -> argparse.Namespace:
         default=os.path.join(SCRIPT_DIR, "underground", "batch_listing_urls_summary.json"),
         help="Where to save summary result JSON.",
     )
+    parser.add_argument(
+        "--prompt-out-root",
+        action="store_true",
+        help="Prompt for output directory at runtime.",
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
+    if args.prompt_out_root:
+        user_out_root = input("Output directory (out-root): ").strip()
+        if user_out_root:
+            args.out_root = user_out_root
+            if (
+                args.summary_json
+                == os.path.join(SCRIPT_DIR, "underground", "batch_listing_urls_summary.json")
+            ):
+                args.summary_json = os.path.join(args.out_root, "batch_listing_urls_summary.json")
+
     items = load_inputs(args)
     if not items:
         raise RuntimeError("No queries found. Pass --queries or --queries-file or --station-results-json.")
