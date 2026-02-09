@@ -73,8 +73,7 @@ Schema:
 {
   "transit_terms": string[],
   "school_terms": string[],
-  "general_semantic_phrases": string[],
-  "hard_constraint_phrases": string[]
+  "general_semantic_phrases": string[]
 }
 Rules:
 - Extract intent-bearing phrases from user request, not single random words.
@@ -82,9 +81,6 @@ Rules:
 - Put transport-specific preferences into transit_terms.
 - Put school/education-specific preferences into school_terms.
 - Put remaining soft preferences into general_semantic_phrases.
-- hard_constraint_phrases should capture phrases in user text that represent hard constraints
-  (e.g., "1 bedroom", "flat", "Canary Wharf", "under 2500 pound", "unfurnished").
-- Do NOT include hard constraints in transit_terms/school_terms/general_semantic_phrases.
 - Return [] when not present.
 """
 
@@ -112,16 +108,13 @@ Schema:
   "semantic_terms": {
     "transit_terms": string[],
     "school_terms": string[],
-    "general_semantic_phrases": string[],
-    "hard_constraint_phrases": string[]
+    "general_semantic_phrases": string[]
   }
 }
 Rules:
 - constraints: extract hard constraints only.
 - semantic_terms: extract phrase-level semantic intents.
 - Keep named entities as full phrases (e.g., "Seven Mills Primary School", "Heron Quays Station").
-- hard_constraint_phrases should capture hard-constraint phrases from user text.
-- Do NOT include hard constraints in transit_terms/school_terms/general_semantic_phrases.
 - If unknown use null or [].
 """
 
@@ -167,7 +160,6 @@ def _normalize_semantic_extract(obj: dict) -> dict:
     obj.setdefault("transit_terms", [])
     obj.setdefault("school_terms", [])
     obj.setdefault("general_semantic_phrases", [])
-    obj.setdefault("hard_constraint_phrases", [])
 
     def _norm_list(v: Any) -> List[str]:
         out = []
@@ -187,7 +179,6 @@ def _normalize_semantic_extract(obj: dict) -> dict:
         "transit_terms": _norm_list(obj.get("transit_terms")),
         "school_terms": _norm_list(obj.get("school_terms")),
         "general_semantic_phrases": _norm_list(obj.get("general_semantic_phrases")),
-        "hard_constraint_phrases": _norm_list(obj.get("hard_constraint_phrases")),
     }
 
 def llm_extract(user_text: str, existing_constraints: Optional[dict]) -> dict:
@@ -829,7 +820,6 @@ def split_query_signals(
         "transit_terms": [],
         "school_terms": [],
         "general_semantic_phrases": [],
-        "hard_constraint_phrases": [],
     }
     if precomputed_semantic_terms is None:
         semantic_parse_source = "llm"
@@ -866,53 +856,6 @@ def split_query_signals(
         elif any(t in tok for t in SCHOOL_KEYWORDS):
             school_terms.append(tok)
 
-    hard_phrases = [str(x).strip().lower() for x in model_terms.get("hard_constraint_phrases", []) if str(x).strip()]
-    # Fallback hard phrases in case model misses some obvious constraints.
-    for loc in location_intent:
-        s = str(loc).strip().lower()
-        if s:
-            hard_phrases.append(s)
-    if c.get("bedrooms") is not None:
-        hard_phrases.append(f"{int(float(c.get('bedrooms')))} bedroom")
-    if c.get("property_type"):
-        hard_phrases.append(str(c.get("property_type")).strip().lower())
-    if c.get("furnish_type"):
-        hard_phrases.append(str(c.get("furnish_type")).strip().lower())
-    if c.get("max_rent_pcm") is not None:
-        try:
-            hard_phrases.append(f"under {int(float(c.get('max_rent_pcm')))}")
-        except Exception:
-            pass
-
-    dedup_hard = []
-    seen_hard = set()
-    for hp in hard_phrases:
-        if not hp:
-            continue
-        if hp in seen_hard:
-            continue
-        seen_hard.add(hp)
-        dedup_hard.append(hp)
-    hard_phrases = dedup_hard
-
-    def _is_hard_semantic_phrase(p: str, hard_list: List[str]) -> bool:
-        s = str(p).strip().lower()
-        if not s:
-            return False
-        stoks = set(re.findall(r"[a-z0-9]{2,}", s))
-        for hp in hard_list:
-            if not hp:
-                continue
-            if s == hp or s in hp or hp in s:
-                return True
-            htoks = set(re.findall(r"[a-z0-9]{2,}", hp))
-            if stoks and htoks:
-                overlap = len(stoks & htoks)
-                if overlap >= max(1, min(2, len(stoks))):
-                    return True
-        return False
-
-    removed_by_hard = []
     general_semantic = [str(x).strip().lower() for x in model_terms.get("general_semantic_phrases", []) if str(x).strip()]
     seen = set()
     for t in general_semantic:
@@ -923,29 +866,9 @@ def split_query_signals(
             continue
         seen.add(t)
         general_semantic.append(t)
-
-    filtered_general = []
-    for t in general_semantic:
-        if _is_hard_semantic_phrase(t, hard_phrases):
-            removed_by_hard.append(t)
-            continue
-        filtered_general.append(t)
-    general_semantic = list(dict.fromkeys(filtered_general))
-
-    filtered_transit = []
-    filtered_school = []
-    for t in transit_terms:
-        if _is_hard_semantic_phrase(t, hard_phrases):
-            removed_by_hard.append(t)
-            continue
-        filtered_transit.append(t)
-    for t in school_terms:
-        if _is_hard_semantic_phrase(t, hard_phrases):
-            removed_by_hard.append(t)
-            continue
-        filtered_school.append(t)
-    transit_terms = list(dict.fromkeys(filtered_transit))
-    school_terms = list(dict.fromkeys(filtered_school))
+    general_semantic = list(dict.fromkeys(general_semantic))
+    transit_terms = list(dict.fromkeys([x for x in transit_terms if str(x).strip()]))
+    school_terms = list(dict.fromkeys([x for x in school_terms if str(x).strip()]))
 
     return {
         "hard_constraints": {
@@ -972,8 +895,6 @@ def split_query_signals(
             "parse_source": semantic_parse_source,
             "model_terms": model_terms,
             "fallback_tokens": raw_tokens,
-            "hard_constraint_phrases_used": hard_phrases,
-            "removed_by_hard_phrases": sorted(list(dict.fromkeys(removed_by_hard))),
             "final_general_semantic": general_semantic,
         },
     }
@@ -1623,15 +1544,6 @@ def format_listing_row(r: Dict[str, Any], i: int) -> str:
 
     evidence = r.get("evidence")
     if isinstance(evidence, dict) and evidence:
-        kmc = evidence.get("keyword_miss_count")
-        if kmc is not None:
-            try:
-                bits.append("   " + f"keyword_miss_count: {int(kmc)}")
-            except Exception:
-                bits.append("   " + f"keyword_miss_count: {kmc}")
-        km = evidence.get("keyword_misses")
-        if isinstance(km, list) and len(km) > 0:
-            bits.append("   " + "keyword_misses: " + ", ".join([str(x) for x in km]))
         bits.append("   evidence: " + json.dumps(evidence, ensure_ascii=False))
     return "\n".join(bits)
 
@@ -1723,70 +1635,7 @@ def build_evidence_for_row(r: Dict[str, Any], c: Dict[str, Any], user_query: str
     dt_any = pd.to_datetime(r.get("available_from"), errors="coerce")
     fields["available_from"] = None if pd.isna(dt_any) else dt_any.date().isoformat()
 
-    text_sources = {
-        "title": str(r.get("title", "") or ""),
-        "address": str(r.get("address", "") or ""),
-        "description": str(r.get("description", "") or ""),
-        "features": str(r.get("features", "") or ""),
-        "stations": str(r.get("stations", "") or ""),
-        "schools": str(r.get("schools", "") or ""),
-        # Include structured fields so evidence reflects hard-filtered matches too.
-        "furnish_type": str(r.get("furnish_type", "") or ""),
-        "let_type": str(r.get("let_type", "") or ""),
-        "property_type": str(r.get("property_type", "") or ""),
-        "min_tenancy": str(r.get("min_tenancy", "") or ""),
-        "size_sqm": str(r.get("size_sqm", "") or ""),
-        "size_sqft": str(r.get("size_sqft", "") or ""),
-    }
-    hits: List[Dict[str, str]] = []
-    all_keywords = [str(x).strip() for x in (c.get("location_keywords") or []) + (c.get("must_have_keywords") or []) if str(x).strip()]
-    # Fallback to raw query tokens so evidence stays informative even when extractor outputs empty keyword lists.
-    if user_query:
-        stop_words = {
-            "the", "and", "for", "with", "near", "from", "rent", "flat", "apartment",
-            "bed", "bath", "budget", "pcm", "in", "to", "of",
-            "want", "need", "looking", "please",
-        }
-        query_tokens = re.findall(r"[A-Za-z0-9]{3,}", user_query.lower())
-        for tok in query_tokens:
-            if tok in stop_words:
-                continue
-            all_keywords.append(tok)
-    # de-dup while keeping order
-    deduped = []
-    seen = set()
-    for kw in all_keywords:
-        k = kw.lower()
-        if k in seen:
-            continue
-        seen.add(k)
-        deduped.append(kw)
-    all_keywords = deduped
-
-    for kw in all_keywords:
-        kw_l = kw.lower()
-        hit_where = None
-        for src_name, src_text in text_sources.items():
-            if kw_l in src_text.lower():
-                hit_where = src_name
-                break
-        if hit_where:
-            hits.append({"keyword": kw, "matched_in": hit_where})
-    hit_set = set()
-    for h in hits:
-        k = str(h.get("keyword", "")).strip().lower()
-        if k:
-            hit_set.add(k)
-    misses: List[str] = []
-    for kw in all_keywords:
-        k = str(kw).strip().lower()
-        if k and k not in hit_set:
-            misses.append(str(kw))
-
     ev["fields"] = fields
-    ev["keyword_hits"] = hits
-    ev["keyword_misses"] = misses
-    ev["keyword_miss_count"] = max(0, len(all_keywords) - len(hits))
     return ev
 
 
