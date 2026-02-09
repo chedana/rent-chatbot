@@ -1234,8 +1234,11 @@ def _score_single_intent(
     den = sum(w for _, w, _, _, _ in top)
     score = (num / den) if den > 0 else 0.0
     top_show = []
-    for _, w, sim, field, text in top[:2]:
-        top_show.append(f"{field}(w={w:.2f},sim={sim:.3f}):{text[:80]}")
+    # Show all top_k matches (already sorted by weighted score desc) for transparent debugging.
+    for rank, (weighted, w, sim, field, text) in enumerate(top, start=1):
+        top_show.append(
+            f"#{rank} {field}(weighted={weighted:.3f},w={w:.2f},sim={sim:.3f}):{text[:120]}"
+        )
     detail = (
         f"intent='{intent}' top_k={max(1, top_k)} "
         f"score={score:.4f} from weighted_mean; top_matches=[{'; '.join(top_show)}]"
