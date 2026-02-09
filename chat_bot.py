@@ -466,7 +466,6 @@ def merge_constraints(old: Optional[dict], new: dict) -> dict:
 
     return normalize_constraints(out)
 
-
 def _norm_scalar_for_diff(v: Any) -> Any:
     if v is None:
         return None
@@ -1326,6 +1325,7 @@ def rank_stage_c(
 
     out = filtered.copy()
     weights = compute_stagec_weights(signals)
+    hard = signals.get("hard_constraints", {}) or {}
     transit_terms = signals.get("topic_preferences", {}).get("transit_terms", [])
     school_terms = signals.get("topic_preferences", {}).get("school_terms", [])
     pref_terms = signals.get("general_semantic", [])
@@ -1389,6 +1389,30 @@ def rank_stage_c(
 
         penalties = []
         penalty_score = 0.0
+        unknown_penalty_raw = 0.0
+        unknown_items: List[str] = []
+
+        # Penalize unknown values (e.g. "Ask agent") on active hard constraints.
+        if hard.get("max_rent_pcm") is not None and _to_float(r.get("price_pcm")) is None:
+            unknown_penalty_raw += float(UNKNOWN_PENALTY_WEIGHTS.get("price", 0.0))
+            unknown_items.append("price")
+        if hard.get("bedrooms") is not None and _to_float(r.get("bedrooms")) is None:
+            unknown_penalty_raw += float(UNKNOWN_PENALTY_WEIGHTS.get("bedrooms", 0.0))
+            unknown_items.append("bedrooms")
+        if hard.get("bathrooms") is not None and _to_float(r.get("bathrooms")) is None:
+            unknown_penalty_raw += float(UNKNOWN_PENALTY_WEIGHTS.get("bathrooms", 0.0))
+            unknown_items.append("bathrooms")
+        if hard.get("available_from") is not None and pd.isna(pd.to_datetime(r.get("available_from"), errors="coerce")):
+            unknown_penalty_raw += float(UNKNOWN_PENALTY_WEIGHTS.get("available_from", 0.0))
+            unknown_items.append("available_from")
+
+        if unknown_penalty_raw > 0.0:
+            unknown_penalty = min(float(UNKNOWN_PENALTY_CAP), float(unknown_penalty_raw))
+            penalty_score += unknown_penalty
+            penalties.append(
+                f"unknown_hard({','.join(unknown_items)};+{unknown_penalty:.2f})"
+            )
+
         if transit_terms and not stations_items:
             penalty_score += 0.12
             penalties.append("missing_stations(+0.12)")
@@ -1840,6 +1864,8 @@ def run_chat():
         )
 
         print(f"[state] changes: {changes_line}")
+        print(f"[state] llm_constraints: {json.dumps(extracted, ensure_ascii=False)}")
+        print(f"[state] llm_semantic_terms: {json.dumps(semantic_terms, ensure_ascii=False)}")
         print(f"[state] active_constraints: {json.dumps(active_line, ensure_ascii=False)}")
         print(f"[state] signals: {json.dumps(signals, ensure_ascii=False)}")
 
