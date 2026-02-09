@@ -68,6 +68,63 @@ Rules:
 - If unknown use null or [].
 """
 
+SEMANTIC_EXTRACT_SYSTEM = """You output STRICT JSON only (no markdown, no explanation).
+Schema:
+{
+  "transit_terms": string[],
+  "school_terms": string[],
+  "general_semantic_phrases": string[],
+  "hard_constraint_phrases": string[]
+}
+Rules:
+- Extract intent-bearing phrases from user request, not single random words.
+- Keep named entities as full phrases (e.g., "Seven Mills Primary School", "Heron Quays Station").
+- Put transport-specific preferences into transit_terms.
+- Put school/education-specific preferences into school_terms.
+- Put remaining soft preferences into general_semantic_phrases.
+- hard_constraint_phrases should capture phrases in user text that represent hard constraints
+  (e.g., "1 bedroom", "flat", "Canary Wharf", "under 2500 pound", "unfurnished").
+- Do NOT include hard constraints in transit_terms/school_terms/general_semantic_phrases.
+- Return [] when not present.
+"""
+
+EXTRACT_ALL_SYSTEM = """You output STRICT JSON only (no markdown, no explanation).
+Schema:
+{
+  "constraints": {
+    "max_rent_pcm": number|null,
+    "bedrooms": int|null,
+    "bedrooms_op": string|null,
+    "bathrooms": number|null,
+    "bathrooms_op": string|null,
+    "available_from": string|null,
+    "available_from_op": string|null,
+    "furnish_type": string|null,
+    "let_type": string|null,
+    "property_type": string|null,
+    "min_tenancy_months": number|null,
+    "min_size_sqm": number|null,
+    "min_size_sqft": number|null,
+    "location_keywords": string[],
+    "must_have_keywords": string[],
+    "k": int|null
+  },
+  "semantic_terms": {
+    "transit_terms": string[],
+    "school_terms": string[],
+    "general_semantic_phrases": string[],
+    "hard_constraint_phrases": string[]
+  }
+}
+Rules:
+- constraints: extract hard constraints only.
+- semantic_terms: extract phrase-level semantic intents.
+- Keep named entities as full phrases (e.g., "Seven Mills Primary School", "Heron Quays Station").
+- hard_constraint_phrases should capture hard-constraint phrases from user text.
+- Do NOT include hard constraints in transit_terms/school_terms/general_semantic_phrases.
+- If unknown use null or [].
+"""
+
 NEAR_WORDS = {
     "near subway","near station","near tube","tube","subway","station","close to station","near metro",
     "near underground","near tube station","close to tube","walk to station"
@@ -87,19 +144,8 @@ def _extract_json_obj(txt: str) -> dict:
         raise ValueError("No JSON found. Got:\n" + txt)
     return json.loads(m.group(0))
 
-def llm_extract(user_text: str, existing_constraints: Optional[dict]) -> dict:
-    prefix = ""
-    if existing_constraints:
-        prefix = "Existing constraints (JSON):\n" + json.dumps(existing_constraints, ensure_ascii=False) + "\n\n"
-
-    txt = qwen_chat(
-        [
-            {"role": "system", "content": EXTRACT_SYSTEM},
-            {"role": "user", "content": prefix + "User says:\n" + user_text}
-        ],
-        temperature=0.0
-    )
-    obj = _extract_json_obj(txt)
+def _normalize_constraint_extract(obj: dict) -> dict:
+    obj = obj or {}
     obj.setdefault("k", None)
     obj.setdefault("bedrooms_op", None)
     obj.setdefault("bathrooms", None)
@@ -115,6 +161,83 @@ def llm_extract(user_text: str, existing_constraints: Optional[dict]) -> dict:
     obj.setdefault("location_keywords", [])
     obj.setdefault("must_have_keywords", [])
     return obj
+
+def _normalize_semantic_extract(obj: dict) -> dict:
+    obj = obj or {}
+    obj.setdefault("transit_terms", [])
+    obj.setdefault("school_terms", [])
+    obj.setdefault("general_semantic_phrases", [])
+    obj.setdefault("hard_constraint_phrases", [])
+
+    def _norm_list(v: Any) -> List[str]:
+        out = []
+        seen = set()
+        for x in (v or []):
+            s = str(x).strip()
+            if not s:
+                continue
+            k = s.lower()
+            if k in seen:
+                continue
+            seen.add(k)
+            out.append(s)
+        return out
+
+    return {
+        "transit_terms": _norm_list(obj.get("transit_terms")),
+        "school_terms": _norm_list(obj.get("school_terms")),
+        "general_semantic_phrases": _norm_list(obj.get("general_semantic_phrases")),
+        "hard_constraint_phrases": _norm_list(obj.get("hard_constraint_phrases")),
+    }
+
+def llm_extract(user_text: str, existing_constraints: Optional[dict]) -> dict:
+    prefix = ""
+    if existing_constraints:
+        prefix = "Existing constraints (JSON):\n" + json.dumps(existing_constraints, ensure_ascii=False) + "\n\n"
+
+    txt = qwen_chat(
+        [
+            {"role": "system", "content": EXTRACT_SYSTEM},
+            {"role": "user", "content": prefix + "User says:\n" + user_text}
+        ],
+        temperature=0.0
+    )
+    obj = _extract_json_obj(txt)
+    return _normalize_constraint_extract(obj)
+
+def llm_extract_semantic_terms(user_text: str, existing_constraints: Optional[dict]) -> dict:
+    prefix = ""
+    if existing_constraints:
+        prefix = "Structured constraints (JSON):\n" + json.dumps(existing_constraints, ensure_ascii=False) + "\n\n"
+
+    txt = qwen_chat(
+        [
+            {"role": "system", "content": SEMANTIC_EXTRACT_SYSTEM},
+            {"role": "user", "content": prefix + "User says:\n" + user_text},
+        ],
+        temperature=0.0,
+    )
+    obj = _extract_json_obj(txt)
+    return _normalize_semantic_extract(obj)
+
+def llm_extract_all_signals(user_text: str, existing_constraints: Optional[dict]) -> Dict[str, Any]:
+    prefix = ""
+    if existing_constraints:
+        prefix = "Existing constraints (JSON):\n" + json.dumps(existing_constraints, ensure_ascii=False) + "\n\n"
+    txt = qwen_chat(
+        [
+            {"role": "system", "content": EXTRACT_ALL_SYSTEM},
+            {"role": "user", "content": prefix + "User says:\n" + user_text},
+        ],
+        temperature=0.0,
+    )
+    obj = _extract_json_obj(txt)
+    constraints = _normalize_constraint_extract(obj.get("constraints") or {})
+    semantic_terms = _normalize_semantic_extract(obj.get("semantic_terms") or {})
+    return {
+        "constraints": constraints,
+        "semantic_terms": semantic_terms,
+    }
 def normalize_budget_to_pcm(c: dict) -> dict:
     """
     Normalize budget constraints to pcm.
@@ -491,6 +614,13 @@ RANKING_LOG_PATH = os.environ.get(
     "RENT_RANKING_LOG_PATH",
     os.path.join(ROOT_DIR, "artifacts", "debug", "ranking_log.jsonl"),
 )
+SEMANTIC_TOP_K = int(os.environ.get("RENT_SEMANTIC_TOPK", "4"))
+SEMANTIC_FIELD_WEIGHTS = {
+    "schools": 1.00,
+    "stations": 1.00,
+    "features": 0.80,
+    "description": 0.60,
+}
 
 TRANSIT_KEYWORDS = [
     "tube", "station", "underground", "metro", "rail", "dlr", "overground",
@@ -685,18 +815,47 @@ def tokenize_query(s: str) -> List[str]:
     return re.findall(r"[a-z0-9]{2,}", s.lower())
 
 
-def split_query_signals(user_in: str, c: Dict[str, Any]) -> Dict[str, Any]:
+def split_query_signals(
+    user_in: str,
+    c: Dict[str, Any],
+    precomputed_semantic_terms: Optional[Dict[str, Any]] = None,
+    semantic_parse_source: str = "llm",
+) -> Dict[str, Any]:
     c = c or {}
-    must_keywords = [str(x).strip().lower() for x in (c.get("must_have_keywords") or []) if str(x).strip()]
+    must_keywords = [str(x).strip() for x in (c.get("must_have_keywords") or []) if str(x).strip()]
     location_intent = [str(x).strip() for x in (c.get("location_keywords") or []) if str(x).strip()]
+
+    model_terms = precomputed_semantic_terms or {
+        "transit_terms": [],
+        "school_terms": [],
+        "general_semantic_phrases": [],
+        "hard_constraint_phrases": [],
+    }
+    if precomputed_semantic_terms is None:
+        semantic_parse_source = "llm"
+        try:
+            model_terms = llm_extract_semantic_terms(user_in, c)
+        except Exception:
+            # fall back to rule-based token extraction when LLM parsing fails
+            semantic_parse_source = "fallback_rules"
 
     transit_terms: List[str] = []
     school_terms: List[str] = []
+    for t in model_terms.get("transit_terms", []):
+        s = str(t).strip().lower()
+        if s:
+            transit_terms.append(s)
+    for t in model_terms.get("school_terms", []):
+        s = str(t).strip().lower()
+        if s:
+            school_terms.append(s)
+
     for kw in must_keywords:
-        if any(t in kw for t in TRANSIT_KEYWORDS):
-            transit_terms.append(kw)
-        elif any(t in kw for t in SCHOOL_KEYWORDS):
-            school_terms.append(kw)
+        kwl = kw.lower()
+        if any(t in kwl for t in TRANSIT_KEYWORDS):
+            transit_terms.append(kwl)
+        elif any(t in kwl for t in SCHOOL_KEYWORDS):
+            school_terms.append(kwl)
 
     raw_tokens = infer_soft_keywords_from_query(user_in)
     for tok in raw_tokens:
@@ -707,15 +866,86 @@ def split_query_signals(user_in: str, c: Dict[str, Any]) -> Dict[str, Any]:
         elif any(t in tok for t in SCHOOL_KEYWORDS):
             school_terms.append(tok)
 
-    excluded = set([x.lower() for x in transit_terms + school_terms + location_intent])
-    general_semantic = []
+    hard_phrases = [str(x).strip().lower() for x in model_terms.get("hard_constraint_phrases", []) if str(x).strip()]
+    # Fallback hard phrases in case model misses some obvious constraints.
+    for loc in location_intent:
+        s = str(loc).strip().lower()
+        if s:
+            hard_phrases.append(s)
+    if c.get("bedrooms") is not None:
+        hard_phrases.append(f"{int(float(c.get('bedrooms')))} bedroom")
+    if c.get("property_type"):
+        hard_phrases.append(str(c.get("property_type")).strip().lower())
+    if c.get("furnish_type"):
+        hard_phrases.append(str(c.get("furnish_type")).strip().lower())
+    if c.get("max_rent_pcm") is not None:
+        try:
+            hard_phrases.append(f"under {int(float(c.get('max_rent_pcm')))}")
+        except Exception:
+            pass
+
+    dedup_hard = []
+    seen_hard = set()
+    for hp in hard_phrases:
+        if not hp:
+            continue
+        if hp in seen_hard:
+            continue
+        seen_hard.add(hp)
+        dedup_hard.append(hp)
+    hard_phrases = dedup_hard
+
+    def _is_hard_semantic_phrase(p: str, hard_list: List[str]) -> bool:
+        s = str(p).strip().lower()
+        if not s:
+            return False
+        stoks = set(re.findall(r"[a-z0-9]{2,}", s))
+        for hp in hard_list:
+            if not hp:
+                continue
+            if s == hp or s in hp or hp in s:
+                return True
+            htoks = set(re.findall(r"[a-z0-9]{2,}", hp))
+            if stoks and htoks:
+                overlap = len(stoks & htoks)
+                if overlap >= max(1, min(2, len(stoks))):
+                    return True
+        return False
+
+    removed_by_hard = []
+    general_semantic = [str(x).strip().lower() for x in model_terms.get("general_semantic_phrases", []) if str(x).strip()]
     seen = set()
-    for tok in raw_tokens + must_keywords:
+    for t in general_semantic:
+        seen.add(t)
+    for tok in raw_tokens + [str(x).strip().lower() for x in must_keywords]:
         t = tok.lower().strip()
-        if not t or t in excluded or t in seen:
+        if not t or t in seen:
             continue
         seen.add(t)
         general_semantic.append(t)
+
+    filtered_general = []
+    for t in general_semantic:
+        if _is_hard_semantic_phrase(t, hard_phrases):
+            removed_by_hard.append(t)
+            continue
+        filtered_general.append(t)
+    general_semantic = list(dict.fromkeys(filtered_general))
+
+    filtered_transit = []
+    filtered_school = []
+    for t in transit_terms:
+        if _is_hard_semantic_phrase(t, hard_phrases):
+            removed_by_hard.append(t)
+            continue
+        filtered_transit.append(t)
+    for t in school_terms:
+        if _is_hard_semantic_phrase(t, hard_phrases):
+            removed_by_hard.append(t)
+            continue
+        filtered_school.append(t)
+    transit_terms = list(dict.fromkeys(filtered_transit))
+    school_terms = list(dict.fromkeys(filtered_school))
 
     return {
         "hard_constraints": {
@@ -734,15 +964,51 @@ def split_query_signals(user_in: str, c: Dict[str, Any]) -> Dict[str, Any]:
         },
         "location_intent": location_intent,
         "topic_preferences": {
-            "transit_terms": list(dict.fromkeys(transit_terms)),
-            "school_terms": list(dict.fromkeys(school_terms)),
+            "transit_terms": transit_terms,
+            "school_terms": school_terms,
         },
         "general_semantic": general_semantic,
+        "semantic_debug": {
+            "parse_source": semantic_parse_source,
+            "model_terms": model_terms,
+            "fallback_tokens": raw_tokens,
+            "hard_constraint_phrases_used": hard_phrases,
+            "removed_by_hard_phrases": sorted(list(dict.fromkeys(removed_by_hard))),
+            "final_general_semantic": general_semantic,
+        },
     }
 
 
 def build_stage_a_query(signals: Dict[str, Any], user_in: str) -> str:
     parts: List[str] = []
+    hard = signals.get("hard_constraints", {}) or {}
+
+    # Keep hard hints in Stage A retrieval to improve recall coverage.
+    if hard.get("bedrooms") is not None:
+        op = str(hard.get("bedrooms_op") or "eq").lower()
+        if op == "gte":
+            parts.append(f"at least {int(float(hard.get('bedrooms')))} bedroom")
+        else:
+            parts.append(f"{int(float(hard.get('bedrooms')))} bedroom")
+    if hard.get("bathrooms") is not None:
+        op = str(hard.get("bathrooms_op") or "eq").lower()
+        if op == "gte":
+            parts.append(f"at least {float(hard.get('bathrooms')):g} bathroom")
+        else:
+            parts.append(f"{float(hard.get('bathrooms')):g} bathroom")
+    if hard.get("max_rent_pcm") is not None:
+        parts.append(f"under {int(float(hard.get('max_rent_pcm')))} pcm")
+    if hard.get("furnish_type"):
+        parts.append(str(hard.get("furnish_type")))
+    if hard.get("let_type"):
+        parts.append(str(hard.get("let_type")))
+    if hard.get("property_type"):
+        parts.append(str(hard.get("property_type")))
+    if hard.get("min_tenancy_months") is not None:
+        parts.append(f"{float(hard.get('min_tenancy_months')):g} months tenancy")
+    if hard.get("min_size_sqm") is not None:
+        parts.append(f"at least {float(hard.get('min_size_sqm')):g} sqm")
+
     parts.extend([x for x in signals.get("location_intent", []) if str(x).strip()])
     parts.extend([x for x in signals.get("general_semantic", []) if str(x).strip()])
     if not parts:
@@ -933,6 +1199,130 @@ def _hit_ratio(text: str, terms: List[str]) -> Tuple[float, List[str]]:
 def _uniq_term_count(terms: List[str]) -> int:
     return len(list(dict.fromkeys([x.lower().strip() for x in (terms or []) if str(x).strip()])))
 
+def _split_description_chunks(desc: str) -> List[str]:
+    s = _safe_text(desc)
+    if not s:
+        return []
+    s = s.replace("<PARA>", "\n")
+    parts = []
+    for p in re.split(r"[\n\r]+|(?<=[\.\!\?;])\s+", s):
+        t = _safe_text(p)
+        if len(t) >= 8:
+            parts.append(t)
+    return parts
+
+def _embed_texts_cached(
+    embedder: SentenceTransformer,
+    texts: List[str],
+    cache: Dict[str, np.ndarray],
+) -> List[np.ndarray]:
+    missing = []
+    for t in texts:
+        if t not in cache:
+            missing.append(t)
+    if missing:
+        embs = embedder.encode(
+            missing,
+            batch_size=min(BATCH, max(1, len(missing))),
+            show_progress_bar=False,
+            convert_to_numpy=True,
+            normalize_embeddings=True,
+        ).astype("float32")
+        for t, e in zip(missing, embs):
+            cache[t] = e
+    return [cache[t] for t in texts]
+
+def _sim_text(query: str, text: str, embedder: SentenceTransformer, cache: Dict[str, np.ndarray]) -> float:
+    q = _safe_text(query).lower()
+    t = _safe_text(text).lower()
+    if not q or not t:
+        return 0.0
+    if q in t:
+        return 1.0
+    qv, tv = _embed_texts_cached(embedder, [q, t], cache)
+    cos = float(np.dot(qv, tv))
+    # map cosine from [-1, 1] to [0, 1] for compatibility with current scoring
+    return float(max(0.0, min(1.0, (cos + 1.0) / 2.0)))
+
+def _collect_value_candidates(r: Dict[str, Any]) -> List[Dict[str, str]]:
+    cands: List[Dict[str, str]] = []
+    for v in parse_jsonish_items(r.get("schools")):
+        cands.append({"field": "schools", "text": v})
+    for v in parse_jsonish_items(r.get("stations")):
+        cands.append({"field": "stations", "text": v})
+    for v in parse_jsonish_items(r.get("features")):
+        cands.append({"field": "features", "text": v})
+    for v in _split_description_chunks(_safe_text(r.get("description"))):
+        cands.append({"field": "description", "text": v})
+    return cands
+
+def _score_single_intent(
+    intent: str,
+    candidates: List[Dict[str, str]],
+    top_k: int,
+    embedder: SentenceTransformer,
+    sim_cache: Dict[str, np.ndarray],
+) -> Tuple[float, str]:
+    scored = []
+    for c in candidates:
+        field = c.get("field", "")
+        text = c.get("text", "")
+        sim = _sim_text(intent, text, embedder=embedder, cache=sim_cache)
+        w = float(SEMANTIC_FIELD_WEIGHTS.get(field, 0.60))
+        weighted = w * sim
+        scored.append((weighted, w, sim, field, text))
+    scored.sort(key=lambda x: x[0], reverse=True)
+    top = scored[:max(1, top_k)]
+    if not top:
+        return 0.0, f"intent='{intent}' no_candidates"
+    num = sum(w * sim for _, w, sim, _, _ in top)
+    den = sum(w for _, w, _, _, _ in top)
+    score = (num / den) if den > 0 else 0.0
+    top_show = []
+    for _, w, sim, field, text in top[:2]:
+        top_show.append(f"{field}(w={w:.2f},sim={sim:.3f}):{text[:80]}")
+    detail = (
+        f"intent='{intent}' top_k={max(1, top_k)} "
+        f"score={score:.4f} from weighted_mean; top_matches=[{'; '.join(top_show)}]"
+    )
+    return float(score), detail
+
+def _score_intent_group(
+    intents: List[str],
+    candidates: List[Dict[str, str]],
+    top_k: int,
+    embedder: SentenceTransformer,
+    sim_cache: Dict[str, np.ndarray],
+) -> Tuple[float, List[str], str]:
+    cleaned = []
+    seen = set()
+    for i in intents or []:
+        s = _safe_text(i).lower()
+        if not s or s in seen:
+            continue
+        seen.add(s)
+        cleaned.append(s)
+    if not cleaned:
+        return 0.0, [], "no_intents"
+
+    scores = []
+    hit_terms = []
+    details = []
+    for it in cleaned:
+        sc, dt = _score_single_intent(
+            it,
+            candidates,
+            top_k=top_k,
+            embedder=embedder,
+            sim_cache=sim_cache,
+        )
+        scores.append(sc)
+        details.append(dt)
+        if sc >= 0.45:
+            hit_terms.append(it)
+    group_score = float(sum(scores) / max(1, len(scores)))
+    return group_score, hit_terms, " | ".join(details)
+
 
 def compute_stagec_weights(signals: Dict[str, Any]) -> Dict[str, float]:
     has_transit = len(signals.get("topic_preferences", {}).get("transit_terms", [])) > 0
@@ -953,7 +1343,11 @@ def compute_stagec_weights(signals: Dict[str, Any]) -> Dict[str, float]:
     return {**base, "penalty": penalty}
 
 
-def rank_stage_c(filtered: pd.DataFrame, signals: Dict[str, Any]) -> Tuple[pd.DataFrame, Dict[str, float]]:
+def rank_stage_c(
+    filtered: pd.DataFrame,
+    signals: Dict[str, Any],
+    embedder: SentenceTransformer,
+) -> Tuple[pd.DataFrame, Dict[str, float]]:
     if filtered is None or len(filtered) == 0:
         return filtered, compute_stagec_weights(signals)
 
@@ -977,6 +1371,7 @@ def rank_stage_c(filtered: pd.DataFrame, signals: Dict[str, Any]) -> Tuple[pd.Da
     out["school_detail"] = ""
     out["preference_detail"] = ""
     out["penalty_detail"] = ""
+    sim_cache: Dict[str, np.ndarray] = {}
 
     for idx, row in out.iterrows():
         r = row.to_dict()
@@ -995,9 +1390,28 @@ def rank_stage_c(filtered: pd.DataFrame, signals: Dict[str, Any]) -> Tuple[pd.Da
         pref_text = " ".join([title, address, desc, feats]).strip()
         loc_text = " ".join([title, address, desc, feats, stations_text, schools_text]).lower()
 
-        transit_score, transit_hits = _hit_ratio(transit_text, transit_terms)
-        school_score, school_hits = _hit_ratio(school_text, school_terms)
-        pref_score, pref_hits = _hit_ratio(pref_text, pref_terms)
+        candidates = _collect_value_candidates(r)
+        transit_score, transit_hits, transit_group_detail = _score_intent_group(
+            transit_terms,
+            candidates,
+            top_k=SEMANTIC_TOP_K,
+            embedder=embedder,
+            sim_cache=sim_cache,
+        )
+        school_score, school_hits, school_group_detail = _score_intent_group(
+            school_terms,
+            candidates,
+            top_k=SEMANTIC_TOP_K,
+            embedder=embedder,
+            sim_cache=sim_cache,
+        )
+        pref_score, pref_hits, pref_group_detail = _score_intent_group(
+            pref_terms,
+            candidates,
+            top_k=SEMANTIC_TOP_K,
+            embedder=embedder,
+            sim_cache=sim_cache,
+        )
         loc_hits = sum(1 for loc in location_terms if loc and loc in loc_text)
 
         penalties = []
@@ -1021,26 +1435,20 @@ def rank_stage_c(filtered: pd.DataFrame, signals: Dict[str, Any]) -> Tuple[pd.Da
         out.at[idx, "school_hits"] = ", ".join(school_hits)
         out.at[idx, "preference_hits"] = ", ".join(pref_hits)
         out.at[idx, "penalty_reasons"] = ", ".join(penalties)
-        t_total = _uniq_term_count(transit_terms)
-        s_total = _uniq_term_count(school_terms)
-        p_total = _uniq_term_count(pref_terms)
         out.at[idx, "transit_detail"] = (
-            f"hit_ratio={len(transit_hits)}/{max(1, t_total)}; "
+            f"group_score={transit_score:.4f}; "
             f"hits=[{', '.join(transit_hits)}]; "
-            f"terms=[{', '.join(transit_terms)}]; "
-            f"text=stations+description+features+address"
+            + transit_group_detail
         )
         out.at[idx, "school_detail"] = (
-            f"hit_ratio={len(school_hits)}/{max(1, s_total)}; "
+            f"group_score={school_score:.4f}; "
             f"hits=[{', '.join(school_hits)}]; "
-            f"terms=[{', '.join(school_terms)}]; "
-            f"text=schools+description+features+address"
+            + school_group_detail
         )
         out.at[idx, "preference_detail"] = (
-            f"hit_ratio={len(pref_hits)}/{max(1, p_total)}; "
+            f"group_score={pref_score:.4f}; "
             f"hits=[{', '.join(pref_hits)}]; "
-            f"terms=[{', '.join(pref_terms)}]; "
-            f"text=title+address+description+features"
+            + pref_group_detail
         )
         out.at[idx, "penalty_detail"] = (
             f"sum(active_penalties)={penalty_score:.4f}; "
@@ -1159,6 +1567,35 @@ def format_listing_row(r: Dict[str, Any], i: int) -> str:
                 + f"preference={f(r.get('preference_score'))}, "
                 + f"penalty={f(r.get('penalty_score'))}"
             )
+            try:
+                wt = float(r.get("w_transit", 0.0))
+                ws = float(r.get("w_school", 0.0))
+                wp = float(r.get("w_preference", 0.0))
+                wpen = float(r.get("w_penalty", 0.0))
+                st = float(r.get("transit_score", 0.0))
+                ss = float(r.get("school_score", 0.0))
+                sp = float(r.get("preference_score", 0.0))
+                spe = float(r.get("penalty_score", 0.0))
+                c_t = wt * st
+                c_s = ws * ss
+                c_p = wp * sp
+                c_pen = wpen * spe
+                bits.append(
+                    "   "
+                    + "contrib: "
+                    + f"transit={wt:.3f}*{st:.4f}={c_t:.4f}, "
+                    + f"school={ws:.3f}*{ss:.4f}={c_s:.4f}, "
+                    + f"preference={wp:.3f}*{sp:.4f}={c_p:.4f}, "
+                    + f"penalty={wpen:.3f}*{spe:.4f}={c_pen:.4f}"
+                )
+                bits.append(
+                    "   "
+                    + "final_calc: "
+                    + f"{c_t:.4f} + {c_s:.4f} + {c_p:.4f} - {c_pen:.4f} = "
+                    + f"{(c_t + c_s + c_p - c_pen):.4f}"
+                )
+            except Exception:
+                pass
         transit_hits = str(r.get("transit_hits", "") or "").strip()
         school_hits = str(r.get("school_hits", "") or "").strip()
         pref_hits = str(r.get("preference_hits", "") or "").strip()
@@ -1477,7 +1914,16 @@ def run_chat():
         # recall = int(state["recall"])
         # df = faiss_search(index, embedder, meta, query=query, recall=recall, k=k)
         prev_constraints = dict(state["constraints"] or {})
-        extracted = llm_extract(user_in, state["constraints"])
+        semantic_parse_source = "llm_combined"
+        combined = {"constraints": {}, "semantic_terms": {}}
+        try:
+            combined = llm_extract_all_signals(user_in, state["constraints"])
+            extracted = combined.get("constraints") or {}
+            semantic_terms = combined.get("semantic_terms") or {}
+        except Exception:
+            semantic_parse_source = "fallback_split_calls"
+            extracted = llm_extract(user_in, state["constraints"])
+            semantic_terms = {}
         state["constraints"] = merge_constraints(state["constraints"], extracted)
         state["constraints"] = normalize_budget_to_pcm(state["constraints"])
         state["constraints"] = normalize_constraints(state["constraints"])
@@ -1485,7 +1931,12 @@ def run_chat():
         changes_line = summarize_constraint_changes(prev_constraints, state["constraints"])
         active_line = compact_constraints_view(state["constraints"])
         c = state["constraints"] or {}
-        signals = split_query_signals(user_in, c)
+        signals = split_query_signals(
+            user_in,
+            c,
+            precomputed_semantic_terms=semantic_terms,
+            semantic_parse_source=semantic_parse_source,
+        )
 
         print(f"[state] changes: {changes_line}")
         print(f"[state] active_constraints: {json.dumps(active_line, ensure_ascii=False)}")
@@ -1511,7 +1962,7 @@ def run_chat():
         stage_b_pass_records = [x for x in hard_audits if x.get("hard_pass")]
 
         # Stage C: rerank only on topic/preference scores (faiss only tie-break)
-        ranked, stage_c_weights = rank_stage_c(filtered, signals)
+        ranked, stage_c_weights = rank_stage_c(filtered, signals, embedder=embedder)
         stage_c_records = []
         if ranked is not None and len(ranked) > 0:
             for i, row in ranked.iterrows():
