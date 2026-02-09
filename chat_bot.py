@@ -81,6 +81,9 @@ Rules:
 - Put transport-specific preferences into transit_terms.
 - Put school/education-specific preferences into school_terms.
 - Put remaining soft preferences into general_semantic_phrases.
+- Do NOT copy hard constraints into semantic terms (budget, bedroom count, property type, strict location filters).
+- Do NOT split one entity into many words (bad: "seven", "mills", "primary", "school"; good: "Seven Mills Primary School").
+- Avoid generic filler terms like "school" when a concrete entity/phrase exists.
 - Return [] when not present.
 """
 
@@ -115,6 +118,9 @@ Rules:
 - constraints: extract hard constraints only.
 - semantic_terms: extract phrase-level semantic intents.
 - Keep named entities as full phrases (e.g., "Seven Mills Primary School", "Heron Quays Station").
+- Do NOT put hard constraints into semantic_terms (budget, bedroom count, property type, strict location filters).
+- Do NOT split one entity into component words.
+- Avoid generic filler terms like "school" when a concrete entity/phrase exists.
 - If unknown use null or [].
 """
 
@@ -175,10 +181,47 @@ def _normalize_semantic_extract(obj: dict) -> dict:
             out.append(s)
         return out
 
+    def _drop_redundant_short_terms(items: List[str]) -> List[str]:
+        cleaned = [str(x).strip() for x in (items or []) if str(x).strip()]
+        out: List[str] = []
+        for s in cleaned:
+            sl = s.lower()
+            redundant = False
+            for t in cleaned:
+                tl = t.lower()
+                if tl == sl:
+                    continue
+                # Drop generic/short terms when fully covered by a longer phrase.
+                if len(sl) <= len(tl) and re.search(rf"\b{re.escape(sl)}\b", tl):
+                    redundant = True
+                    break
+            if not redundant:
+                out.append(s)
+        return out
+
+    def _drop_hard_like_general_terms(items: List[str]) -> List[str]:
+        out: List[str] = []
+        for s in (items or []):
+            sl = s.lower()
+            # Remove hard-constraint-like fragments from semantic phrases.
+            if re.search(r"\bunder\s+\d+\b", sl):
+                continue
+            if re.search(r"\b\d+\s*bed(room)?s?\b", sl):
+                continue
+            if re.search(r"\b(flat|apartment|studio|house)\b", sl):
+                continue
+            out.append(s)
+        return out
+
+    school_terms = _drop_redundant_short_terms(_norm_list(obj.get("school_terms")))
+    transit_terms = _drop_redundant_short_terms(_norm_list(obj.get("transit_terms")))
+    general_terms = _drop_hard_like_general_terms(_norm_list(obj.get("general_semantic_phrases")))
+    general_terms = _drop_redundant_short_terms(general_terms)
+
     return {
-        "transit_terms": _norm_list(obj.get("transit_terms")),
-        "school_terms": _norm_list(obj.get("school_terms")),
-        "general_semantic_phrases": _norm_list(obj.get("general_semantic_phrases")),
+        "transit_terms": transit_terms,
+        "school_terms": school_terms,
+        "general_semantic_phrases": general_terms,
     }
 
 def llm_extract(user_text: str, existing_constraints: Optional[dict]) -> dict:
@@ -847,20 +890,11 @@ def split_query_signals(
         elif any(t in kwl for t in SCHOOL_KEYWORDS):
             school_terms.append(kwl)
 
-    raw_tokens = infer_soft_keywords_from_query(user_in)
-    for tok in raw_tokens:
-        if tok in transit_terms or tok in school_terms:
-            continue
-        if any(t in tok for t in TRANSIT_KEYWORDS):
-            transit_terms.append(tok)
-        elif any(t in tok for t in SCHOOL_KEYWORDS):
-            school_terms.append(tok)
-
     general_semantic = [str(x).strip().lower() for x in model_terms.get("general_semantic_phrases", []) if str(x).strip()]
     seen = set()
     for t in general_semantic:
         seen.add(t)
-    for tok in raw_tokens + [str(x).strip().lower() for x in must_keywords]:
+    for tok in [str(x).strip().lower() for x in must_keywords]:
         t = tok.lower().strip()
         if not t or t in seen:
             continue
@@ -894,7 +928,7 @@ def split_query_signals(
         "semantic_debug": {
             "parse_source": semantic_parse_source,
             "model_terms": model_terms,
-            "fallback_tokens": raw_tokens,
+            "fallback_tokens": [],
             "final_general_semantic": general_semantic,
         },
     }
