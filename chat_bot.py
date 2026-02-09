@@ -1202,7 +1202,12 @@ def _sim_text(query: str, text: str, embedder: SentenceTransformer, cache: Dict[
 def _collect_value_candidates(r: Dict[str, Any]) -> List[Dict[str, str]]:
     cands: List[Dict[str, str]] = []
     for v in parse_jsonish_items(r.get("schools")):
-        cands.append({"field": "schools", "text": v})
+        # Some sources store multiple schools in one string separated by ';'.
+        # Split so each school gets an individual similarity score.
+        parts = [_safe_text(x) for x in str(v).split(";")]
+        for p in parts:
+            if p:
+                cands.append({"field": "schools", "text": p})
     for v in parse_jsonish_items(r.get("stations")):
         cands.append({"field": "stations", "text": v})
     for v in parse_jsonish_items(r.get("features")):
@@ -1219,6 +1224,7 @@ def _score_single_intent(
     sim_cache: Dict[str, np.ndarray],
 ) -> Tuple[float, str]:
     scored = []
+    school_rows = []
     for c in candidates:
         field = c.get("field", "")
         text = c.get("text", "")
@@ -1226,6 +1232,8 @@ def _score_single_intent(
         w = float(SEMANTIC_FIELD_WEIGHTS.get(field, 0.60))
         weighted = w * sim
         scored.append((weighted, w, sim, field, text))
+        if field == "schools":
+            school_rows.append((weighted, sim, text))
     scored.sort(key=lambda x: x[0], reverse=True)
     top = scored[:max(1, top_k)]
     if not top:
@@ -1243,6 +1251,13 @@ def _score_single_intent(
         f"intent='{intent}' top_k={max(1, top_k)} "
         f"score={score:.4f} from weighted_mean; top_matches=[{'; '.join(top_show)}]"
     )
+    if school_rows:
+        school_rows.sort(key=lambda x: x[0], reverse=True)
+        per_school = " ; ".join(
+            f"{name[:100]} (sim={sim:.3f},weighted={weighted:.3f})"
+            for weighted, sim, name in school_rows
+        )
+        detail += f"; school_field_scores=[{per_school}]"
     return float(score), detail
 
 def _score_intent_group(
