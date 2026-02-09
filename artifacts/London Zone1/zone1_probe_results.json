@@ -26,7 +26,9 @@
       "Tower Hill Station",
       "St Paul's Station",
       "London Bridge Station"
-    ]
+    ],
+    "normalized_for_batch_collector": true,
+    "normalized_at": "2026-02-09"
   },
   "results": [
     {
@@ -40,7 +42,10 @@
       "display_location_identifier": null,
       "candidate_count": 6,
       "probe_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Soho%2C+West+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E87529",
-      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Soho%2C+West+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E87529"
+      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Soho%2C+West+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E87529",
+      "prompt": "Soho, London",
+      "usable": true,
+      "reason": ""
     },
     {
       "area": "Covent Garden",
@@ -53,7 +58,10 @@
       "display_location_identifier": null,
       "candidate_count": 7,
       "probe_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Covent+Garden%2C+Central+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E87501",
-      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Covent+Garden%2C+Central+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E87501"
+      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Covent+Garden%2C+Central+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E87501",
+      "prompt": "Covent Garden, London",
+      "usable": true,
+      "reason": ""
     },
     {
       "area": "Mayfair",
@@ -66,7 +74,10 @@
       "display_location_identifier": null,
       "candidate_count": 2,
       "probe_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Mayfair%2C+Central+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E87523",
-      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Mayfair%2C+Central+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E87523"
+      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Mayfair%2C+Central+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E87523",
+      "prompt": "Mayfair, London",
+      "usable": true,
+      "reason": ""
     },
     {
       "area": "Marylebone",
@@ -79,7 +90,10 @@
       "display_location_identifier": null,
       "candidate_count": 4,
       "probe_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Marylebone%2C+Central+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E87522",
-      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Marylebone%2C+Central+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E87522"
+      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Marylebone%2C+Central+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E87522",
+      "prompt": "Marylebone, London",
+      "usable": true,
+      "reason": ""
     },
     {
       "area": "Fitzrovia",
@@ -92,7 +106,10 @@
       "display_location_identifier": null,
       "candidate_count": 7,
       "probe_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Fitzrovia%2C+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E93764",
-      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Fitzrovia%2C+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E93764"
+      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Fitzrovia%2C+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E93764",
+      "prompt": "Fitzrovia, London",
+      "usable": true,
+      "reason": ""
     },
     {
       "area": "Bloomsbury",
@@ -105,7 +122,10 @@
       "display_location_identifier": null,
       "candidate_count": 8,
       "probe_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Bloomsbury%2C+Central+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E87494",
-      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Bloomsbury%2C+Central+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E87494"
+      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Bloomsbury%2C+Central+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E87494",
+      "prompt": "Bloomsbury, London",
+      "usable": true,
+      "reason": ""
     },
     {
       "area": "Holborn",
@@ -118,7 +138,10 @@
       "display_location_identifier": null,
       "candidate_count": 3,
       "probe_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Holborn%2C+Central+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E87513",
-      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Holborn%2C+Central+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E87513"
+      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Holborn%2C+Central+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E87513",
+      "prompt": "Holborn, London",
+      "usable": true,
+      "reason": ""
     },
     {
       "area": "Chinatown",
@@ -131,7 +154,10 @@
       "display_location_identifier": null,
       "candidate_count": 2,
       "probe_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Chinatown%2C+Central+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E87499",
-      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Chinatown%2C+Central+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E87499"
+      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Chinatown%2C+Central+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E87499",
+      "prompt": "Chinatown, London",
+      "usable": true,
+      "reason": ""
     },
     {
       "area": "Belgravia",
@@ -144,7 +170,10 @@
       "display_location_identifier": null,
       "candidate_count": 7,
       "probe_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Belgravia%2C+Central+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E87493",
-      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Belgravia%2C+Central+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E87493"
+      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Belgravia%2C+Central+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E87493",
+      "prompt": "Belgravia, London",
+      "usable": true,
+      "reason": ""
     },
     {
       "area": "Knightsbridge",
@@ -157,7 +186,10 @@
       "display_location_identifier": null,
       "candidate_count": 3,
       "probe_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Knightsbridge%2C+South+West+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E85242",
-      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Knightsbridge%2C+South+West+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E85242"
+      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Knightsbridge%2C+South+West+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E85242",
+      "prompt": "Knightsbridge, London",
+      "usable": true,
+      "reason": ""
     },
     {
       "area": "Chelsea",
@@ -170,7 +202,10 @@
       "display_location_identifier": null,
       "candidate_count": 8,
       "probe_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Chelsea+Harbour%2C+Chelsea%2C+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E93853",
-      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Chelsea+Harbour%2C+Chelsea%2C+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E93853"
+      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Chelsea+Harbour%2C+Chelsea%2C+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E93853",
+      "prompt": "Chelsea, London",
+      "usable": true,
+      "reason": ""
     },
     {
       "area": "South Kensington",
@@ -185,7 +220,10 @@
       "probe_url": null,
       "final_url": null,
       "manual_override": true,
-      "manual_source": "user_confirmed_mapping_2026-02-09"
+      "manual_source": "user_confirmed_mapping_2026-02-09",
+      "prompt": "South Kensington, South West London",
+      "usable": true,
+      "reason": ""
     },
     {
       "area": "Westminster",
@@ -198,7 +236,10 @@
       "display_location_identifier": null,
       "candidate_count": 6,
       "probe_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Westminster%2C+South+West+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E87539",
-      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Westminster%2C+South+West+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E87539"
+      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Westminster%2C+South+West+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E87539",
+      "prompt": "Westminster, London",
+      "usable": true,
+      "reason": ""
     },
     {
       "area": "Pimlico",
@@ -211,7 +252,10 @@
       "display_location_identifier": null,
       "candidate_count": 9,
       "probe_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Pimlico%2C+Central+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E87526",
-      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Pimlico%2C+Central+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E87526"
+      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Pimlico%2C+Central+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E87526",
+      "prompt": "Pimlico, London",
+      "usable": true,
+      "reason": ""
     },
     {
       "area": "St James's",
@@ -226,7 +270,10 @@
       "probe_url": null,
       "final_url": null,
       "manual_override": true,
-      "manual_source": "user_confirmed_mapping_2026-02-09"
+      "manual_source": "user_confirmed_mapping_2026-02-09",
+      "prompt": "St James's, South West London",
+      "usable": true,
+      "reason": ""
     },
     {
       "area": "Victoria",
@@ -239,7 +286,10 @@
       "display_location_identifier": null,
       "candidate_count": 10,
       "probe_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Victoria%2C+South+West+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E87533",
-      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Victoria%2C+South+West+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E87533"
+      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Victoria%2C+South+West+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E87533",
+      "prompt": "Victoria, London",
+      "usable": true,
+      "reason": ""
     },
     {
       "area": "Paddington",
@@ -252,7 +302,10 @@
       "display_location_identifier": null,
       "candidate_count": 3,
       "probe_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Paddington%2C+West+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E70403",
-      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Paddington%2C+West+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E70403"
+      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Paddington%2C+West+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E70403",
+      "prompt": "Paddington, London",
+      "usable": true,
+      "reason": ""
     },
     {
       "area": "Bayswater",
@@ -265,7 +318,10 @@
       "display_location_identifier": null,
       "candidate_count": 8,
       "probe_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Bayswater%2C+West+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E85356",
-      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Bayswater%2C+West+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E85356"
+      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Bayswater%2C+West+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E85356",
+      "prompt": "Bayswater, London",
+      "usable": true,
+      "reason": ""
     },
     {
       "area": "Euston",
@@ -278,7 +334,10 @@
       "display_location_identifier": null,
       "candidate_count": 4,
       "probe_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Euston%2C+North+West+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E70333",
-      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Euston%2C+North+West+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E70333"
+      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Euston%2C+North+West+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E70333",
+      "prompt": "Euston, London",
+      "usable": true,
+      "reason": ""
     },
     {
       "area": "Regent's Park",
@@ -291,7 +350,10 @@
       "display_location_identifier": null,
       "candidate_count": 6,
       "probe_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Regent%27s+Park%2C+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E96921",
-      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Regent%27s+Park%2C+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E96921"
+      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Regent%27s+Park%2C+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E96921",
+      "prompt": "Regent's Park, London",
+      "usable": true,
+      "reason": ""
     },
     {
       "area": "Clerkenwell",
@@ -304,7 +366,10 @@
       "display_location_identifier": null,
       "candidate_count": 5,
       "probe_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Clerkenwell%2C+Central+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E87500",
-      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Clerkenwell%2C+Central+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E87500"
+      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Clerkenwell%2C+Central+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E87500",
+      "prompt": "Clerkenwell, London",
+      "usable": true,
+      "reason": ""
     },
     {
       "area": "Shoreditch",
@@ -317,7 +382,10 @@
       "display_location_identifier": null,
       "candidate_count": 3,
       "probe_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Shoreditch%2C+East+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E87528",
-      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Shoreditch%2C+East+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E87528"
+      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Shoreditch%2C+East+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E87528",
+      "prompt": "Shoreditch, London",
+      "usable": true,
+      "reason": ""
     },
     {
       "area": "Barbican",
@@ -330,7 +398,10 @@
       "display_location_identifier": null,
       "candidate_count": 5,
       "probe_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Barbican%2C+Central+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E85259",
-      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Barbican%2C+Central+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E85259"
+      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Barbican%2C+Central+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E85259",
+      "prompt": "Barbican, London",
+      "usable": true,
+      "reason": ""
     },
     {
       "area": "Moorgate",
@@ -343,7 +414,10 @@
       "display_location_identifier": null,
       "candidate_count": 8,
       "probe_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Moorgate%2C+Central+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E87524",
-      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Moorgate%2C+Central+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E87524"
+      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Moorgate%2C+Central+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E87524",
+      "prompt": "Moorgate, London",
+      "usable": true,
+      "reason": ""
     },
     {
       "area": "Aldgate",
@@ -356,7 +430,10 @@
       "display_location_identifier": null,
       "candidate_count": 3,
       "probe_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Aldgate%2C+East+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E94187",
-      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Aldgate%2C+East+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E94187"
+      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Aldgate%2C+East+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E94187",
+      "prompt": "Aldgate, London",
+      "usable": true,
+      "reason": ""
     },
     {
       "area": "Spitalfields",
@@ -369,7 +446,10 @@
       "display_location_identifier": null,
       "candidate_count": 1,
       "probe_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Spitalfields%2C+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E96867",
-      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Spitalfields%2C+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E96867"
+      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Spitalfields%2C+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E96867",
+      "prompt": "Spitalfields, London",
+      "usable": true,
+      "reason": ""
     },
     {
       "area": "Temple",
@@ -382,7 +462,10 @@
       "display_location_identifier": null,
       "candidate_count": 10,
       "probe_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Temple%2C+Central+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E85460",
-      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Temple%2C+Central+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E85460"
+      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Temple%2C+Central+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E85460",
+      "prompt": "Temple, London",
+      "usable": true,
+      "reason": ""
     },
     {
       "area": "Blackfriars",
@@ -395,7 +478,10 @@
       "display_location_identifier": null,
       "candidate_count": 2,
       "probe_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Blackfriars%2C+Central+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E70450",
-      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Blackfriars%2C+Central+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E70450"
+      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Blackfriars%2C+Central+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E70450",
+      "prompt": "Blackfriars, London",
+      "usable": true,
+      "reason": ""
     },
     {
       "area": "Waterloo",
@@ -408,7 +494,10 @@
       "display_location_identifier": null,
       "candidate_count": 10,
       "probe_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Waterloo%2C+South+East+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E85216",
-      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Waterloo%2C+South+East+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E85216"
+      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Waterloo%2C+South+East+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E85216",
+      "prompt": "Waterloo, London",
+      "usable": true,
+      "reason": ""
     },
     {
       "area": "South Bank",
@@ -423,7 +512,10 @@
       "probe_url": null,
       "final_url": null,
       "manual_override": true,
-      "manual_source": "user_confirmed_mapping_2026-02-09"
+      "manual_source": "user_confirmed_mapping_2026-02-09",
+      "prompt": "South Bank, London",
+      "usable": true,
+      "reason": ""
     },
     {
       "area": "Borough",
@@ -436,7 +528,10 @@
       "display_location_identifier": null,
       "candidate_count": 10,
       "probe_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Borough%2C+South+East+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E87387",
-      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Borough%2C+South+East+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E87387"
+      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Borough%2C+South+East+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E87387",
+      "prompt": "Borough, London",
+      "usable": true,
+      "reason": ""
     },
     {
       "area": "Bermondsey",
@@ -449,7 +544,10 @@
       "display_location_identifier": null,
       "candidate_count": 3,
       "probe_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Bermondsey%2C+South+East+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E85212",
-      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Bermondsey%2C+South+East+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E85212"
+      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Bermondsey%2C+South+East+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E85212",
+      "prompt": "Bermondsey, London",
+      "usable": true,
+      "reason": ""
     },
     {
       "area": "Elephant & Castle",
@@ -462,7 +560,10 @@
       "display_location_identifier": null,
       "candidate_count": 7,
       "probe_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Elephant+and+Castle%2C+South+East+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E70312",
-      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Elephant+and+Castle%2C+South+East+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E70312"
+      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Elephant+and+Castle%2C+South+East+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E70312",
+      "prompt": "Elephant & Castle, London",
+      "usable": true,
+      "reason": ""
     },
     {
       "area": "Kennington",
@@ -477,7 +578,10 @@
       "probe_url": null,
       "final_url": null,
       "manual_override": true,
-      "manual_source": "user_confirmed_mapping_2026-02-09"
+      "manual_source": "user_confirmed_mapping_2026-02-09",
+      "prompt": "Kennington, South East London",
+      "usable": true,
+      "reason": ""
     },
     {
       "area": "Vauxhall",
@@ -490,7 +594,10 @@
       "display_location_identifier": null,
       "candidate_count": 8,
       "probe_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Vauxhall%2C+South+West+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E70424",
-      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Vauxhall%2C+South+West+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E70424"
+      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Vauxhall%2C+South+West+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E70424",
+      "prompt": "Vauxhall, London",
+      "usable": true,
+      "reason": ""
     }
   ]
 }

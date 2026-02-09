@@ -2,11 +2,18 @@ import argparse
 import json
 import os
 import re
+import sys
 import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, List, Optional
 from urllib.parse import quote, urlencode
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+REPO_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, "..", ".."))
+WEB_DATA_DIR = os.path.join(REPO_ROOT, "data", "web_data")
+if WEB_DATA_DIR not in sys.path:
+    sys.path.insert(0, WEB_DATA_DIR)
 
 from get_urls import DEFAULT_RESULTS_PER_PAGE, collect_pages_parallel
 
@@ -310,10 +317,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--queries-file", default=None, help="Text file; one query per line.")
     parser.add_argument(
         "--station-results-json",
-        default=None,
+        default=os.path.join(SCRIPT_DIR, "zone1_station_prompt_test_results.json"),
         help="Read prompts from zone1_station_prompt_test_results.json (results[].prompt).",
     )
-    parser.add_argument("--out-root", default="data/web_data/batch_listing_urls", help="Output root directory.")
+    parser.add_argument(
+        "--out-root",
+        default=os.path.join(SCRIPT_DIR, "underground"),
+        help="Output root directory.",
+    )
 
     parser.add_argument("--jobs", type=int, default=4, help="Parallel query jobs.")
     parser.add_argument("--start-page", type=int, default=0, help="Start page number (inclusive).")
@@ -329,7 +340,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--summary-json",
-        default="data/web_data/batch_listing_urls_summary.json",
+        default=os.path.join(SCRIPT_DIR, "underground", "batch_listing_urls_summary.json"),
         help="Where to save summary result JSON.",
     )
     return parser.parse_args()
