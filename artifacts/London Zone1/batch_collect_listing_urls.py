@@ -192,6 +192,12 @@ def resolve_with_typeahead(search_location: str, radius: float = 0.0, prefer_reg
 
 def load_inputs(args: argparse.Namespace) -> List[Dict]:
     items: List[Dict] = []
+    has_explicit_inputs = bool(
+        (args.queries and len(args.queries) > 0)
+        or args.queries_file
+        or (args.search_urls and len(args.search_urls) > 0)
+        or args.search_urls_file
+    )
 
     if args.queries:
         for q in args.queries:
@@ -206,7 +212,8 @@ def load_inputs(args: argparse.Namespace) -> List[Dict]:
                 if q:
                     items.append({"query": q})
 
-    if args.station_results_json:
+    # Only auto-load station results when user did not provide explicit inputs.
+    if args.station_results_json and not has_explicit_inputs:
         with open(args.station_results_json, "r", encoding="utf-8") as f:
             data = json.load(f)
         for r in data.get("results", []):
