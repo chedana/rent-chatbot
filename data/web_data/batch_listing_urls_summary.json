@@ -1,0 +1,53 @@
+{
+  "meta": {
+    "total_queries": 4,
+    "ok_queries": 4,
+    "failed_queries": 0,
+    "jobs": 4,
+    "start_page": 0,
+    "end_page": null,
+    "pages": 1,
+    "per_page": 24,
+    "collect_workers": 1,
+    "radius": 0.0,
+    "prefer_region": false
+  },
+  "results": [
+    {
+      "query": "South Kensington, South West London",
+      "resolved_search_location": "Southchurch Drive North Tram Stop",
+      "location_identifier": "STATION^20648",
+      "search_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Southchurch+Drive+North+Tram+Stop&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=STATION%5E20648",
+      "out_file": "data/web_data/batch_listing_urls/south_kensington_south_west_london/listing_urls.txt",
+      "url_count": 17,
+      "ok": true
+    },
+    {
+      "query": "Liverpool Street Station",
+      "resolved_search_location": "Liverpool Street Station",
+      "location_identifier": "STATION^5615",
+      "search_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Liverpool+Street+Station&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=STATION%5E5615",
+      "out_file": "data/web_data/batch_listing_urls/liverpool_street_station/listing_urls.txt",
+      "url_count": 25,
+      "ok": true
+    },
+    {
+      "query": "Angel Station",
+      "resolved_search_location": "Angel Station",
+      "location_identifier": "STATION^245",
+      "search_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Angel+Station&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=STATION%5E245",
+      "out_file": "data/web_data/batch_listing_urls/angel_station/listing_urls.txt",
+      "url_count": 25,
+      "ok": true
+    },
+    {
+      "query": "Vauxhall, London",
+      "resolved_search_location": "Vauxhall, South West London",
+      "location_identifier": "REGION^70424",
+      "search_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Vauxhall%2C+South+West+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E70424",
+      "out_file": "data/web_data/batch_listing_urls/vauxhall_london/listing_urls.txt",
+      "url_count": 25,
+      "ok": true
+    }
+  ]
+}
