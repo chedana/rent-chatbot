@@ -25,6 +25,8 @@ checkpoints/
 artifacts/*
 !artifacts/London_zone_1/
 !artifacts/London_zone_1/**
+!artifacts/hnsw/
+!artifacts/hnsw/**
 data/web_data/*.jsonl
 data/web_data/listing_urls*.txt
 data/HNSW/index/*.faiss
