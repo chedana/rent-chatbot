@@ -1,0 +1,20 @@
+[
+  {
+    "method": "region",
+    "query": "Aldgate, London",
+    "urls_file": "/Users/derek/Desktop/LLM_project/rent-chatbot/artifacts/London_zone_1/mental_region/aldgate_london/listing_urls.txt",
+    "slug": "aldgate_london"
+  },
+  {
+    "method": "station",
+    "query": "Aldgate East Station",
+    "urls_file": "/Users/derek/Desktop/LLM_project/rent-chatbot/artifacts/London_zone_1/underground/aldgate_east_station/listing_urls.txt",
+    "slug": "aldgate_east_station"
+  },
+  {
+    "method": "station",
+    "query": "Aldgate Station",
+    "urls_file": "/Users/derek/Desktop/LLM_project/rent-chatbot/artifacts/London_zone_1/underground/aldgate_station/listing_urls.txt",
+    "slug": "aldgate_station"
+  }
+]
