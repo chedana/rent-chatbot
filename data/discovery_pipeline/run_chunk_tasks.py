@@ -1,6 +1,5 @@
 import argparse
 import json
-import os
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -15,7 +14,6 @@ DEFAULT_BATCH_CRAWL = PROJECT_ROOT / "data" / "web_data" / "batch_crawl.py"
 class Task:
     chunk_file: Path
     out_jsonl: Path
-    log_file: Path
 
 
 def parse_args() -> argparse.Namespace:
@@ -24,14 +22,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--chunks-dir", required=True, help="Directory containing chunk files (e.g., chunk_000).")
     parser.add_argument("--out-dir", required=True, help="Directory to write chunk result JSONL files.")
-    parser.add_argument("--logs-dir", default=None, help="Directory to write per-task logs.")
     parser.add_argument("--chunk-glob", default="chunk_*", help="Glob pattern for chunk files.")
-    parser.add_argument(
-        "--max-parallel",
-        type=int,
-        default=1,
-        help="Deprecated. Chunk tasks run sequentially (one chunk at a time).",
-    )
     parser.add_argument("--crawl-workers", type=int, default=8, help="batch_crawl workers per chunk task.")
     parser.add_argument("--sleep-sec", type=float, default=0.5, help="batch_crawl sleep-sec.")
     parser.add_argument("--source-name", default="rightmove", help="Source label.")
@@ -45,17 +36,14 @@ def parse_args() -> argparse.Namespace:
 def discover_tasks(args: argparse.Namespace) -> List[Task]:
     chunks_dir = Path(args.chunks_dir)
     out_dir = Path(args.out_dir)
-    logs_dir = Path(args.logs_dir) if args.logs_dir else out_dir / "logs"
     out_dir.mkdir(parents=True, exist_ok=True)
-    logs_dir.mkdir(parents=True, exist_ok=True)
 
     chunk_files = sorted([p for p in chunks_dir.glob(args.chunk_glob) if p.is_file()])
     tasks: List[Task] = []
     for c in chunk_files:
         name = c.name
         out_jsonl = out_dir / f"properties_{name}.jsonl"
-        log_file = logs_dir / f"{name}.log"
-        tasks.append(Task(chunk_file=c, out_jsonl=out_jsonl, log_file=log_file))
+        tasks.append(Task(chunk_file=c, out_jsonl=out_jsonl))
     return tasks
 
 
@@ -65,7 +53,6 @@ def run_one_task(task: Task, args: argparse.Namespace) -> Dict:
             "chunk": task.chunk_file.name,
             "status": "skipped",
             "out_jsonl": str(task.out_jsonl),
-            "log_file": str(task.log_file),
             "reason": "output exists",
         }
 
@@ -86,17 +73,15 @@ def run_one_task(task: Task, args: argparse.Namespace) -> Dict:
         str(args.sleep_sec),
     ]
 
-    with task.log_file.open("w", encoding="utf-8") as log:
-        log.write("CMD: " + " ".join(cmd) + "\n")
-        log.flush()
-        proc = subprocess.run(cmd, stdout=log, stderr=log, text=True)
+    print("CMD:", " ".join(cmd), flush=True)
+    # Stream batch_crawl output directly to terminal so progress is visible in real time.
+    proc = subprocess.run(cmd)
 
     return {
         "chunk": task.chunk_file.name,
         "status": "ok" if proc.returncode == 0 else "failed",
         "returncode": proc.returncode,
         "out_jsonl": str(task.out_jsonl),
-        "log_file": str(task.log_file),
     }
 
 
