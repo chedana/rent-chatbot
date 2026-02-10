@@ -124,6 +124,23 @@ Rules:
 - If unknown use null or [].
 """
 
+GROUNDED_EXPLAIN_SYSTEM = """You are a grounded rental explanation engine.
+You MUST use only the provided candidate evidence JSON.
+Do not invent facts, do not re-rank candidates, do not add external knowledge.
+
+Output format:
+1) A short overall summary (2-4 sentences) that reflects user preferences.
+2) Then bullet points for each candidate in given rank order:
+   - Why it matches preference terms.
+   - What is uncertain/missing.
+   - Include url.
+
+Rules:
+- If evidence is missing, explicitly say unknown.
+- Keep concise and factual.
+- Preserve the given rank order exactly.
+"""
+
 NEAR_WORDS = {
     "near subway","near station","near tube","tube","subway","station","close to station","near metro",
     "near underground","near tube station","close to tube","walk to station"
@@ -272,6 +289,85 @@ def llm_extract_all_signals(user_text: str, existing_constraints: Optional[dict]
         "constraints": constraints,
         "semantic_terms": semantic_terms,
     }
+
+def build_grounded_candidates_payload(
+    df: pd.DataFrame,
+    c: Dict[str, Any],
+    signals: Dict[str, Any],
+    user_query: str,
+    max_items: int = 5,
+) -> Dict[str, Any]:
+    rows = []
+    if df is not None and len(df) > 0:
+        for i, row in df.head(max_items).iterrows():
+            r = row.to_dict()
+            ev = r.get("evidence") if isinstance(r.get("evidence"), dict) else {}
+            pref_ctx = ev.get("preference_context", {}) if isinstance(ev, dict) else {}
+            rows.append(
+                {
+                    "rank": int(i + 1),
+                    "title": _safe_text(r.get("title")),
+                    "address": _safe_text(r.get("address")),
+                    "url": _safe_text(r.get("url")),
+                    "price_pcm": _to_float(r.get("price_pcm")),
+                    "bedrooms": _to_float(r.get("bedrooms")),
+                    "bathrooms": _to_float(r.get("bathrooms")),
+                    "scores": {
+                        "final_score": _to_float(r.get("final_score")),
+                        "transit_score": _to_float(r.get("transit_score")),
+                        "school_score": _to_float(r.get("school_score")),
+                        "preference_score": _to_float(r.get("preference_score")),
+                        "penalty_score": _to_float(r.get("penalty_score")),
+                    },
+                    "hits": {
+                        "transit_hits": _safe_text(r.get("transit_hits")),
+                        "school_hits": _safe_text(r.get("school_hits")),
+                        "preference_hits": _safe_text(r.get("preference_hits")),
+                        "penalty_reasons": _safe_text(r.get("penalty_reasons")),
+                    },
+                    "preference_context": pref_ctx,
+                    "fields": ev.get("fields", {}) if isinstance(ev, dict) else {},
+                }
+            )
+    return {
+        "user_query": user_query,
+        "hard_constraints": signals.get("hard_constraints", {}) if isinstance(signals, dict) else {},
+        "semantic_preferences": {
+            "location_intent": signals.get("location_intent", []) if isinstance(signals, dict) else [],
+            "topic_preferences": signals.get("topic_preferences", {}) if isinstance(signals, dict) else {},
+            "general_semantic": signals.get("general_semantic", []) if isinstance(signals, dict) else [],
+        },
+        "candidates": rows,
+        "k": int(c.get("k", DEFAULT_K) or DEFAULT_K),
+    }
+
+def llm_grounded_explain(
+    user_query: str,
+    c: Dict[str, Any],
+    signals: Dict[str, Any],
+    df: pd.DataFrame,
+) -> str:
+    payload = build_grounded_candidates_payload(
+        df=df,
+        c=c or {},
+        signals=signals or {},
+        user_query=user_query,
+        max_items=min(8, int(c.get("k", DEFAULT_K) or DEFAULT_K)),
+    )
+    txt = qwen_chat(
+        [
+            {"role": "system", "content": GROUNDED_EXPLAIN_SYSTEM},
+            {
+                "role": "user",
+                "content": (
+                    "Generate grounded explanation from this JSON only:\n"
+                    + json.dumps(payload, ensure_ascii=False)
+                ),
+            },
+        ],
+        temperature=0.1,
+    )
+    return txt.strip()
 def normalize_budget_to_pcm(c: dict) -> dict:
     """
     Normalize budget constraints to pcm.
@@ -402,18 +498,22 @@ def normalize_constraints(c: dict) -> dict:
         c["min_size_sqm"] = float(c["min_size_sqft"]) * 0.092903
     c.pop("min_size_sqft", None)
 
-    locs = []
-    must = set([str(x).strip() for x in (c.get("must_have_keywords") or []) if str(x).strip()])
-    for x in (c.get("location_keywords") or []):
-        s = str(x).strip()
-        if not s:
-            continue
-        if s.lower() in NEAR_WORDS:
-            must.add(s)
-        else:
-            locs.append(s)
-    c["location_keywords"] = locs
-    c["must_have_keywords"] = list(must)
+    # Disabled on purpose:
+    # Do not auto-move location_keywords entries (e.g. "near tube/station")
+    # into must_have_keywords. Keep LLM-structured fields as-is.
+    #
+    # locs = []
+    # must = set([str(x).strip() for x in (c.get("must_have_keywords") or []) if str(x).strip()])
+    # for x in (c.get("location_keywords") or []):
+    #     s = str(x).strip()
+    #     if not s:
+    #         continue
+    #     if s.lower() in NEAR_WORDS:
+    #         must.add(s)
+    #     else:
+    #         locs.append(s)
+    # c["location_keywords"] = locs
+    # c["must_have_keywords"] = list(must)
     return c
 
 def merge_constraints(old: Optional[dict], new: dict) -> dict:
@@ -654,6 +754,8 @@ SEMANTIC_FIELD_WEIGHTS = {
     "features": 0.80,
     "description": 0.60,
 }
+INTENT_HIT_THRESHOLD = 0.45
+INTENT_EVIDENCE_TOP_N = 2
 
 TRANSIT_KEYWORDS = [
     "tube", "station", "underground", "metro", "rail", "dlr", "overground",
@@ -882,23 +984,14 @@ def split_query_signals(
         if s:
             school_terms.append(s)
 
-    for kw in must_keywords:
-        kwl = kw.lower()
-        if any(t in kwl for t in TRANSIT_KEYWORDS):
-            transit_terms.append(kwl)
-        elif any(t in kwl for t in SCHOOL_KEYWORDS):
-            school_terms.append(kwl)
-
     general_semantic = [str(x).strip().lower() for x in model_terms.get("general_semantic_phrases", []) if str(x).strip()]
-    seen = set()
-    for t in general_semantic:
-        seen.add(t)
-    for tok in [str(x).strip().lower() for x in must_keywords]:
-        t = tok.lower().strip()
-        if not t or t in seen:
-            continue
-        seen.add(t)
-        general_semantic.append(t)
+    keyword_fallback_used = {
+        "transit_terms": False,
+        "school_terms": False,
+        "general_semantic": False,
+    }
+    # Keyword fallback is intentionally disabled for now.
+    # Semantic intent comes from LLM structured output only.
     general_semantic = list(dict.fromkeys(general_semantic))
     transit_terms = list(dict.fromkeys([x for x in transit_terms if str(x).strip()]))
     school_terms = list(dict.fromkeys([x for x in school_terms if str(x).strip()]))
@@ -927,6 +1020,9 @@ def split_query_signals(
         "semantic_debug": {
             "parse_source": semantic_parse_source,
             "model_terms": model_terms,
+            "keyword_fallback_used": keyword_fallback_used,
+            "keyword_transit_candidates": [],
+            "keyword_school_candidates": [],
             "fallback_tokens": [],
             "final_general_semantic": general_semantic,
         },
@@ -1221,7 +1317,7 @@ def _score_single_intent(
     top_k: int,
     embedder: SentenceTransformer,
     sim_cache: Dict[str, np.ndarray],
-) -> Tuple[float, str]:
+) -> Tuple[float, str, List[Dict[str, Any]]]:
     scored = []
     school_rows = []
     for c in candidates:
@@ -1236,7 +1332,7 @@ def _score_single_intent(
     scored.sort(key=lambda x: x[0], reverse=True)
     top = scored[:max(1, top_k)]
     if not top:
-        return 0.0, f"intent='{intent}' no_candidates"
+        return 0.0, f"intent='{intent}' no_candidates", []
     num = sum(w * sim for _, w, sim, _, _ in top)
     den = sum(w for _, w, _, _, _ in top)
     score = (num / den) if den > 0 else 0.0
@@ -1245,6 +1341,18 @@ def _score_single_intent(
     for rank, (weighted, w, sim, field, text) in enumerate(top, start=1):
         top_show.append(
             f"#{rank} {field}(weighted={weighted:.3f},w={w:.2f},sim={sim:.3f}):{text[:120]}"
+        )
+    top_struct = []
+    for rank, (weighted, w, sim, field, text) in enumerate(top, start=1):
+        top_struct.append(
+            {
+                "rank": int(rank),
+                "field": str(field),
+                "text": str(text),
+                "sim": float(sim),
+                "weight": float(w),
+                "weighted": float(weighted),
+            }
         )
     detail = (
         f"intent='{intent}' top_k={max(1, top_k)} "
@@ -1257,7 +1365,7 @@ def _score_single_intent(
             for weighted, sim, name in school_rows
         )
         detail += f"; school_field_scores=[{per_school}]"
-    return float(score), detail
+    return float(score), detail, top_struct
 
 def _score_intent_group(
     intents: List[str],
@@ -1265,7 +1373,7 @@ def _score_intent_group(
     top_k: int,
     embedder: SentenceTransformer,
     sim_cache: Dict[str, np.ndarray],
-) -> Tuple[float, List[str], str]:
+) -> Tuple[float, List[str], str, List[Dict[str, Any]]]:
     cleaned = []
     seen = set()
     for i in intents or []:
@@ -1275,13 +1383,14 @@ def _score_intent_group(
         seen.add(s)
         cleaned.append(s)
     if not cleaned:
-        return 0.0, [], "no_intents"
+        return 0.0, [], "no_intents", []
 
     scores = []
     hit_terms = []
     details = []
+    selected_evidence: List[Dict[str, Any]] = []
     for it in cleaned:
-        sc, dt = _score_single_intent(
+        sc, dt, top_struct = _score_single_intent(
             it,
             candidates,
             top_k=top_k,
@@ -1290,10 +1399,18 @@ def _score_intent_group(
         )
         scores.append(sc)
         details.append(dt)
-        if sc >= 0.45:
+        if sc >= INTENT_HIT_THRESHOLD:
             hit_terms.append(it)
+            for item in top_struct[:max(1, INTENT_EVIDENCE_TOP_N)]:
+                selected_evidence.append(
+                    {
+                        "intent": str(it),
+                        "intent_score": float(sc),
+                        **item,
+                    }
+                )
     group_score = float(sum(scores) / max(1, len(scores)))
-    return group_score, hit_terms, " | ".join(details)
+    return group_score, hit_terms, " | ".join(details), selected_evidence
 
 
 def compute_stagec_weights(signals: Dict[str, Any]) -> Dict[str, float]:
@@ -1344,6 +1461,9 @@ def rank_stage_c(
     out["school_detail"] = ""
     out["preference_detail"] = ""
     out["penalty_detail"] = ""
+    out["transit_evidence"] = ""
+    out["school_evidence"] = ""
+    out["preference_evidence"] = ""
     sim_cache: Dict[str, np.ndarray] = {}
 
     for idx, row in out.iterrows():
@@ -1364,21 +1484,21 @@ def rank_stage_c(
         loc_text = " ".join([title, address, desc, feats, stations_text, schools_text]).lower()
 
         candidates = _collect_value_candidates(r)
-        transit_score, transit_hits, transit_group_detail = _score_intent_group(
+        transit_score, transit_hits, transit_group_detail, transit_evidence = _score_intent_group(
             transit_terms,
             candidates,
             top_k=SEMANTIC_TOP_K,
             embedder=embedder,
             sim_cache=sim_cache,
         )
-        school_score, school_hits, school_group_detail = _score_intent_group(
+        school_score, school_hits, school_group_detail, school_evidence = _score_intent_group(
             school_terms,
             candidates,
             top_k=SEMANTIC_TOP_K,
             embedder=embedder,
             sim_cache=sim_cache,
         )
-        pref_score, pref_hits, pref_group_detail = _score_intent_group(
+        pref_score, pref_hits, pref_group_detail, pref_evidence = _score_intent_group(
             pref_terms,
             candidates,
             top_k=SEMANTIC_TOP_K,
@@ -1451,6 +1571,9 @@ def rank_stage_c(
             f"sum(active_penalties)={penalty_score:.4f}; "
             f"triggers=[{', '.join(penalties)}]"
         )
+        out.at[idx, "transit_evidence"] = json.dumps(transit_evidence, ensure_ascii=False)
+        out.at[idx, "school_evidence"] = json.dumps(school_evidence, ensure_ascii=False)
+        out.at[idx, "preference_evidence"] = json.dumps(pref_evidence, ensure_ascii=False)
 
     out["final_score"] = (
         weights["transit"] * out["transit_score"]
@@ -1712,6 +1835,27 @@ def build_evidence_for_row(r: Dict[str, Any], c: Dict[str, Any], user_query: str
     fields["available_from"] = None if pd.isna(dt_any) else dt_any.date().isoformat()
 
     ev["fields"] = fields
+    pref_ctx: Dict[str, Any] = {}
+    for key in ("transit_evidence", "school_evidence", "preference_evidence"):
+        raw = r.get(key)
+        if raw is None:
+            continue
+        vals: List[Dict[str, Any]] = []
+        if isinstance(raw, list):
+            vals = [x for x in raw if isinstance(x, dict)]
+        elif isinstance(raw, str):
+            s = raw.strip()
+            if s:
+                try:
+                    parsed = json.loads(s)
+                    if isinstance(parsed, list):
+                        vals = [x for x in parsed if isinstance(x, dict)]
+                except Exception:
+                    vals = []
+        if vals:
+            pref_ctx[key] = vals
+    if pref_ctx:
+        ev["preference_context"] = pref_ctx
     return ev
 
 
@@ -1964,6 +2108,20 @@ def run_chat():
         lines = [f"Top {min(k, len(df))} results:"]
         for i, r in df.iterrows():
             lines.append(format_listing_row(r.to_dict(), i + 1))
+        try:
+            grounded_out = llm_grounded_explain(
+                user_query=user_in,
+                c=c,
+                signals=signals,
+                df=df,
+            )
+            if grounded_out:
+                lines.append("")
+                lines.append("Grounded explanation:")
+                lines.append(grounded_out)
+        except Exception as e:
+            lines.append("")
+            lines.append(f"[warn] grounded explanation unavailable: {e}")
         out = "\n".join(lines)
 
         print("\nBot> " + out)
