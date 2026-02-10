@@ -1,5 +1,6 @@
 import argparse
 import json
+import os
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -74,8 +75,21 @@ def run_one_task(task: Task, args: argparse.Namespace) -> Dict:
     ]
 
     print("CMD:", " ".join(cmd), flush=True)
-    # Stream batch_crawl output directly to terminal so progress is visible in real time.
-    proc = subprocess.run(cmd)
+    # Stream child output line-by-line to terminal.
+    env = dict(os.environ)
+    env["PYTHONUNBUFFERED"] = "1"
+    proc = subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,
+        env=env,
+    )
+    assert proc.stdout is not None
+    for line in proc.stdout:
+        print(f"[{task.chunk_file.name}] {line.rstrip()}", flush=True)
+    proc.wait()
 
     return {
         "chunk": task.chunk_file.name,
