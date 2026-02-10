@@ -1,0 +1,95 @@
+{
+  "meta": {
+    "total": 35,
+    "success": 35,
+    "failed": 0,
+    "verify_final_url": false,
+    "radius": 0.0,
+    "manual_overrides_applied": true,
+    "manual_override_count": 13,
+    "removed_areas": [
+      "Bankside",
+      "Millbank",
+      "St Pancras"
+    ],
+    "added_areas": [
+      "Kennington"
+    ],
+    "removed_due_to_station_query_overlap": 9,
+    "removed_queries": [
+      "Marble Arch Station",
+      "King's Cross St. Pancras Station",
+      "Angel Station",
+      "Farringdon Station",
+      "Old Street Station",
+      "Liverpool Street Station",
+      "Tower Hill Station",
+      "St Paul's Station",
+      "London Bridge Station"
+    ],
+    "normalized_for_batch_collector": true,
+    "normalized_at": "2026-02-09",
+    "manual_override_prompts": [
+      "St James's, South West London"
+    ],
+    "subset": "missing_only",
+    "subset_count": 3,
+    "subset_queries": [
+      "paddington, london",
+      "pimlico, london",
+      "south kensington, south west london"
+    ]
+  },
+  "results": [
+    {
+      "area": "South Kensington",
+      "query": "South Kensington, South West London",
+      "ok": true,
+      "is_london": true,
+      "location_type": "MANUAL",
+      "resolved_search_location": "South Kensington, South West London",
+      "location_identifier": null,
+      "display_location_identifier": null,
+      "candidate_count": null,
+      "probe_url": null,
+      "final_url": null,
+      "manual_override": true,
+      "manual_source": "user_confirmed_mapping_2026-02-09",
+      "prompt": "South Kensington, South West London",
+      "usable": true,
+      "reason": ""
+    },
+    {
+      "area": "Pimlico",
+      "query": "Pimlico, London",
+      "ok": true,
+      "is_london": true,
+      "location_type": "REGION",
+      "resolved_search_location": "Pimlico, Central London",
+      "location_identifier": "REGION^87526",
+      "display_location_identifier": null,
+      "candidate_count": 9,
+      "probe_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Pimlico%2C+Central+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E87526",
+      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Pimlico%2C+Central+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E87526",
+      "prompt": "Pimlico, London",
+      "usable": true,
+      "reason": ""
+    },
+    {
+      "area": "Paddington",
+      "query": "Paddington, London",
+      "ok": true,
+      "is_london": true,
+      "location_type": "REGION",
+      "resolved_search_location": "Paddington, West London",
+      "location_identifier": "REGION^70403",
+      "display_location_identifier": null,
+      "candidate_count": 3,
+      "probe_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Paddington%2C+West+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E70403",
+      "final_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Paddington%2C+West+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E70403",
+      "prompt": "Paddington, London",
+      "usable": true,
+      "reason": ""
+    }
+  ]
+}

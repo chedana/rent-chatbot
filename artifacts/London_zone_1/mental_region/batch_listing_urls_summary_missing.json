@@ -1,0 +1,47 @@
+{
+  "meta": {
+    "total_queries": 3,
+    "ok_queries": 3,
+    "failed_queries": 0,
+    "jobs": 8,
+    "start_page": 0,
+    "end_page": null,
+    "pages": 50,
+    "per_page": 24,
+    "collect_workers": 1,
+    "radius": 0.0,
+    "prefer_region": false
+  },
+  "results": [
+    {
+      "query": "Paddington, London",
+      "resolved_search_location": "Paddington, West London",
+      "location_identifier": "REGION^70403",
+      "search_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Paddington%2C+West+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E70403",
+      "out_file": "/Users/derek/Desktop/LLM_project/rent-chatbot/artifacts/London_zone_1/mental_region/paddington_london/listing_urls.txt",
+      "url_count": 778,
+      "candidate_count": null,
+      "ok": true
+    },
+    {
+      "query": "Pimlico, London",
+      "resolved_search_location": "Pimlico, Central London",
+      "location_identifier": "REGION^87526",
+      "search_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Pimlico%2C+Central+London&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E87526",
+      "out_file": "/Users/derek/Desktop/LLM_project/rent-chatbot/artifacts/London_zone_1/mental_region/pimlico_london/listing_urls.txt",
+      "url_count": 424,
+      "candidate_count": null,
+      "ok": true
+    },
+    {
+      "query": "South Kensington, South West London",
+      "resolved_search_location": "South Oxfordshire, Oxfordshire",
+      "location_identifier": "REGION^94418",
+      "search_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=South+Oxfordshire%2C+Oxfordshire&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=REGION%5E94418",
+      "out_file": "/Users/derek/Desktop/LLM_project/rent-chatbot/artifacts/London_zone_1/mental_region/south_kensington_south_west_london/listing_urls.txt",
+      "url_count": 262,
+      "candidate_count": 10,
+      "ok": true
+    }
+  ]
+}
