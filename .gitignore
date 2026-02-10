@@ -23,8 +23,8 @@ checkpoints/
 
 # runtime outputs / artifacts
 artifacts/*
-!artifacts/London Zone1/
-!artifacts/London Zone1/**
+!artifacts/London_zone_1/
+!artifacts/London_zone_1/**
 data/web_data/*.jsonl
 data/web_data/listing_urls*.txt
 data/HNSW/index/*.faiss
