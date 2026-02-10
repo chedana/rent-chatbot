@@ -1,0 +1,37 @@
+{
+  "meta": {
+    "total_queries": 2,
+    "ok_queries": 2,
+    "failed_queries": 0,
+    "jobs": 8,
+    "start_page": 0,
+    "end_page": null,
+    "pages": 50,
+    "per_page": 24,
+    "collect_workers": 1,
+    "radius": 0.0,
+    "prefer_region": false
+  },
+  "results": [
+    {
+      "query": "Westminster Station",
+      "resolved_search_location": "Westminster Station",
+      "location_identifier": "STATION^9953",
+      "search_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Westminster+Station&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=STATION%5E9953",
+      "out_file": "/Users/derek/Desktop/LLM_project/rent-chatbot/artifacts/London_zone_1/underground/westminster_station/listing_urls.txt",
+      "url_count": 175,
+      "candidate_count": null,
+      "ok": true
+    },
+    {
+      "query": "Marble Arch Station",
+      "resolved_search_location": "Marble Arch Station",
+      "location_identifier": "STATION^6032",
+      "search_url": "https://www.rightmove.co.uk/property-to-rent/find.html?searchLocation=Marble+Arch+Station&radius=0.0&sortType=6&channel=RENT&transactionType=LETTING&_includeLetAgreed=on&useLocationIdentifier=true&locationIdentifier=STATION%5E6032",
+      "out_file": "/Users/derek/Desktop/LLM_project/rent-chatbot/artifacts/London_zone_1/underground/marble_arch_station/listing_urls.txt",
+      "url_count": 779,
+      "candidate_count": null,
+      "ok": true
+    }
+  ]
+}

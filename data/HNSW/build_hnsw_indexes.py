@@ -35,6 +35,13 @@ DEFAULT_SECTION_WEIGHTS = {
     "features": 1.2,
     "description": 0.9,
 }
+CORE_SUBSECTION_WEIGHTS = {
+    "location": 0.40,
+    "rooms": 0.20,
+    "type": 0.15,
+    "price": 0.15,
+    "furnish": 0.10,
+}
 
 
 # ----------------------------
@@ -139,6 +146,29 @@ def truncate_text(s: str, max_chars: int) -> str:
         clipped = clipped.rsplit(" ", 1)[0]
     return clipped.strip()
 
+def repeat_fill(chunks: List[str], max_chars: int, sep: str = " | ") -> str:
+    target = max(0, int(max_chars))
+    if target <= 0:
+        return ""
+    clean = [safe_str(x) for x in (chunks or []) if safe_str(x)]
+    if not clean:
+        return ""
+
+    out = ""
+    i = 0
+    n = len(clean)
+    while len(out) < target and n > 0:
+        piece = clean[i % n]
+        candidate = piece if not out else (out + sep + piece)
+        if len(candidate) >= target:
+            out = candidate[:target]
+            break
+        out = candidate
+        i += 1
+        if i > 20000:
+            break
+    return out.rstrip(" |;\n\t")
+
 def section_char_limits(cfg: Dict[str, Any]) -> Dict[str, int]:
     total = float(cfg["section_char_budget"])
     weights = {
@@ -155,16 +185,176 @@ def section_char_limits(cfg: Dict[str, Any]) -> Dict[str, int]:
         limits[k] = max(120, int(round(total * ratio)))
     return limits
 
-def build_listing_text(r: Dict[str, Any], cfg: Dict[str, Any]) -> str:
+def core_subsection_char_limits(core_budget: int) -> Dict[str, int]:
+    total = max(120, int(core_budget))
+    sum_w = sum(CORE_SUBSECTION_WEIGHTS.values()) or 1.0
+    limits: Dict[str, int] = {}
+    for k, w in CORE_SUBSECTION_WEIGHTS.items():
+        limits[k] = max(32, int(round(total * (float(w) / sum_w))))
+    return limits
+
+def _flatten_discovery_queries(v: Any) -> List[str]:
+    if v is None:
+        return []
+    obj = v
+    if isinstance(v, str):
+        s = v.strip()
+        if not s:
+            return []
+        try:
+            obj = json.loads(s)
+        except Exception:
+            return [s]
+    out: List[str] = []
+    if isinstance(obj, dict):
+        for _, items in obj.items():
+            if isinstance(items, list):
+                for it in items:
+                    t = safe_str(it)
+                    if t:
+                        out.append(t)
+            else:
+                t = safe_str(items)
+                if t:
+                    out.append(t)
+    elif isinstance(obj, list):
+        for it in obj:
+            t = safe_str(it)
+            if t:
+                out.append(t)
+    seen = set()
+    dedup = []
+    for x in out:
+        key = x.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        dedup.append(x)
+    return dedup
+
+def _parse_discovery_map(v: Any) -> Dict[str, List[str]]:
+    obj = v
+    if v is None:
+        return {}
+    if isinstance(v, str):
+        s = v.strip()
+        if not s:
+            return {}
+        try:
+            obj = json.loads(s)
+        except Exception:
+            return {}
+    if not isinstance(obj, dict):
+        return {}
+
+    out: Dict[str, List[str]] = {}
+    for k, items in obj.items():
+        key = safe_str(k).lower()
+        vals: List[str] = []
+        if isinstance(items, list):
+            for it in items:
+                t = safe_str(it)
+                if t:
+                    vals.append(t)
+        else:
+            t = safe_str(items)
+            if t:
+                vals.append(t)
+        if vals:
+            seen = set()
+            dedup = []
+            for x in vals:
+                xl = x.lower()
+                if xl in seen:
+                    continue
+                seen.add(xl)
+                dedup.append(x)
+            out[key] = dedup
+    return out
+
+def build_core_text(r: Dict[str, Any], cfg: Dict[str, Any], include_labels: bool = True) -> str:
     title = safe_str(r.get("title"))
-    addr  = safe_str(r.get("address"))
+    addr = safe_str(r.get("address"))
     let_type = safe_str(r.get("let_type"))
     furn = safe_str(r.get("furnish_type"))
     ptype = safe_str(r.get("property_type"))
     bed = safe_str(r.get("bedrooms"))
     bath = safe_str(r.get("bathrooms"))
     price = safe_str(r.get("price_pcm"))
+    discovery_map = _parse_discovery_map(r.get("discovery_queries_by_method"))
+    stations = as_list(r.get("stations"))
 
+    limits = section_char_limits(cfg)
+    core_limits = core_subsection_char_limits(limits["core"])
+
+    loc_bits: List[str] = []
+    if discovery_map.get("region"):
+        loc_bits.append("Discovery region: " + "; ".join(discovery_map["region"][:8]))
+    if discovery_map.get("station"):
+        loc_bits.append("Discovery station: " + "; ".join(discovery_map["station"][:8]))
+    extra_discovery = []
+    for k, vals in discovery_map.items():
+        if k in ("region", "station"):
+            continue
+        if vals:
+            extra_discovery.append(f"{k}: " + "; ".join(vals[:8]))
+    if extra_discovery:
+        loc_bits.extend(extra_discovery)
+    if addr:
+        loc_bits.append("Address: " + addr)
+    if stations:
+        loc_bits.append("Nearby stations: " + "; ".join(stations[:12]))
+    location_txt = repeat_fill(loc_bits, core_limits["location"], sep=" | ")
+
+    rooms_txt = ""
+    if bed or bath:
+        rooms_txt = repeat_fill(
+            [f"Bedrooms: {bed if bed else 'unknown'}", f"Bathrooms: {bath if bath else 'unknown'}"],
+            core_limits["rooms"],
+            sep=" | ",
+        )
+
+    type_bits: List[str] = []
+    if ptype:
+        type_bits.append(f"Type: {ptype}")
+    if title:
+        type_bits.append(f"Listing: {title}")
+    type_txt = repeat_fill(type_bits, core_limits["type"], sep=" | ")
+
+    price_chunks: List[str] = []
+    if price:
+        price_chunks.append(f"Price: {price} pcm")
+    price_pw = safe_str(r.get("price_pw"))
+    if price_pw:
+        price_chunks.append(f"Price: {price_pw} pw")
+    deposit = safe_str(r.get("deposit"))
+    if deposit:
+        price_chunks.append(f"Deposit: {deposit}")
+    price_txt = repeat_fill(price_chunks, core_limits["price"], sep=" | ")
+
+    furnish_bits: List[str] = []
+    if furn:
+        furnish_bits.append(f"Furnished: {furn}")
+    if let_type:
+        furnish_bits.append(f"Let: {let_type}")
+    min_tenancy = safe_str(r.get("min_tenancy"))
+    if min_tenancy:
+        furnish_bits.append(f"Min tenancy: {min_tenancy}")
+    furnish_txt = repeat_fill(furnish_bits, core_limits["furnish"], sep=" | ")
+
+    if include_labels:
+        parts = [
+            f"Location: {location_txt}" if location_txt else "",
+            f"Rooms: {rooms_txt}" if rooms_txt else "",
+            f"Type: {type_txt}" if type_txt else "",
+            f"Price: {price_txt}" if price_txt else "",
+            f"Furnish: {furnish_txt}" if furnish_txt else "",
+        ]
+    else:
+        parts = [x for x in [location_txt, rooms_txt, type_txt, price_txt, furnish_txt] if x]
+    return " | ".join([p for p in parts if p]).strip()
+
+def build_listing_text(r: Dict[str, Any], cfg: Dict[str, Any]) -> str:
     feats = as_list(r.get("features"))
     stations = as_list(r.get("stations"))
     schools = as_list(r.get("schools"))
@@ -173,29 +363,19 @@ def build_listing_text(r: Dict[str, Any], cfg: Dict[str, Any]) -> str:
         max_paras=cfg["max_desc_paras"],
         max_chars=cfg["max_desc_chars"],
     )
-    feats_txt = join_items(feats, cfg["max_features"])
-    stations_txt = join_items(stations, cfg["max_stations"])
-    schools_txt = join_items(schools, cfg["max_schools"])
+    feats = feats[: cfg["max_features"]]
+    stations = stations[: cfg["max_stations"]]
+    schools = schools[: cfg["max_schools"]]
     limits = section_char_limits(cfg)
 
-    core_text = " | ".join(
-        [
-            x for x in [
-                title,
-                f"Address: {addr}" if addr else "",
-                f"Type: {ptype}" if ptype else "",
-                f"Bedrooms: {bed} | Bathrooms: {bath}" if (bed or bath) else "",
-                f"Price: {price} pcm" if price else "",
-                f"Let: {let_type} | Furnished: {furn}" if (let_type or furn) else "",
-            ]
-            if x
-        ]
-    )
-    core_text = truncate_text(core_text, limits["core"])
-    stations_txt = truncate_text(stations_txt, limits["stations"])
-    schools_txt = truncate_text(schools_txt, limits["schools"])
-    feats_txt = truncate_text(feats_txt, limits["features"])
-    desc = truncate_text(desc, limits["description"])
+    core_text = build_core_text(r, cfg, include_labels=False)
+    stations_txt = repeat_fill(stations, limits["stations"], sep="; ")
+    schools_txt = repeat_fill(schools, limits["schools"], sep="; ")
+    feats_txt = repeat_fill(feats, limits["features"], sep="; ")
+    desc_chunks = [p.strip() for p in desc.split(PARA_DELIM) if p.strip()] if desc else []
+    if not desc_chunks and desc:
+        desc_chunks = [desc]
+    desc = repeat_fill(desc_chunks, limits["description"], sep=" ")
 
     # One section per field group: avoid accidental multi-weighting from repeated blocks.
     parts = [
@@ -209,29 +389,7 @@ def build_listing_text(r: Dict[str, Any], cfg: Dict[str, Any]) -> str:
     return "\n".join([p for p in parts if p]).strip()
 
 def build_core_text_for_meta(r: Dict[str, Any], cfg: Dict[str, Any]) -> str:
-    title = safe_str(r.get("title"))
-    addr  = safe_str(r.get("address"))
-    let_type = safe_str(r.get("let_type"))
-    furn = safe_str(r.get("furnish_type"))
-    ptype = safe_str(r.get("property_type"))
-    bed = safe_str(r.get("bedrooms"))
-    bath = safe_str(r.get("bathrooms"))
-    price = safe_str(r.get("price_pcm"))
-    limits = section_char_limits(cfg)
-    core_text = " | ".join(
-        [
-            x for x in [
-                title,
-                f"Address: {addr}" if addr else "",
-                f"Type: {ptype}" if ptype else "",
-                f"Bedrooms: {bed} | Bathrooms: {bath}" if (bed or bath) else "",
-                f"Price: {price} pcm" if price else "",
-                f"Let: {let_type} | Furnished: {furn}" if (let_type or furn) else "",
-            ]
-            if x
-        ]
-    )
-    return truncate_text(core_text, limits["core"])
+    return build_core_text(r, cfg, include_labels=False)
 
 def make_hnsw_ip_index(dim: int) -> faiss.Index:
     idx = faiss.IndexHNSWFlat(dim, HNSW_M, faiss.METRIC_INNER_PRODUCT)
