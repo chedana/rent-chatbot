@@ -346,7 +346,7 @@ def llm_grounded_explain(
     c: Dict[str, Any],
     signals: Dict[str, Any],
     df: pd.DataFrame,
-) -> str:
+) -> Tuple[str, Dict[str, Any], str]:
     payload = build_grounded_candidates_payload(
         df=df,
         c=c or {},
@@ -367,7 +367,37 @@ def llm_grounded_explain(
         ],
         temperature=0.1,
     )
-    return txt.strip()
+    out = txt.strip()
+    return out, payload, txt
+
+def format_grounded_evidence(df: pd.DataFrame, max_items: int = 8) -> str:
+    if df is None or len(df) == 0:
+        return ""
+    lines: List[str] = []
+    for i, row in df.head(max_items).iterrows():
+        r = row.to_dict()
+        ev = r.get("evidence") if isinstance(r.get("evidence"), dict) else {}
+        pref = ev.get("preference_context", {}) if isinstance(ev, dict) else {}
+        merged: List[Dict[str, Any]] = []
+        for key in ("transit_evidence", "school_evidence", "preference_evidence"):
+            vals = pref.get(key, [])
+            if isinstance(vals, list):
+                for x in vals:
+                    if isinstance(x, dict):
+                        merged.append(x)
+        if not merged:
+            lines.append(f"- #{i+1}: no preference evidence")
+            continue
+        shown = []
+        for x in merged[:4]:
+            intent = _safe_text(x.get("intent"))
+            field = _safe_text(x.get("field"))
+            text = _safe_text(x.get("text"))
+            sim = _to_float(x.get("sim"))
+            sim_txt = f"{sim:.3f}" if sim is not None else "na"
+            shown.append(f"[{intent}|{field}|sim={sim_txt}] {text[:140]}")
+        lines.append(f"- #{i+1}: " + " || ".join(shown))
+    return "\n".join(lines)
 def normalize_budget_to_pcm(c: dict) -> dict:
     """
     Normalize budget constraints to pcm.
@@ -2061,7 +2091,85 @@ def run_chat():
             f"stageB_after_hard={len(filtered)}, stageC_ranked={len(ranked)}, "
             f"k={k}, recall={recall}"
         )
+        stage_d_payload: Optional[Dict[str, Any]] = None
+        stage_d_output: str = ""
+        stage_d_raw_output: str = ""
+        stage_d_error: str = ""
 
+        if len(filtered) < k:
+            print("\nBot> 符合当前硬性条件（价格/卧室/卫生间/入住时间/配置/租期/面积）的房源不足。你可以放宽预算或修改约束。")
+            df = ranked.reset_index(drop=True)
+        else:
+            df = ranked.head(k).reset_index(drop=True)
+
+        if df is not None and len(df) > 0:
+            df = df.copy()
+            df["evidence"] = df.apply(lambda row: build_evidence_for_row(row.to_dict(), c, user_in), axis=1)
+
+
+        
+        if df is None or len(df) == 0:
+            append_ranking_log(
+                {
+                    "timestamp": datetime.utcnow().isoformat() + "Z",
+                    "log_path": RANKING_LOG_PATH,
+                    "user_query": user_in,
+                    "stage_a_query": query,
+                    "constraints": c,
+                    "signals": signals,
+                    "counts": {
+                        "stage_a": len(stage_a_df),
+                        "stage_b": len(filtered),
+                        "stage_c": len(ranked),
+                        "k": k,
+                        "recall": recall,
+                    },
+                    "stage_a_candidates": stage_a_records,
+                    "stage_b_hard_audit": hard_audits,
+                    "stage_b_pass_candidates": stage_b_pass_records,
+                    "stage_c_candidates": stage_c_records,
+                    "stage_d": {
+                        "enabled": True,
+                        "system_prompt": GROUNDED_EXPLAIN_SYSTEM,
+                        "payload": None,
+                        "output": "",
+                        "raw_output": "",
+                        "error": "no_candidates",
+                    },
+                }
+            )
+            out = "I couldn't find any matching listings. Try different keywords (area, budget, bedrooms, bathrooms, available date)."
+            print("\nBot> " + out)
+            state["history"].append((user_in, out))
+            state["last_query"] = query
+            state["last_df"] = df
+            continue
+
+        # print results
+        lines = [f"Top {min(k, len(df))} results:"]
+        for i, r in df.iterrows():
+            lines.append(format_listing_row(r.to_dict(), i + 1))
+        try:
+            grounded_out, stage_d_payload, stage_d_raw_output = llm_grounded_explain(
+                user_query=user_in,
+                c=c,
+                signals=signals,
+                df=df,
+            )
+            stage_d_output = grounded_out
+            if grounded_out:
+                lines.append("")
+                lines.append("Grounded explanation:")
+                lines.append(grounded_out)
+            ev_txt = format_grounded_evidence(df=df, max_items=min(8, len(df)))
+            if ev_txt:
+                lines.append("")
+                lines.append("Grounded evidence:")
+                lines.append(ev_txt)
+        except Exception as e:
+            stage_d_error = str(e)
+            lines.append("")
+            lines.append(f"[warn] grounded explanation unavailable: {e}")
         append_ranking_log(
             {
                 "timestamp": datetime.utcnow().isoformat() + "Z",
@@ -2081,47 +2189,16 @@ def run_chat():
                 "stage_b_hard_audit": hard_audits,
                 "stage_b_pass_candidates": stage_b_pass_records,
                 "stage_c_candidates": stage_c_records,
+                "stage_d": {
+                    "enabled": True,
+                    "system_prompt": GROUNDED_EXPLAIN_SYSTEM,
+                    "payload": stage_d_payload,
+                    "output": stage_d_output,
+                    "raw_output": stage_d_raw_output,
+                    "error": stage_d_error,
+                },
             }
         )
-
-        if len(filtered) < k:
-            print("\nBot> 符合当前硬性条件（价格/卧室/卫生间/入住时间/配置/租期/面积）的房源不足。你可以放宽预算或修改约束。")
-            df = ranked.reset_index(drop=True)
-        else:
-            df = ranked.head(k).reset_index(drop=True)
-
-        if df is not None and len(df) > 0:
-            df = df.copy()
-            df["evidence"] = df.apply(lambda row: build_evidence_for_row(row.to_dict(), c, user_in), axis=1)
-
-
-        
-        if df is None or len(df) == 0:
-            out = "I couldn't find any matching listings. Try different keywords (area, budget, bedrooms, bathrooms, available date)."
-            print("\nBot> " + out)
-            state["history"].append((user_in, out))
-            state["last_query"] = query
-            state["last_df"] = df
-            continue
-
-        # print results
-        lines = [f"Top {min(k, len(df))} results:"]
-        for i, r in df.iterrows():
-            lines.append(format_listing_row(r.to_dict(), i + 1))
-        try:
-            grounded_out = llm_grounded_explain(
-                user_query=user_in,
-                c=c,
-                signals=signals,
-                df=df,
-            )
-            if grounded_out:
-                lines.append("")
-                lines.append("Grounded explanation:")
-                lines.append(grounded_out)
-        except Exception as e:
-            lines.append("")
-            lines.append(f"[warn] grounded explanation unavailable: {e}")
         out = "\n".join(lines)
 
         print("\nBot> " + out)
