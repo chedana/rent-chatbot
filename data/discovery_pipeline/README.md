@@ -72,6 +72,8 @@ Main outputs:
 
 ## Step 5: Split dedup URL list into 200-size tasks
 
+This creates many task files, each with at most 200 URLs (`chunk_000`, `chunk_001`, ...).
+
 ```bash
 mkdir -p /workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunks
 split -d -a 3 -l 200 \
@@ -107,7 +109,6 @@ Instead of running 20 tasks manually, run all chunks automatically:
 python3 /workspace/rent-chatbot/data/discovery_pipeline/run_chunk_tasks.py \
   --chunks-dir /workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunks \
   --out-dir /workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunk_results \
-  --max-parallel 2 \
   --crawl-workers 8 \
   --sleep-sec 0.5
 ```
@@ -115,7 +116,6 @@ python3 /workspace/rent-chatbot/data/discovery_pipeline/run_chunk_tasks.py \
 Outputs:
 
 - `/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunk_results/properties_chunk_*.jsonl`
-- `/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunk_results/logs/*.log`
 - `/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunk_results/chunk_run_summary.json`
 
 ## Step 7: Merge chunk JSONLs
@@ -124,3 +124,43 @@ Outputs:
 cat /workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunk_results/properties_chunk_*.jsonl \
   > /workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/properties_all_raw.jsonl
 ```
+
+## Step 8: Backfill discovery mapping into merged details
+
+```bash
+python3 - <<'PY'
+import json, re
+from pathlib import Path
+
+base = Path("/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod")
+raw_file = base / "properties_all_raw.jsonl"
+map_file = base / "global_listings_simulated.jsonl"
+out_file = base / "global_properties_with_discovery.jsonl"
+
+def listing_id_from_url(url: str) -> str:
+    m = re.search(r"/properties/(\d+)", url or "")
+    return f"rightmove:{m.group(1)}" if m else f"rightmove:{url}"
+
+mapping = {}
+with map_file.open("r", encoding="utf-8") as f:
+    for line in f:
+        rec = json.loads(line)
+        mapping[rec["listing_id"]] = rec.get("discovery_queries_by_method", {})
+
+count = 0
+with raw_file.open("r", encoding="utf-8") as fin, out_file.open("w", encoding="utf-8") as fout:
+    for line in fin:
+        rec = json.loads(line)
+        rec["listing_id"] = listing_id_from_url(rec.get("url", ""))
+        rec["source_site"] = rec.get("source", "rightmove")
+        rec["discovery_queries_by_method"] = mapping.get(rec["listing_id"], {})
+        fout.write(json.dumps(rec, ensure_ascii=False) + "\n")
+        count += 1
+
+print("wrote", count, "->", out_file)
+PY
+```
+
+Final file for retrieval/indexing:
+
+- `/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/global_properties_with_discovery.jsonl`

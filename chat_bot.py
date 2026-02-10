@@ -388,15 +388,16 @@ def format_grounded_evidence(df: pd.DataFrame, max_items: int = 8) -> str:
         if not merged:
             lines.append(f"- #{i+1}: no preference evidence")
             continue
-        shown = []
+        lines.append(f"- #{i+1}:")
         for x in merged[:4]:
             intent = _safe_text(x.get("intent"))
             field = _safe_text(x.get("field"))
             text = _safe_text(x.get("text"))
             sim = _to_float(x.get("sim"))
             sim_txt = f"{sim:.3f}" if sim is not None else "na"
-            shown.append(f"[{intent}|{field}|sim={sim_txt}] {text[:140]}")
-        lines.append(f"- #{i+1}: " + " || ".join(shown))
+            # Show explicit pairwise comparison: user preference phrase vs listing evidence text.
+            lines.append(f"  compare: '{intent}' vs '{text[:140]}'")
+            lines.append(f"  score: sim={sim_txt} | field={field}")
     return "\n".join(lines)
 def normalize_budget_to_pcm(c: dict) -> dict:
     """
