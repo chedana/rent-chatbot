@@ -4,6 +4,7 @@ import os
 import re
 import sys
 from dataclasses import dataclass
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, List, Optional, Set
 
 
@@ -90,11 +91,41 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--queries-file", required=True, help="JSON file: [{method,query,urls_file,slug?}, ...].")
     parser.add_argument("--run-name", required=True, help="Output run name under output-root.")
     parser.add_argument("--output-root", default=DEFAULT_OUTPUT_ROOT, help="Output root.")
+    parser.add_argument(
+        "--index-workers",
+        type=int,
+        default=4,
+        help="Workers for preprocessing query URL files (read/normalize/query-level dedupe).",
+    )
     parser.add_argument("--crawl-details", action="store_true", help="Crawl dedup URLs and output full properties.")
     parser.add_argument("--source-name", default="rightmove", help="Source name for detail crawl.")
     parser.add_argument("--sleep-sec", type=float, default=1.0, help="Delay between detail crawls.")
     parser.add_argument("--crawl-workers", type=int, default=4, help="Detail crawl workers.")
     return parser.parse_args()
+
+
+def process_one_query(q: QueryInput) -> Dict:
+    urls = read_urls(q.urls_file)
+    seen: Set[str] = set()
+    unique_ids_in_query: List[str] = []
+    query_lid_to_url: Dict[str, str] = {}
+
+    for u in urls:
+        lid = listing_id(u)
+        if lid in seen:
+            continue
+        seen.add(lid)
+        unique_ids_in_query.append(lid)
+        query_lid_to_url[lid] = u
+
+    slug = q.slug or slugify_area(f"{q.method}_{q.query}")
+    return {
+        "query": q,
+        "slug": slug,
+        "raw_url_count": len(urls),
+        "unique_ids_in_query": unique_ids_in_query,
+        "query_lid_to_url": query_lid_to_url,
+    }
 
 
 def main() -> None:
@@ -109,17 +140,29 @@ def main() -> None:
     global_map: Dict[str, Dict] = {}
     summary_queries: List[Dict] = []
 
-    for q in queries:
-        urls = read_urls(q.urls_file)
-        seen: Set[str] = set()
-        unique_ids_in_query: List[str] = []
+    workers = max(1, int(args.index_workers))
+    results: List[Dict] = []
+    if workers == 1:
+        for q in queries:
+            results.append(process_one_query(q))
+    else:
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            futures = [pool.submit(process_one_query, q) for q in queries]
+            for fut in as_completed(futures):
+                results.append(fut.result())
 
-        for u in urls:
-            lid = listing_id(u)
-            if lid not in seen:
-                seen.add(lid)
-                unique_ids_in_query.append(lid)
+    # Keep output ordering stable according to input query list.
+    order = {(q.method, q.query, q.urls_file): i for i, q in enumerate(queries)}
+    results.sort(key=lambda x: order[(x["query"].method, x["query"].query, x["query"].urls_file)])
 
+    for item in results:
+        q: QueryInput = item["query"]
+        slug: str = item["slug"]
+        unique_ids_in_query: List[str] = item["unique_ids_in_query"]
+        query_lid_to_url: Dict[str, str] = item["query_lid_to_url"]
+
+        for lid in unique_ids_in_query:
+            u = query_lid_to_url[lid]
             if lid not in global_map:
                 global_map[lid] = {
                     "listing_id": lid,
@@ -131,7 +174,6 @@ def main() -> None:
             if q.query not in rec["discovery_queries_by_method"][q.method]:
                 rec["discovery_queries_by_method"][q.method].append(q.query)
 
-        slug = q.slug or slugify_area(f"{q.method}_{q.query}")
         idx_path = os.path.join(query_indexes_dir, f"{slug}.jsonl")
         with open(idx_path, "w", encoding="utf-8") as f:
             for lid in unique_ids_in_query:
@@ -148,7 +190,7 @@ def main() -> None:
                 "slug": slug,
                 "method": q.method,
                 "query": q.query,
-                "raw_url_count": len(urls),
+                "raw_url_count": item["raw_url_count"],
                 "unique_listing_count": len(unique_ids_in_query),
                 "index_file": idx_path,
             }
