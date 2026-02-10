@@ -2,7 +2,6 @@ import argparse
 import json
 import os
 import subprocess
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List
@@ -27,7 +26,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--out-dir", required=True, help="Directory to write chunk result JSONL files.")
     parser.add_argument("--logs-dir", default=None, help="Directory to write per-task logs.")
     parser.add_argument("--chunk-glob", default="chunk_*", help="Glob pattern for chunk files.")
-    parser.add_argument("--max-parallel", type=int, default=2, help="How many chunk tasks to run in parallel.")
+    parser.add_argument(
+        "--max-parallel",
+        type=int,
+        default=1,
+        help="Deprecated. Chunk tasks run sequentially (one chunk at a time).",
+    )
     parser.add_argument("--crawl-workers", type=int, default=8, help="batch_crawl workers per chunk task.")
     parser.add_argument("--sleep-sec", type=float, default=0.5, help="batch_crawl sleep-sec.")
     parser.add_argument("--source-name", default="rightmove", help="Source label.")
@@ -103,48 +107,23 @@ def main() -> None:
         raise RuntimeError(f"No chunk files found in {args.chunks_dir} with pattern {args.chunk_glob}")
 
     summary: List[Dict] = []
-    max_parallel = max(1, int(args.max_parallel))
-    stop_submit = False
 
     print(
-        f"Discovered {len(tasks)} chunk tasks | max_parallel={max_parallel} | "
+        f"Discovered {len(tasks)} chunk tasks | mode=sequential(one chunk at a time) | "
         f"crawl_workers_per_task={int(args.crawl_workers)}",
         flush=True,
     )
 
-    with ThreadPoolExecutor(max_workers=max_parallel) as pool:
-        futures = {}
-        task_iter = iter(tasks)
-
-        # Seed initial workers
-        for _ in range(max_parallel):
-            try:
-                t = next(task_iter)
-            except StopIteration:
-                break
-            futures[pool.submit(run_one_task, t, args)] = t
-
-        while futures:
-            done = []
-            for fut in as_completed(list(futures.keys())):
-                t = futures.pop(fut)
-                result = fut.result()
-                summary.append(result)
-                print(
-                    f"[{result['status'].upper()}] {t.chunk_file.name} -> {result['out_jsonl']}",
-                    flush=True,
-                )
-                if result["status"] == "failed" and args.stop_on_fail:
-                    stop_submit = True
-                done.append(True)
-                break
-
-            if not stop_submit:
-                try:
-                    nxt = next(task_iter)
-                    futures[pool.submit(run_one_task, nxt, args)] = nxt
-                except StopIteration:
-                    pass
+    for t in tasks:
+        result = run_one_task(t, args)
+        summary.append(result)
+        print(
+            f"[{result['status'].upper()}] {t.chunk_file.name} -> {result['out_jsonl']}",
+            flush=True,
+        )
+        if result["status"] == "failed" and args.stop_on_fail:
+            print("Stop requested by --stop-on-fail, exiting loop.", flush=True)
+            break
 
     ok = sum(1 for x in summary if x["status"] == "ok")
     failed = sum(1 for x in summary if x["status"] == "failed")
@@ -158,7 +137,7 @@ def main() -> None:
             "ok": ok,
             "failed": failed,
             "skipped": skipped,
-            "max_parallel": max_parallel,
+            "mode": "sequential",
             "crawl_workers_per_task": int(args.crawl_workers),
             "sleep_sec": float(args.sleep_sec),
         },
