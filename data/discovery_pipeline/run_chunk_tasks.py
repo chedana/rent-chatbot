@@ -65,6 +65,8 @@ def run_one_task(task: Task, args: argparse.Namespace) -> Dict:
             "reason": "output exists",
         }
 
+    print(f"[START] {task.chunk_file.name} -> {task.out_jsonl}", flush=True)
+
     cmd = [
         args.python_bin,
         args.batch_crawl_script,
@@ -104,6 +106,12 @@ def main() -> None:
     max_parallel = max(1, int(args.max_parallel))
     stop_submit = False
 
+    print(
+        f"Discovered {len(tasks)} chunk tasks | max_parallel={max_parallel} | "
+        f"crawl_workers_per_task={int(args.crawl_workers)}",
+        flush=True,
+    )
+
     with ThreadPoolExecutor(max_workers=max_parallel) as pool:
         futures = {}
         task_iter = iter(tasks)
@@ -122,7 +130,10 @@ def main() -> None:
                 t = futures.pop(fut)
                 result = fut.result()
                 summary.append(result)
-                print(f"[{result['status'].upper()}] {t.chunk_file.name} -> {result['out_jsonl']}")
+                print(
+                    f"[{result['status'].upper()}] {t.chunk_file.name} -> {result['out_jsonl']}",
+                    flush=True,
+                )
                 if result["status"] == "failed" and args.stop_on_fail:
                     stop_submit = True
                 done.append(True)
@@ -154,7 +165,7 @@ def main() -> None:
         "results": summary,
     }
     summary_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(f"Summary: {summary_path}")
+    print(f"Summary: {summary_path}", flush=True)
 
 
 if __name__ == "__main__":
