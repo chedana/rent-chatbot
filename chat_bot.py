@@ -279,6 +279,23 @@ PROPERTY_TYPE_SPECIAL_OR_UNKNOWN = {
     "retail property (high street)",
     "office",
 }
+RENT_PCM_PATTERNS: List[re.Pattern] = [
+    # If unit is omitted after a budget cue word, default to pcm.
+    re.compile(
+        r"\b(?:budget|under|below|max(?:imum)?|up\s*to|within|around|about|roughly)\s*£?\s*([0-9][0-9,]*(?:\.\d+)?)\s*(?:pcm|per\s*month|p/?m|pm)?\b",
+        re.I,
+    ),
+    re.compile(r"\b£\s*([0-9][0-9,]*(?:\.\d+)?)\s*(?:pcm|per\s*month|p/?m|pm)\b", re.I),
+    re.compile(r"\b([0-9][0-9,]*(?:\.\d+)?)\s*(?:pcm|per\s*month|p/?m|pm)\b", re.I),
+]
+RENT_PCW_PATTERNS: List[re.Pattern] = [
+    re.compile(
+        r"\b(?:budget|under|below|max(?:imum)?|up\s*to|within)\s*£?\s*([0-9][0-9,]*(?:\.\d+)?)\s*(?:pcw|per\s*week|p/?w|pw)\b",
+        re.I,
+    ),
+    re.compile(r"\b£\s*([0-9][0-9,]*(?:\.\d+)?)\s*(?:pcw|per\s*week|p/?w|pw)\b", re.I),
+    re.compile(r"\b([0-9][0-9,]*(?:\.\d+)?)\s*(?:pcw|per\s*week|p/?w|pw)\b", re.I),
+]
 
 DATE_TOKEN_RE = (
     r"(?:\d{4}[/-]\d{1,2}[/-]\d{1,2}"
@@ -440,6 +457,36 @@ def _infer_property_type_from_query(text: Any) -> Optional[str]:
             return mapped
     return None
 
+def _infer_max_rent_pcm_from_query(text: Any) -> Optional[float]:
+    src = _safe_text(text)
+    if not src:
+        return None
+
+    def _to_amount(raw: str) -> Optional[float]:
+        try:
+            val = float(str(raw).replace(",", ""))
+            return val if val > 0 else None
+        except Exception:
+            return None
+
+    for pattern in RENT_PCW_PATTERNS:
+        m = pattern.search(src)
+        if not m:
+            continue
+        amt = _to_amount(m.group(1))
+        if amt is not None:
+            return amt * 52.0 / 12.0
+
+    for pattern in RENT_PCM_PATTERNS:
+        m = pattern.search(src)
+        if not m:
+            continue
+        amt = _to_amount(m.group(1))
+        if amt is not None:
+            return amt
+
+    return None
+
 def _infer_let_type_from_text(text: Any) -> Optional[str]:
     src = _safe_text(text).lower()
     if not src:
@@ -491,6 +538,7 @@ def repair_extracted_constraints(extracted: Dict[str, Any], user_text: str) -> D
     inferred_bathrooms_eq = _infer_numeric_eq_from_patterns(user_text, BATHROOM_EQ_PATTERNS)
     inferred_furnish = _infer_furnish_type_from_query(user_text)
     inferred_property_type = _infer_property_type_from_query(user_text)
+    inferred_max_rent_pcm = _infer_max_rent_pcm_from_query(user_text)
 
     # Rescue common slot-mapping error:
     # available_from_op gets "short/long term" text by mistake.
@@ -535,6 +583,9 @@ def repair_extracted_constraints(extracted: Dict[str, Any], user_text: str) -> D
 
     if inferred_property_type is not None:
         out["property_type"] = inferred_property_type
+
+    if inferred_max_rent_pcm is not None:
+        out["max_rent_pcm"] = inferred_max_rent_pcm
 
     # Deprecated field: always ignore op and use latest move-in semantics.
     out["available_from_op"] = None
