@@ -214,11 +214,71 @@ BATHROOM_EQ_PATTERNS: List[re.Pattern] = [
     re.compile(r"\b(\d+(?:\.\d+)?)\s*ba\b", re.I),
 ]
 FURNISH_QUERY_PATTERNS: List[Tuple[re.Pattern, str]] = [
+    # Query-side patterns only cover explicit user intents.
+    # Do not include "ask agent" here; that's listing-side metadata handling.
     (re.compile(r"\bunfurnish(?:ed)?\b", re.I), "unfurnished"),
     (re.compile(r"\bpart\s*[- ]?\s*furnish(?:ed)?\b", re.I), "part-furnished"),
     (re.compile(r"\bfully\s*[- ]?\s*furnish(?:ed)?\b", re.I), "furnished"),
     (re.compile(r"\bfurnish(?:ed)?\b", re.I), "furnished"),
 ]
+PROPERTY_TYPE_QUERY_PATTERNS: List[Tuple[re.Pattern, str]] = [
+    (re.compile(r"\bstudio\b", re.I), "studio"),
+    (re.compile(r"\bapartment(?:s)?\b", re.I), "apartment"),
+    (re.compile(r"\bapt(?:s)?\b", re.I), "apartment"),
+    (re.compile(r"\bappartment(?:s)?\b", re.I), "apartment"),
+    (re.compile(r"\bground\s*flat\b", re.I), "flat"),
+    (re.compile(r"\bflat(?:s)?\b", re.I), "flat"),
+    (re.compile(r"\bsemi\s*[- ]?\s*detached\b", re.I), "house"),
+    (re.compile(r"\bdetached\b", re.I), "house"),
+    (re.compile(r"\btown\s*house\b", re.I), "house"),
+    (re.compile(r"\bterraced\b", re.I), "house"),
+    (re.compile(r"\bmews\b", re.I), "house"),
+    (re.compile(r"\bcottage\b", re.I), "house"),
+    (re.compile(r"\bbungalow\b", re.I), "house"),
+    (re.compile(r"\bhouse\b", re.I), "house"),
+]
+PROPERTY_TYPE_HOUSE_LIKE = {
+    "terraced",
+    "detached",
+    "semi detached",
+    "semi-detached",
+    "town house",
+    "mews",
+    "cottage",
+    "bungalow",
+    "end of terrace",
+    "link detached house",
+    "detached bungalow",
+    "country house",
+}
+PROPERTY_TYPE_FLAT_LIKE = {
+    "ground flat",
+    "maisonette",
+    "duplex",
+    "penthouse",
+    "serviced apartments",
+    "serviced apartment",
+    "flat share",
+    "block of apartments",
+    "block of apartment",
+}
+PROPERTY_TYPE_SPECIAL_OR_UNKNOWN = {
+    "ask agent",
+    "house share",
+    "house of multiple occupation",
+    "retirement property",
+    "parking",
+    "land",
+    "private halls",
+    "barn conversion",
+    "barn",
+    "garages",
+    "hotel room",
+    "off-plan",
+    "park home",
+    "retail property (high street)",
+    "office",
+}
 
 DATE_TOKEN_RE = (
     r"(?:\d{4}[/-]\d{1,2}[/-]\d{1,2}"
@@ -314,7 +374,7 @@ def _infer_numeric_eq_from_patterns(text: Any, patterns: List[re.Pattern]) -> Op
     return None
 
 def _norm_furnish_value(v: Any) -> str:
-    s = _safe_text(v).lower()
+    s = str(v).strip().lower() if v is not None else ""
     if not s:
         return ""
     s = s.replace("_", " ").replace("-", " ")
@@ -341,6 +401,41 @@ def _infer_furnish_type_from_query(text: Any) -> Optional[str]:
     if "furnished or unfurnished" in src or ("landlord" in src and "flexible" in src):
         return None
     for pattern, mapped in FURNISH_QUERY_PATTERNS:
+        if pattern.search(src):
+            return mapped
+    return None
+
+def _norm_property_type_value(v: Any) -> str:
+    s = str(v).strip().lower() if v is not None else ""
+    if not s:
+        return ""
+    s = s.replace("_", " ").replace("-", " ")
+    s = re.sub(r"\s+", " ", s).strip()
+    if not s:
+        return ""
+    if s in {"ask agent", "ask the agent", "unknown", "not provided", "not known", "n/a", "na"}:
+        return "ask agent"
+    if s == "studio":
+        return "studio"
+    if s in {"apartment", "apartments"}:
+        return "apartment"
+    if s in {"flat", "flats"}:
+        return "flat"
+    if s == "house":
+        return "house"
+    if s in PROPERTY_TYPE_HOUSE_LIKE:
+        return "house"
+    if s in PROPERTY_TYPE_FLAT_LIKE:
+        return "flat"
+    if s in PROPERTY_TYPE_SPECIAL_OR_UNKNOWN:
+        return "ask agent"
+    return s
+
+def _infer_property_type_from_query(text: Any) -> Optional[str]:
+    src = _safe_text(text).lower()
+    if not src:
+        return None
+    for pattern, mapped in PROPERTY_TYPE_QUERY_PATTERNS:
         if pattern.search(src):
             return mapped
     return None
@@ -395,6 +490,7 @@ def repair_extracted_constraints(extracted: Dict[str, Any], user_text: str) -> D
     inferred_bedrooms_eq = _infer_numeric_eq_from_patterns(user_text, BEDROOM_EQ_PATTERNS)
     inferred_bathrooms_eq = _infer_numeric_eq_from_patterns(user_text, BATHROOM_EQ_PATTERNS)
     inferred_furnish = _infer_furnish_type_from_query(user_text)
+    inferred_property_type = _infer_property_type_from_query(user_text)
 
     # Rescue common slot-mapping error:
     # available_from_op gets "short/long term" text by mistake.
@@ -436,6 +532,9 @@ def repair_extracted_constraints(extracted: Dict[str, Any], user_text: str) -> D
 
     if inferred_furnish is not None:
         out["furnish_type"] = inferred_furnish
+
+    if inferred_property_type is not None:
+        out["property_type"] = inferred_property_type
 
     # Deprecated field: always ignore op and use latest move-in semantics.
     out["available_from_op"] = None
@@ -778,7 +877,10 @@ def normalize_constraints(c: dict) -> dict:
         furn = None
     c["furnish_type"] = furn
     c["let_type"] = _norm_cat_text(c.get("let_type"))
-    c["property_type"] = _norm_cat_text(c.get("property_type"))
+    ptype = _norm_property_type_value(c.get("property_type"))
+    if ptype not in {"studio", "apartment", "flat", "house"}:
+        ptype = None
+    c["property_type"] = ptype
 
     if c.get("min_tenancy_months") is not None:
         try:
@@ -1472,11 +1574,12 @@ def apply_hard_filters_with_audit(df: pd.DataFrame, c: Dict[str, Any]) -> Tuple[
             if let_val and let_val != let_req:
                 reasons.append(f"let_type '{let_val}' != '{let_req}'")
 
-        prop_req = _norm_cat_text(c.get("property_type"))
+        prop_req = _norm_property_type_value(c.get("property_type"))
         if prop_req:
-            prop_val = _norm_cat_text(r.get("property_type"))
+            prop_val = _norm_property_type_value(r.get("property_type"))
             checks["property_type"] = {"actual": prop_val or None, "required": prop_req, "op": "eq"}
-            if prop_val and prop_val != prop_req:
+            # Unknown/special listing types should pass hard filter.
+            if prop_val and prop_val not in {"ask agent"} and prop_val != prop_req:
                 reasons.append(f"property_type '{prop_val}' != '{prop_req}'")
 
         tenancy_req = c.get("min_tenancy_months")
