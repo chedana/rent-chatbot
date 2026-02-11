@@ -1166,7 +1166,7 @@ def infer_soft_keywords_from_query(user_text: str) -> List[str]:
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 NEW_INDEX_DIR = os.path.join(ROOT_DIR, "artifacts", "hnsw", "index")
 LEGACY_INDEX_DIR = os.path.join(ROOT_DIR, "data", "HNSW", "index")
-DEFAULT_INDEX_DIR = NEW_INDEX_DIR if os.path.exists(NEW_INDEX_DIR) else LEGACY_INDEX_DIR
+DEFAULT_INDEX_DIR = "/workspace/rent-chatbot/artifacts/hnsw/zone1_global"
 
 OUT_DIR = os.environ.get("RENT_INDEX_DIR", DEFAULT_INDEX_DIR)
 
