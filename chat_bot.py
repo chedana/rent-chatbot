@@ -205,7 +205,9 @@ BEDROOM_EQ_PATTERNS: List[re.Pattern] = [
     re.compile(r"\bexactly\s*(\d+(?:\.\d+)?)\s*[- ]?bed(?:room)?s?\b", re.I),
     re.compile(r"\bonly\s*(\d+(?:\.\d+)?)\s*[- ]?bed(?:room)?s?\b", re.I),
     re.compile(r"\b(\d+(?:\.\d+)?)\s*[- ]?bed(?:room)?s?\b", re.I),
+    re.compile(r"\b(\d+(?:\.\d+)?)\s*bd\b", re.I),  # e.g. 1bd -> 1 bedroom
     re.compile(r"\b(\d+(?:\.\d+)?)\s*br\b", re.I),
+    re.compile(r"\b(\d+(?:\.\d+)?)\s*b\b", re.I),  # e.g. 1b -> 1 bedroom
 ]
 BATHROOM_EQ_PATTERNS: List[re.Pattern] = [
     re.compile(r"\bexactly\s*(\d+(?:\.\d+)?)\s*[- ]?bath(?:room)?s?\b", re.I),
@@ -213,6 +215,20 @@ BATHROOM_EQ_PATTERNS: List[re.Pattern] = [
     re.compile(r"\b(\d+(?:\.\d+)?)\s*[- ]?bath(?:room)?s?\b", re.I),
     re.compile(r"\b(\d+(?:\.\d+)?)\s*ba\b", re.I),
 ]
+BED_BATH_COMPACT_PATTERNS: List[re.Pattern] = [
+    # Compact shorthand: 1b1b, 2b1b, 2b/1b, 2b-1b, 2bed1bath, 2bd1ba, 2br1ba, 2 bed 1.5 bath
+    re.compile(
+        r"\b(\d+(?:\.\d+)?)\s*(?:bed(?:room)?s?|bd|br|b)\s*[/,-]?\s*(\d+(?:\.\d+)?)\s*(?:bath(?:room)?s?|ba|b)\b",
+        re.I,
+    ),
+]
+NUM_WORDS: Dict[str, str] = {
+    "one": "1",
+    "two": "2",
+    "three": "3",
+    "four": "4",
+    "five": "5",
+}
 FURNISH_QUERY_PATTERNS: List[Tuple[re.Pattern, str]] = [
     # Query-side patterns only cover explicit user intents.
     # Do not include "ask agent" here; that's listing-side metadata handling.
@@ -378,6 +394,8 @@ def _infer_numeric_eq_from_patterns(text: Any, patterns: List[re.Pattern]) -> Op
     src = _safe_text(text).lower()
     if not src:
         return None
+    for w, d in NUM_WORDS.items():
+        src = re.sub(rf"\b{w}\b", d, src)
     for pattern in patterns:
         m = pattern.search(src)
         if not m:
@@ -389,6 +407,43 @@ def _infer_numeric_eq_from_patterns(text: Any, patterns: List[re.Pattern]) -> Op
         except Exception:
             continue
     return None
+
+def _infer_float_eq_from_patterns(text: Any, patterns: List[re.Pattern]) -> Optional[float]:
+    src = _safe_text(text).lower()
+    if not src:
+        return None
+    for w, d in NUM_WORDS.items():
+        src = re.sub(rf"\b{w}\b", d, src)
+    for pattern in patterns:
+        m = pattern.search(src)
+        if not m:
+            continue
+        try:
+            v = float(m.group(1))
+            if v >= 0:
+                return v
+        except Exception:
+            continue
+    return None
+
+def _infer_bed_bath_compact_from_query(text: Any) -> Tuple[Optional[int], Optional[float]]:
+    src = _safe_text(text).lower()
+    if not src:
+        return None, None
+    for w, d in NUM_WORDS.items():
+        src = re.sub(rf"\b{w}\b", d, src)
+    for pattern in BED_BATH_COMPACT_PATTERNS:
+        m = pattern.search(src)
+        if not m:
+            continue
+        try:
+            bed = int(float(m.group(1)))
+            bath = float(m.group(2))
+            if bed >= 0 and bath >= 0:
+                return bed, bath
+        except Exception:
+            continue
+    return None, None
 
 def _norm_furnish_value(v: Any) -> str:
     s = str(v).strip().lower() if v is not None else ""
@@ -534,8 +589,9 @@ def repair_extracted_constraints(extracted: Dict[str, Any], user_text: str) -> D
     inferred_from_query = _infer_let_type_from_text(user_text)
     inferred_tenancy_months = _infer_min_tenancy_months_from_text(user_text)
     inferred_available_from = _infer_available_from_from_text(user_text)
+    inferred_bed_compact, inferred_bath_compact = _infer_bed_bath_compact_from_query(user_text)
     inferred_bedrooms_eq = _infer_numeric_eq_from_patterns(user_text, BEDROOM_EQ_PATTERNS)
-    inferred_bathrooms_eq = _infer_numeric_eq_from_patterns(user_text, BATHROOM_EQ_PATTERNS)
+    inferred_bathrooms_eq = _infer_float_eq_from_patterns(user_text, BATHROOM_EQ_PATTERNS)
     inferred_furnish = _infer_furnish_type_from_query(user_text)
     inferred_property_type = _infer_property_type_from_query(user_text)
     inferred_max_rent_pcm = _infer_max_rent_pcm_from_query(user_text)
@@ -570,11 +626,17 @@ def repair_extracted_constraints(extracted: Dict[str, Any], user_text: str) -> D
     else:
         out["available_from"] = _parse_user_date_uk_first(out.get("available_from"))
 
-    if inferred_bedrooms_eq is not None:
+    if inferred_bed_compact is not None:
+        out["bedrooms"] = inferred_bed_compact
+        out["bedrooms_op"] = "eq"
+    elif inferred_bedrooms_eq is not None:
         out["bedrooms"] = inferred_bedrooms_eq
         out["bedrooms_op"] = "eq"
 
-    if inferred_bathrooms_eq is not None:
+    if inferred_bath_compact is not None:
+        out["bathrooms"] = float(inferred_bath_compact)
+        out["bathrooms_op"] = "eq"
+    elif inferred_bathrooms_eq is not None:
         out["bathrooms"] = float(inferred_bathrooms_eq)
         out["bathrooms_op"] = "eq"
 
