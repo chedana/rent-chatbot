@@ -1845,7 +1845,10 @@ def build_record_from_html(
             setattr(rec, field, v)
 
     def check_val(val):
-        return val if val is not None else "Ask agent"
+        if val is None:
+            return "Ask agent"
+        s = str(val).strip()
+        return s if s else "Ask agent"
 
     prop_type, bedrooms, bathrooms, size_sqft, size_sqm = extract_core_specs(soup)
 
@@ -1855,6 +1858,9 @@ def build_record_from_html(
     rec.bathrooms     = check_val(bathrooms)
     rec.size_sqft     = check_val(size_sqft)
     rec.size_sqm      = check_val(size_sqm)
+    rec.let_type      = check_val(rec.let_type)
+    rec.furnish_type  = check_val(rec.furnish_type)
+    rec.min_tenancy   = check_val(rec.min_tenancy)
 
     # description + features
     # 对于文本，如果提取出的是空字符串 ""，你可能也希望显示 "Ask agent"

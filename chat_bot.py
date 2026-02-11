@@ -29,7 +29,6 @@ Schema:
   "bathrooms": number|null,
   "bathrooms_op": string|null,
   "available_from": string|null,
-  "available_from_op": string|null,
   "furnish_type": string|null,
   "let_type": string|null,
   "property_type": string|null,
@@ -54,10 +53,8 @@ Rules:
   - "exactly/only X bathrooms" -> {"bathrooms": X, "bathrooms_op": "eq"}
   - soft wording (prefer/ideally/nice to have) -> bathrooms = null, bathrooms_op = null
 - available_from should be an ISO date string "YYYY-MM-DD" when possible.
-- available_from_op must be one of: "gte", "lte", or null.
-- Set available_from/available_from_op as:
-  - "available from DATE" -> {"available_from": "DATE", "available_from_op": "gte"}
-  - "available by/before DATE" -> {"available_from": "DATE", "available_from_op": "lte"}
+- available_from means user's latest move-in date.
+- Do not output available_from_op.
 - furnish_type should be one of: "furnished", "unfurnished", "part-furnished", or null.
 - let_type examples: "long term", "short term", or null.
 - property_type examples: "flat", "apartment", "studio", "house", or null.
@@ -97,7 +94,6 @@ Schema:
     "bathrooms": number|null,
     "bathrooms_op": string|null,
     "available_from": string|null,
-    "available_from_op": string|null,
     "furnish_type": string|null,
     "let_type": string|null,
     "property_type": string|null,
@@ -145,6 +141,306 @@ NEAR_WORDS = {
     "near subway","near station","near tube","tube","subway","station","close to station","near metro",
     "near underground","near tube station","close to tube","walk to station"
 }
+
+# Let-type rule patterns (high-precision, deterministic).
+# Covered forms:
+# - short term, short-term, shortterm
+# - long term, long-term, longterm
+# - short let, short-let, shortlet
+# - long let, long-let, longlet
+# - st let, st-let, stlet
+# - lt let, lt-let, ltlet
+# - short stay, short-stay, shortstay
+# - long stay, long-stay, longstay
+# - temporary let
+LET_TYPE_RULES: List[Tuple[re.Pattern, str]] = [
+    (re.compile(r"\bshort\s*[- ]?\s*term\b", re.I), "short term"),
+    (re.compile(r"\blong\s*[- ]?\s*term\b", re.I), "long term"),
+    (re.compile(r"\bshort\s*[- ]?\s*let\b", re.I), "short term"),
+    (re.compile(r"\blong\s*[- ]?\s*let\b", re.I), "long term"),
+    (re.compile(r"\bst\s*[- ]?\s*let\b", re.I), "short term"),
+    (re.compile(r"\blt\s*[- ]?\s*let\b", re.I), "long term"),
+    (re.compile(r"\bshort\s*[- ]?\s*stay\b", re.I), "short term"),
+    (re.compile(r"\blong\s*[- ]?\s*stay\b", re.I), "long term"),
+    (re.compile(r"\btemporary\s+let\b", re.I), "short term"),
+]
+
+TENANCY_MONTH_PATTERNS: List[re.Pattern] = [
+    re.compile(r"\b(?:minimum|min)\s+tenancy\s*(?:of\s*)?(\d+(?:\.\d+)?)\s*months?\b", re.I),
+    re.compile(r"\b(?:minimum|min)\s*tenancy\s*(?:of\s*)?(\d+(?:\.\d+)?)\s*months?\b", re.I),
+    re.compile(r"\btenancy\s*(?:of\s*)?(\d+(?:\.\d+)?)\s*months?\b", re.I),
+    re.compile(r"\b(\d+(?:\.\d+)?)\s*months?\s*(?:minimum|min)\b", re.I),
+    re.compile(r"\b(\d+(?:\.\d+)?)\s*months?(?:minimum|min)\b", re.I),
+    re.compile(r"\bfor\s+at\s+least\s+(\d+(?:\.\d+)?)\s*months?\b", re.I),
+    re.compile(r"\bfor\s*at\s*least\s*(\d+(?:\.\d+)?)\s*months?\b", re.I),
+    re.compile(r"\b(?:at\s+least|minimum|min)\s+(\d+(?:\.\d+)?)\s*months?\b", re.I),
+    re.compile(r"\b(?:at\s*least|minimum|min)\s*(\d+(?:\.\d+)?)\s*months?\b", re.I),
+    re.compile(r"\b(\d+(?:\.\d+)?)\s*mo\b", re.I),
+    re.compile(r"\b(\d+(?:\.\d+)?)\s*mos\b", re.I),
+    re.compile(r"\b(\d+(?:\.\d+)?)\s*mon(?:th)?s?\b", re.I),
+]
+
+# Tenancy "years" forms mapped to months.
+# Covered forms:
+# - half year, half a year, half yr, half a yr
+# - a year, one year, a yr, one yr
+# - two years, three years, two yrs, three yrs
+# - N years, N yrs (e.g. 1.5 years -> 18)
+TENANCY_YEAR_FIXED_RULES: List[Tuple[re.Pattern, float]] = [
+    (re.compile(r"\bhalf\s*(?:a\s*)?year\b", re.I), 6.0),
+    (re.compile(r"\bhalf\s*(?:a\s*)?yr\b", re.I), 6.0),
+    (re.compile(r"\b(?:one|a)\s*year\b", re.I), 12.0),
+    (re.compile(r"\b(?:one|a)\s*yr\b", re.I), 12.0),
+    (re.compile(r"\btwo\s*years?\b", re.I), 24.0),
+    (re.compile(r"\btwo\s*yrs?\b", re.I), 24.0),
+    (re.compile(r"\bthree\s*years?\b", re.I), 36.0),
+    (re.compile(r"\bthree\s*yrs?\b", re.I), 36.0),
+]
+TENANCY_YEAR_NUMERIC_RULES: List[re.Pattern] = [
+    re.compile(r"\b(\d+(?:\.\d+)?)\s*years?\b", re.I),
+    re.compile(r"\b(\d+(?:\.\d+)?)\s*yrs?\b", re.I),
+]
+
+BEDROOM_EQ_PATTERNS: List[re.Pattern] = [
+    re.compile(r"\bexactly\s*(\d+(?:\.\d+)?)\s*[- ]?bed(?:room)?s?\b", re.I),
+    re.compile(r"\bonly\s*(\d+(?:\.\d+)?)\s*[- ]?bed(?:room)?s?\b", re.I),
+    re.compile(r"\b(\d+(?:\.\d+)?)\s*[- ]?bed(?:room)?s?\b", re.I),
+    re.compile(r"\b(\d+(?:\.\d+)?)\s*br\b", re.I),
+]
+BATHROOM_EQ_PATTERNS: List[re.Pattern] = [
+    re.compile(r"\bexactly\s*(\d+(?:\.\d+)?)\s*[- ]?bath(?:room)?s?\b", re.I),
+    re.compile(r"\bonly\s*(\d+(?:\.\d+)?)\s*[- ]?bath(?:room)?s?\b", re.I),
+    re.compile(r"\b(\d+(?:\.\d+)?)\s*[- ]?bath(?:room)?s?\b", re.I),
+    re.compile(r"\b(\d+(?:\.\d+)?)\s*ba\b", re.I),
+]
+FURNISH_QUERY_PATTERNS: List[Tuple[re.Pattern, str]] = [
+    (re.compile(r"\bunfurnish(?:ed)?\b", re.I), "unfurnished"),
+    (re.compile(r"\bpart\s*[- ]?\s*furnish(?:ed)?\b", re.I), "part-furnished"),
+    (re.compile(r"\bfully\s*[- ]?\s*furnish(?:ed)?\b", re.I), "furnished"),
+    (re.compile(r"\bfurnish(?:ed)?\b", re.I), "furnished"),
+]
+
+DATE_TOKEN_RE = (
+    r"(?:\d{4}[/-]\d{1,2}[/-]\d{1,2}"
+    r"|\d{1,2}[/-]\d{1,2}[/-]\d{2,4}"
+    r"|(?:\d{1,2}\s+)?(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*[\s,.-]+\d{1,2}(?:[\s,.-]+\d{2,4})?"
+    r"|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\s+\d{1,2}(?:,\s*\d{2,4})?)"
+)
+AVAILABLE_FROM_PREFIX_PATTERNS: List[re.Pattern] = [
+    re.compile(
+        rf"\b(?:by|before|no\s+later\s+than|latest(?:\s+move[- ]?in|\s+start)?(?:\s+date)?|"
+        rf"available\s*from|starting\s*from|start(?:ing)?\s*from|starting|start\s*date|from)\s*[:=]?\s*({DATE_TOKEN_RE})\b",
+        re.I,
+    ),
+]
+AVAILABLE_FROM_BARE_PATTERNS: List[re.Pattern] = [
+    re.compile(r"\b(\d{4}[/-]\d{1,2}[/-]\d{1,2})\b", re.I),
+    re.compile(r"\b(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})\b", re.I),
+    re.compile(
+        r"\b((?:\d{1,2}\s+)?(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*[\s,.-]+\d{1,2}(?:[\s,.-]+\d{2,4})?)\b",
+        re.I,
+    ),
+    re.compile(r"\b((?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\s+\d{1,2}(?:,\s*\d{2,4})?)\b", re.I),
+]
+
+def _parse_user_date_uk_first(value: Any) -> Optional[str]:
+    s = _safe_text(value)
+    if not s:
+        return None
+    s = s.strip()
+
+    m_iso = re.fullmatch(r"(\d{4})[/-](\d{1,2})[/-](\d{1,2})", s)
+    if m_iso:
+        y, mth, d = int(m_iso.group(1)), int(m_iso.group(2)), int(m_iso.group(3))
+        try:
+            return datetime(y, mth, d).date().isoformat()
+        except Exception:
+            return None
+
+    m_num = re.fullmatch(r"(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})", s)
+    if m_num:
+        p1, p2, y = int(m_num.group(1)), int(m_num.group(2)), int(m_num.group(3))
+        if y < 100:
+            y += 2000
+        # UK first (DD/MM), but if MM/DD is obvious (2nd part > 12), switch.
+        if p2 > 12 and p1 <= 12:
+            month, day = p1, p2
+        else:
+            day, month = p1, p2
+        try:
+            return datetime(y, month, day).date().isoformat()
+        except Exception:
+            return None
+
+    dt = pd.to_datetime(s, errors="coerce", dayfirst=True)
+    if pd.notna(dt):
+        return dt.date().isoformat()
+    return None
+
+def _infer_available_from_from_text(text: Any) -> Optional[str]:
+    src = _safe_text(text)
+    if not src:
+        return None
+    for pattern in AVAILABLE_FROM_PREFIX_PATTERNS:
+        m = pattern.search(src)
+        if not m:
+            continue
+        parsed = _parse_user_date_uk_first(m.group(1))
+        if parsed:
+            return parsed
+    for pattern in AVAILABLE_FROM_BARE_PATTERNS:
+        m = pattern.search(src)
+        if not m:
+            continue
+        parsed = _parse_user_date_uk_first(m.group(1))
+        if parsed:
+            return parsed
+    return None
+
+def _infer_numeric_eq_from_patterns(text: Any, patterns: List[re.Pattern]) -> Optional[int]:
+    src = _safe_text(text).lower()
+    if not src:
+        return None
+    for pattern in patterns:
+        m = pattern.search(src)
+        if not m:
+            continue
+        try:
+            v = int(float(m.group(1)))
+            if v >= 0:
+                return v
+        except Exception:
+            continue
+    return None
+
+def _norm_furnish_value(v: Any) -> str:
+    s = _safe_text(v).lower()
+    if not s:
+        return ""
+    s = s.replace("_", " ").replace("-", " ")
+    s = re.sub(r"\s+", " ", s).strip()
+    if not s:
+        return ""
+    if s in {"ask agent", "ask the agent", "unknown", "not provided", "not known", "n/a", "na"}:
+        return "ask agent"
+    if "furnished or unfurnished" in s or ("landlord" in s and "flexible" in s):
+        return "flexible"
+    if "unfurn" in s:
+        return "unfurnished"
+    if "part" in s and "furnish" in s:
+        return "part-furnished"
+    if "furnish" in s:
+        return "furnished"
+    return s
+
+def _infer_furnish_type_from_query(text: Any) -> Optional[str]:
+    src = _safe_text(text).lower()
+    if not src:
+        return None
+    # Ambiguous request: do not force hard furnish filter.
+    if "furnished or unfurnished" in src or ("landlord" in src and "flexible" in src):
+        return None
+    for pattern, mapped in FURNISH_QUERY_PATTERNS:
+        if pattern.search(src):
+            return mapped
+    return None
+
+def _infer_let_type_from_text(text: Any) -> Optional[str]:
+    src = _safe_text(text).lower()
+    if not src:
+        return None
+    for pattern, mapped in LET_TYPE_RULES:
+        if pattern.search(src):
+            return mapped
+    return None
+
+def _infer_min_tenancy_months_from_text(text: Any) -> Optional[float]:
+    src = _safe_text(text).lower()
+    if not src:
+        return None
+
+    for pattern in TENANCY_MONTH_PATTERNS:
+        m = pattern.search(src)
+        if not m:
+            continue
+        try:
+            months = float(m.group(1))
+            if months > 0:
+                return months
+        except Exception:
+            continue
+
+    for pattern, months in TENANCY_YEAR_FIXED_RULES:
+        if pattern.search(src):
+            return months
+
+    for pattern in TENANCY_YEAR_NUMERIC_RULES:
+        m = pattern.search(src)
+        if not m:
+            continue
+        try:
+            years = float(m.group(1))
+            months = years * 12.0
+            if months > 0:
+                return months
+        except Exception:
+            continue
+    return None
+
+def repair_extracted_constraints(extracted: Dict[str, Any], user_text: str) -> Dict[str, Any]:
+    out = dict(extracted or {})
+    inferred_from_query = _infer_let_type_from_text(user_text)
+    inferred_tenancy_months = _infer_min_tenancy_months_from_text(user_text)
+    inferred_available_from = _infer_available_from_from_text(user_text)
+    inferred_bedrooms_eq = _infer_numeric_eq_from_patterns(user_text, BEDROOM_EQ_PATTERNS)
+    inferred_bathrooms_eq = _infer_numeric_eq_from_patterns(user_text, BATHROOM_EQ_PATTERNS)
+    inferred_furnish = _infer_furnish_type_from_query(user_text)
+
+    # Rescue common slot-mapping error:
+    # available_from_op gets "short/long term" text by mistake.
+    inferred_from_avail_op = _infer_let_type_from_text(out.get("available_from_op"))
+    if inferred_from_avail_op:
+        out["available_from_op"] = None
+        if not _safe_text(out.get("let_type")):
+            out["let_type"] = inferred_from_avail_op
+
+    # Query text has highest confidence for these explicit phrases.
+    if inferred_from_query:
+        out["let_type"] = inferred_from_query
+
+    # Keep min_tenancy_months only when explicit month/year evidence exists in query text.
+    # This prevents model drift like "short term" -> min_tenancy_months = 1.
+    if inferred_tenancy_months is not None:
+        out["min_tenancy_months"] = inferred_tenancy_months
+    else:
+        out["min_tenancy_months"] = None
+
+    try:
+        if out.get("min_tenancy_months") is not None and float(out["min_tenancy_months"]) <= 0:
+            out["min_tenancy_months"] = None
+    except Exception:
+        out["min_tenancy_months"] = None
+
+    if inferred_available_from:
+        out["available_from"] = inferred_available_from
+    else:
+        out["available_from"] = _parse_user_date_uk_first(out.get("available_from"))
+
+    if inferred_bedrooms_eq is not None:
+        out["bedrooms"] = inferred_bedrooms_eq
+        out["bedrooms_op"] = "eq"
+
+    if inferred_bathrooms_eq is not None:
+        out["bathrooms"] = float(inferred_bathrooms_eq)
+        out["bathrooms_op"] = "eq"
+
+    if inferred_furnish is not None:
+        out["furnish_type"] = inferred_furnish
+
+    # Deprecated field: always ignore op and use latest move-in semantics.
+    out["available_from_op"] = None
+
+    return out
 
 def qwen_chat(messages, temperature=0.0) -> str:
     r = qwen_client.chat.completions.create(
@@ -465,28 +761,9 @@ def normalize_constraints(c: dict) -> dict:
     if c.get("bathrooms") is not None and c.get("bathrooms_op") is None:
         c["bathrooms_op"] = "eq"
 
-    # normalize available_from hard-constraint operator
-    date_op = c.get("available_from_op")
-    if date_op is not None:
-        date_op = str(date_op).strip().lower()
-        if date_op in (">=", "after", "from", "available from", "no_earlier_than", "no earlier than", "gte"):
-            date_op = "gte"
-        elif date_op in ("<=", "before", "by", "no_later_than", "no later than", "lte"):
-            date_op = "lte"
-        else:
-            date_op = None
-    c["available_from_op"] = date_op
-
     if c.get("available_from") is not None:
-        dt = pd.to_datetime(c.get("available_from"), errors="coerce")
-        if pd.notna(dt):
-            c["available_from"] = dt.date().isoformat()
-        else:
-            c["available_from"] = None
-
-    # default to "available from" style when date exists but op is absent
-    if c.get("available_from") is not None and c.get("available_from_op") is None:
-        c["available_from_op"] = "gte"
+        c["available_from"] = _parse_user_date_uk_first(c.get("available_from"))
+    c["available_from_op"] = None
 
     def _norm_cat_text(v: Any) -> Optional[str]:
         s = _safe_text(v).lower()
@@ -496,14 +773,9 @@ def normalize_constraints(c: dict) -> dict:
         s = re.sub(r"\s+", " ", s).strip()
         return s or None
 
-    furn = _norm_cat_text(c.get("furnish_type"))
-    if furn:
-        if "unfurn" in furn:
-            furn = "unfurnished"
-        elif "part" in furn and "furnish" in furn:
-            furn = "part-furnished"
-        elif "furnish" in furn:
-            furn = "furnished"
+    furn = _norm_furnish_value(c.get("furnish_type"))
+    if furn not in {"furnished", "unfurnished", "part-furnished"}:
+        furn = None
     c["furnish_type"] = furn
     c["let_type"] = _norm_cat_text(c.get("let_type"))
     c["property_type"] = _norm_cat_text(c.get("property_type"))
@@ -560,7 +832,6 @@ def merge_constraints(old: Optional[dict], new: dict) -> dict:
         "bathrooms",
         "bathrooms_op",
         "available_from",
-        "available_from_op",
         "furnish_type",
         "let_type",
         "property_type",
@@ -617,7 +888,7 @@ def summarize_constraint_changes(old_c: Optional[dict], new_c: dict) -> str:
         "max_rent_pcm",
         "bedrooms", "bedrooms_op",
         "bathrooms", "bathrooms_op",
-        "available_from", "available_from_op",
+        "available_from",
         "furnish_type", "let_type", "property_type",
         "min_tenancy_months", "min_size_sqm",
         "k",
@@ -665,7 +936,7 @@ def compact_constraints_view(c: Optional[dict]) -> dict:
         "max_rent_pcm",
         "bedrooms", "bedrooms_op",
         "bathrooms", "bathrooms_op",
-        "available_from", "available_from_op",
+        "available_from",
         "furnish_type", "let_type", "property_type",
         "min_tenancy_months", "min_size_sqm",
         "location_keywords", "must_have_keywords",
@@ -697,11 +968,7 @@ def constraints_to_query_hint(c: dict) -> str:
     if c.get("max_rent_pcm") is not None:
         parts.append(f"budget {float(c['max_rent_pcm'])} pcm")
     if c.get("available_from") is not None:
-        dt_op = c.get("available_from_op", "gte")
-        if dt_op == "gte":
-            parts.append(f"available from {c['available_from']}")
-        else:
-            parts.append(f"available by {c['available_from']}")
+        parts.append(f"available by {c['available_from']}")
     if c.get("furnish_type"):
         parts.append(str(c.get("furnish_type")))
     if c.get("let_type"):
@@ -770,6 +1037,7 @@ SOFT_MUST_HIT_BONUS = 0.04
 SOFT_MUST_MISS_PENALTY = 0.06
 SOFT_MUST_MAX_BONUS = 0.20
 SOFT_MUST_MAX_PENALTY = 0.30
+FURNISH_ASK_AGENT_PENALTY = 0.06
 FAISS_SCORE_WEIGHT = float(os.environ.get("RENT_FAISS_WEIGHT", "0.35"))
 PREFERENCE_SCORE_WEIGHT = float(os.environ.get("RENT_PREF_WEIGHT", "1.0"))
 UNKNOWN_PENALTY_WEIGHT = float(os.environ.get("RENT_UNKNOWN_PENALTY_WEIGHT", "1.0"))
@@ -1035,7 +1303,6 @@ def split_query_signals(
             "bathrooms": c.get("bathrooms"),
             "bathrooms_op": c.get("bathrooms_op"),
             "available_from": c.get("available_from"),
-            "available_from_op": c.get("available_from_op"),
             "furnish_type": c.get("furnish_type"),
             "let_type": c.get("let_type"),
             "property_type": c.get("property_type"),
@@ -1133,16 +1400,7 @@ def apply_hard_filters_with_audit(df: pd.DataFrame, c: Dict[str, Any]) -> Tuple[
             return s
 
         def _norm_furnish(v: Any) -> str:
-            s = _norm_cat_text(v)
-            if not s:
-                return ""
-            if "unfurn" in s:
-                return "unfurnished"
-            if "part" in s and "furnish" in s:
-                return "part-furnished"
-            if "furnish" in s:
-                return "furnished"
-            return s
+            return _norm_furnish_value(v)
 
         def _parse_months(v: Any) -> Optional[float]:
             s = _safe_text(v).lower()
@@ -1203,7 +1461,8 @@ def apply_hard_filters_with_audit(df: pd.DataFrame, c: Dict[str, Any]) -> Tuple[
         if furnish_req:
             furnish_val = _norm_furnish(r.get("furnish_type"))
             checks["furnish_type"] = {"actual": furnish_val or None, "required": furnish_req, "op": "eq"}
-            if furnish_val and furnish_val != furnish_req:
+            # "ask agent" and "flexible" should pass hard filter for furnish_type.
+            if furnish_val and furnish_val not in {"ask agent", "flexible"} and furnish_val != furnish_req:
                 reasons.append(f"furnish_type '{furnish_val}' != '{furnish_req}'")
 
         let_req = _norm_cat_text(c.get("let_type"))
@@ -1564,6 +1823,15 @@ def rank_stage_c(
                 f"unknown_hard({','.join(unknown_items)};+{unknown_penalty:.2f})"
             )
 
+        # Furnish policy:
+        # - ask agent: pass hard filter but apply small ranking penalty.
+        # - flexible ("furnished or unfurnished, landlord is flexible"): no penalty.
+        if hard.get("furnish_type"):
+            furn_val = _norm_furnish_value(r.get("furnish_type"))
+            if furn_val == "ask agent":
+                penalty_score += float(FURNISH_ASK_AGENT_PENALTY)
+                penalties.append(f"furnish_ask_agent(+{float(FURNISH_ASK_AGENT_PENALTY):.2f})")
+
         if transit_terms and not stations_items:
             penalty_score += 0.12
             penalties.append("missing_stations(+0.12)")
@@ -1833,7 +2101,7 @@ def build_evidence_for_row(r: Dict[str, Any], c: Dict[str, Any], user_query: str
         dt = pd.to_datetime(r.get("available_from"), errors="coerce")
         fields["available_from"] = None if pd.isna(dt) else dt.date().isoformat()
         fields["available_required"] = str(c["available_from"])
-        fields["available_op"] = str(c.get("available_from_op") or "gte")
+        fields["available_op"] = "lte"
 
     if c.get("min_tenancy_months") is not None:
         try:
@@ -2024,6 +2292,7 @@ def run_chat():
             semantic_parse_source = "fallback_split_calls"
             extracted = llm_extract(user_in, state["constraints"])
             semantic_terms = {}
+        extracted = repair_extracted_constraints(extracted, user_in)
         state["constraints"] = merge_constraints(state["constraints"], extracted)
         state["constraints"] = normalize_budget_to_pcm(state["constraints"])
         state["constraints"] = normalize_constraints(state["constraints"])

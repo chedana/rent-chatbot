@@ -128,39 +128,35 @@ cat /workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/ch
 ## Step 8: Backfill discovery mapping into merged details
 
 ```bash
-python3 - <<'PY'
-import json, re
-from pathlib import Path
-
-base = Path("/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod")
-raw_file = base / "properties_all_raw.jsonl"
-map_file = base / "global_listings_simulated.jsonl"
-out_file = base / "global_properties_with_discovery.jsonl"
-
-def listing_id_from_url(url: str) -> str:
-    m = re.search(r"/properties/(\d+)", url or "")
-    return f"rightmove:{m.group(1)}" if m else f"rightmove:{url}"
-
-mapping = {}
-with map_file.open("r", encoding="utf-8") as f:
-    for line in f:
-        rec = json.loads(line)
-        mapping[rec["listing_id"]] = rec.get("discovery_queries_by_method", {})
-
-count = 0
-with raw_file.open("r", encoding="utf-8") as fin, out_file.open("w", encoding="utf-8") as fout:
-    for line in fin:
-        rec = json.loads(line)
-        rec["listing_id"] = listing_id_from_url(rec.get("url", ""))
-        rec["source_site"] = rec.get("source", "rightmove")
-        rec["discovery_queries_by_method"] = mapping.get(rec["listing_id"], {})
-        fout.write(json.dumps(rec, ensure_ascii=False) + "\n")
-        count += 1
-
-print("wrote", count, "->", out_file)
-PY
+python3 /workspace/rent-chatbot/data/discovery_pipeline/backfill_discovery.py \
+  --raw-jsonl /workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/properties_all_raw.jsonl \
+  --map-jsonl /workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/global_listings_simulated.jsonl \
+  --out-jsonl /workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/global_properties_with_discovery.jsonl \
+  --fill-fields let_type,furnish_type,min_tenancy \
+  --fill-value "Ask agent"
 ```
 
 Final file for retrieval/indexing:
 
 - `/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/global_properties_with_discovery.jsonl`
+
+## Step 9: Build HNSW index from final JSONL
+
+Use the final JSONL generated in Step 8 as input:
+
+```bash
+python3 /workspace/rent-chatbot/data/HNSW/build_hnsw_indexes.py \
+  --in-jsonl /workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/global_properties_with_discovery.jsonl \
+  --out-dir /workspace/rent-chatbot/artifacts/hnsw/zone1_global
+```
+
+Main outputs:
+
+- `/workspace/rent-chatbot/artifacts/hnsw/zone1_global/listings_hnsw.faiss`
+- `/workspace/rent-chatbot/artifacts/hnsw/zone1_global/listings_meta.parquet`
+- `/workspace/rent-chatbot/artifacts/hnsw/zone1_global/evidence_hnsw.faiss`
+- `/workspace/rent-chatbot/artifacts/hnsw/zone1_global/evidence_meta.parquet`
+
+Note:
+
+- If you copied an older command with `--web-input` / `--output-root`, switch to `--in-jsonl` / `--out-dir` for the current `build_hnsw_indexes.py`.

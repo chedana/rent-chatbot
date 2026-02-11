@@ -58,6 +58,10 @@ def safe_str(x: Any) -> str:
     s = str(x).strip()
     return "" if s.lower() == ASK.lower() else s
 
+def with_ask_fallback(x: Any) -> str:
+    s = str(x).strip() if x is not None else ""
+    return s if s else ASK
+
 def as_list(x: Any) -> List[str]:
     """
     兼容：
@@ -532,8 +536,8 @@ def build_indexes(in_jsonl: str, out_dir: str, cfg: Dict[str, Any]):
             "price_pw": r.get("price_pw", ""),
             "bedrooms": r.get("bedrooms", ""),
             "bathrooms": r.get("bathrooms", ""),
-            "let_type": r.get("let_type", ""),
-            "furnish_type": r.get("furnish_type", ""),
+            "let_type": with_ask_fallback(r.get("let_type")),
+            "furnish_type": with_ask_fallback(r.get("furnish_type")),
             "property_type": r.get("property_type", ""),
             "available_from": r.get("available_from", ""),
             "added_date": r.get("added_date", ""),

@@ -27,6 +27,8 @@ artifacts/*
 !artifacts/London_zone_1/**
 !artifacts/hnsw/
 !artifacts/hnsw/**
+artifacts/hnsw/zone1_global/*.faiss
+artifacts/hnsw/zone1_global/*.parquet
 data/web_data/*.jsonl
 data/web_data/listing_urls*.txt
 data/HNSW/index/*.faiss
