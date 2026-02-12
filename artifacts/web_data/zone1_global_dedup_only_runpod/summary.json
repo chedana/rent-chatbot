@@ -1,0 +1,804 @@
+{
+  "run_name": "zone1_global_dedup_only_runpod",
+  "query_count": 99,
+  "global_unique_listing_count": 9794,
+  "queries": [
+    {
+      "slug": "aldgate_east_station",
+      "method": "station",
+      "query": "aldgate_east_station",
+      "raw_url_count": 289,
+      "unique_listing_count": 289,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/aldgate_east_station.jsonl"
+    },
+    {
+      "slug": "aldgate_station",
+      "method": "station",
+      "query": "aldgate_station",
+      "raw_url_count": 257,
+      "unique_listing_count": 257,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/aldgate_station.jsonl"
+    },
+    {
+      "slug": "angel_station",
+      "method": "station",
+      "query": "angel_station",
+      "raw_url_count": 116,
+      "unique_listing_count": 116,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/angel_station.jsonl"
+    },
+    {
+      "slug": "baker_street_station",
+      "method": "station",
+      "query": "baker_street_station",
+      "raw_url_count": 497,
+      "unique_listing_count": 497,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/baker_street_station.jsonl"
+    },
+    {
+      "slug": "bank_station",
+      "method": "station",
+      "query": "bank_station",
+      "raw_url_count": 63,
+      "unique_listing_count": 63,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/bank_station.jsonl"
+    },
+    {
+      "slug": "barbican_station",
+      "method": "station",
+      "query": "barbican_station",
+      "raw_url_count": 129,
+      "unique_listing_count": 129,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/barbican_station.jsonl"
+    },
+    {
+      "slug": "bayswater_station",
+      "method": "station",
+      "query": "bayswater_station",
+      "raw_url_count": 498,
+      "unique_listing_count": 498,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/bayswater_station.jsonl"
+    },
+    {
+      "slug": "blackfriars_station",
+      "method": "station",
+      "query": "blackfriars_station",
+      "raw_url_count": 127,
+      "unique_listing_count": 127,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/blackfriars_station.jsonl"
+    },
+    {
+      "slug": "bond_street_station",
+      "method": "station",
+      "query": "bond_street_station",
+      "raw_url_count": 938,
+      "unique_listing_count": 938,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/bond_street_station.jsonl"
+    },
+    {
+      "slug": "borough_station",
+      "method": "station",
+      "query": "borough_station",
+      "raw_url_count": 230,
+      "unique_listing_count": 230,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/borough_station.jsonl"
+    },
+    {
+      "slug": "cannon_street_station",
+      "method": "station",
+      "query": "cannon_street_station",
+      "raw_url_count": 92,
+      "unique_listing_count": 92,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/cannon_street_station.jsonl"
+    },
+    {
+      "slug": "chancery_lane_station",
+      "method": "station",
+      "query": "chancery_lane_station",
+      "raw_url_count": 193,
+      "unique_listing_count": 193,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/chancery_lane_station.jsonl"
+    },
+    {
+      "slug": "charing_cross_station",
+      "method": "station",
+      "query": "charing_cross_station",
+      "raw_url_count": 208,
+      "unique_listing_count": 208,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/charing_cross_station.jsonl"
+    },
+    {
+      "slug": "city_thameslink_station",
+      "method": "station",
+      "query": "city_thameslink_station",
+      "raw_url_count": 128,
+      "unique_listing_count": 128,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/city_thameslink_station.jsonl"
+    },
+    {
+      "slug": "covent_garden_station",
+      "method": "station",
+      "query": "covent_garden_station",
+      "raw_url_count": 274,
+      "unique_listing_count": 274,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/covent_garden_station.jsonl"
+    },
+    {
+      "slug": "edgware_road_station",
+      "method": "station",
+      "query": "edgware_road_station",
+      "raw_url_count": 896,
+      "unique_listing_count": 896,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/edgware_road_station.jsonl"
+    },
+    {
+      "slug": "elephant_castle_station",
+      "method": "station",
+      "query": "elephant_castle_station",
+      "raw_url_count": 283,
+      "unique_listing_count": 283,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/elephant_castle_station.jsonl"
+    },
+    {
+      "slug": "embankment_station",
+      "method": "station",
+      "query": "embankment_station",
+      "raw_url_count": 199,
+      "unique_listing_count": 199,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/embankment_station.jsonl"
+    },
+    {
+      "slug": "euston_square_station",
+      "method": "station",
+      "query": "euston_square_station",
+      "raw_url_count": 300,
+      "unique_listing_count": 300,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/euston_square_station.jsonl"
+    },
+    {
+      "slug": "euston_station",
+      "method": "station",
+      "query": "euston_station",
+      "raw_url_count": 194,
+      "unique_listing_count": 194,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/euston_station.jsonl"
+    },
+    {
+      "slug": "farringdon_station",
+      "method": "station",
+      "query": "farringdon_station",
+      "raw_url_count": 183,
+      "unique_listing_count": 183,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/farringdon_station.jsonl"
+    },
+    {
+      "slug": "fenchurch_street_station",
+      "method": "station",
+      "query": "fenchurch_street_station",
+      "raw_url_count": 180,
+      "unique_listing_count": 180,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/fenchurch_street_station.jsonl"
+    },
+    {
+      "slug": "gloucester_road_station",
+      "method": "station",
+      "query": "gloucester_road_station",
+      "raw_url_count": 921,
+      "unique_listing_count": 921,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/gloucester_road_station.jsonl"
+    },
+    {
+      "slug": "goodge_street_station",
+      "method": "station",
+      "query": "goodge_street_station",
+      "raw_url_count": 333,
+      "unique_listing_count": 333,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/goodge_street_station.jsonl"
+    },
+    {
+      "slug": "great_portland_street_station",
+      "method": "station",
+      "query": "great_portland_street_station",
+      "raw_url_count": 315,
+      "unique_listing_count": 315,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/great_portland_street_station.jsonl"
+    },
+    {
+      "slug": "green_park_station",
+      "method": "station",
+      "query": "green_park_station",
+      "raw_url_count": 409,
+      "unique_listing_count": 409,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/green_park_station.jsonl"
+    },
+    {
+      "slug": "high_street_kensington_station",
+      "method": "station",
+      "query": "high_street_kensington_station",
+      "raw_url_count": 899,
+      "unique_listing_count": 899,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/high_street_kensington_station.jsonl"
+    },
+    {
+      "slug": "holborn_station",
+      "method": "station",
+      "query": "holborn_station",
+      "raw_url_count": 227,
+      "unique_listing_count": 227,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/holborn_station.jsonl"
+    },
+    {
+      "slug": "hyde_park_corner_station",
+      "method": "station",
+      "query": "hyde_park_corner_station",
+      "raw_url_count": 570,
+      "unique_listing_count": 570,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/hyde_park_corner_station.jsonl"
+    },
+    {
+      "slug": "kennington_station",
+      "method": "station",
+      "query": "kennington_station",
+      "raw_url_count": 201,
+      "unique_listing_count": 201,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/kennington_station.jsonl"
+    },
+    {
+      "slug": "king_s_cross_st_pancras_station",
+      "method": "station",
+      "query": "king_s_cross_st_pancras_station",
+      "raw_url_count": 182,
+      "unique_listing_count": 182,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/king_s_cross_st_pancras_station.jsonl"
+    },
+    {
+      "slug": "knightsbridge_station",
+      "method": "station",
+      "query": "knightsbridge_station",
+      "raw_url_count": 600,
+      "unique_listing_count": 600,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/knightsbridge_station.jsonl"
+    },
+    {
+      "slug": "lambeth_north_station",
+      "method": "station",
+      "query": "lambeth_north_station",
+      "raw_url_count": 152,
+      "unique_listing_count": 152,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/lambeth_north_station.jsonl"
+    },
+    {
+      "slug": "lancaster_gate_station",
+      "method": "station",
+      "query": "lancaster_gate_station",
+      "raw_url_count": 263,
+      "unique_listing_count": 263,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/lancaster_gate_station.jsonl"
+    },
+    {
+      "slug": "leicester_square_station",
+      "method": "station",
+      "query": "leicester_square_station",
+      "raw_url_count": 288,
+      "unique_listing_count": 288,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/leicester_square_station.jsonl"
+    },
+    {
+      "slug": "liverpool_street_station",
+      "method": "station",
+      "query": "liverpool_street_station",
+      "raw_url_count": 179,
+      "unique_listing_count": 179,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/liverpool_street_station.jsonl"
+    },
+    {
+      "slug": "london_bridge_station",
+      "method": "station",
+      "query": "london_bridge_station",
+      "raw_url_count": 178,
+      "unique_listing_count": 178,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/london_bridge_station.jsonl"
+    },
+    {
+      "slug": "mansion_house_station",
+      "method": "station",
+      "query": "mansion_house_station",
+      "raw_url_count": 78,
+      "unique_listing_count": 78,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/mansion_house_station.jsonl"
+    },
+    {
+      "slug": "marble_arch_station",
+      "method": "station",
+      "query": "marble_arch_station",
+      "raw_url_count": 779,
+      "unique_listing_count": 779,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/marble_arch_station.jsonl"
+    },
+    {
+      "slug": "marylebone_station",
+      "method": "station",
+      "query": "marylebone_station",
+      "raw_url_count": 941,
+      "unique_listing_count": 941,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/marylebone_station.jsonl"
+    },
+    {
+      "slug": "monument_station",
+      "method": "station",
+      "query": "monument_station",
+      "raw_url_count": 84,
+      "unique_listing_count": 84,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/monument_station.jsonl"
+    },
+    {
+      "slug": "moorgate_station",
+      "method": "station",
+      "query": "moorgate_station",
+      "raw_url_count": 115,
+      "unique_listing_count": 115,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/moorgate_station.jsonl"
+    },
+    {
+      "slug": "old_street_station",
+      "method": "station",
+      "query": "old_street_station",
+      "raw_url_count": 288,
+      "unique_listing_count": 288,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/old_street_station.jsonl"
+    },
+    {
+      "slug": "oxford_circus_station",
+      "method": "station",
+      "query": "oxford_circus_station",
+      "raw_url_count": 649,
+      "unique_listing_count": 649,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/oxford_circus_station.jsonl"
+    },
+    {
+      "slug": "paddington_station",
+      "method": "station",
+      "query": "paddington_station",
+      "raw_url_count": 734,
+      "unique_listing_count": 734,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/paddington_station.jsonl"
+    },
+    {
+      "slug": "piccadilly_circus_station",
+      "method": "station",
+      "query": "piccadilly_circus_station",
+      "raw_url_count": 298,
+      "unique_listing_count": 298,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/piccadilly_circus_station.jsonl"
+    },
+    {
+      "slug": "pimlico_station",
+      "method": "station",
+      "query": "pimlico_station",
+      "raw_url_count": 515,
+      "unique_listing_count": 515,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/pimlico_station.jsonl"
+    },
+    {
+      "slug": "queensway_station",
+      "method": "station",
+      "query": "queensway_station",
+      "raw_url_count": 463,
+      "unique_listing_count": 463,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/queensway_station.jsonl"
+    },
+    {
+      "slug": "regent_s_park_station",
+      "method": "station",
+      "query": "regent_s_park_station",
+      "raw_url_count": 403,
+      "unique_listing_count": 403,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/regent_s_park_station.jsonl"
+    },
+    {
+      "slug": "russell_square_station",
+      "method": "station",
+      "query": "russell_square_station",
+      "raw_url_count": 230,
+      "unique_listing_count": 230,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/russell_square_station.jsonl"
+    },
+    {
+      "slug": "sloane_square_station",
+      "method": "station",
+      "query": "sloane_square_station",
+      "raw_url_count": 525,
+      "unique_listing_count": 525,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/sloane_square_station.jsonl"
+    },
+    {
+      "slug": "south_kensington_station",
+      "method": "station",
+      "query": "south_kensington_station",
+      "raw_url_count": 967,
+      "unique_listing_count": 967,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/south_kensington_station.jsonl"
+    },
+    {
+      "slug": "southwark_station",
+      "method": "station",
+      "query": "southwark_station",
+      "raw_url_count": 195,
+      "unique_listing_count": 195,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/southwark_station.jsonl"
+    },
+    {
+      "slug": "st_james_s_park_station",
+      "method": "station",
+      "query": "st_james_s_park_station",
+      "raw_url_count": 219,
+      "unique_listing_count": 219,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/st_james_s_park_station.jsonl"
+    },
+    {
+      "slug": "st_paul_s_station",
+      "method": "station",
+      "query": "st_paul_s_station",
+      "raw_url_count": 92,
+      "unique_listing_count": 92,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/st_paul_s_station.jsonl"
+    },
+    {
+      "slug": "temple_station",
+      "method": "station",
+      "query": "temple_station",
+      "raw_url_count": 165,
+      "unique_listing_count": 165,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/temple_station.jsonl"
+    },
+    {
+      "slug": "tottenham_court_road_station",
+      "method": "station",
+      "query": "tottenham_court_road_station",
+      "raw_url_count": 325,
+      "unique_listing_count": 325,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/tottenham_court_road_station.jsonl"
+    },
+    {
+      "slug": "tower_hill_station",
+      "method": "station",
+      "query": "tower_hill_station",
+      "raw_url_count": 339,
+      "unique_listing_count": 339,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/tower_hill_station.jsonl"
+    },
+    {
+      "slug": "vauxhall_station",
+      "method": "station",
+      "query": "vauxhall_station",
+      "raw_url_count": 465,
+      "unique_listing_count": 465,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/vauxhall_station.jsonl"
+    },
+    {
+      "slug": "victoria_station",
+      "method": "station",
+      "query": "victoria_station",
+      "raw_url_count": 324,
+      "unique_listing_count": 324,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/victoria_station.jsonl"
+    },
+    {
+      "slug": "warren_street_station",
+      "method": "station",
+      "query": "warren_street_station",
+      "raw_url_count": 304,
+      "unique_listing_count": 304,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/warren_street_station.jsonl"
+    },
+    {
+      "slug": "waterloo_east_station",
+      "method": "station",
+      "query": "waterloo_east_station",
+      "raw_url_count": 167,
+      "unique_listing_count": 167,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/waterloo_east_station.jsonl"
+    },
+    {
+      "slug": "waterloo_station",
+      "method": "station",
+      "query": "waterloo_station",
+      "raw_url_count": 149,
+      "unique_listing_count": 149,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/waterloo_station.jsonl"
+    },
+    {
+      "slug": "westminster_station",
+      "method": "station",
+      "query": "westminster_station",
+      "raw_url_count": 175,
+      "unique_listing_count": 175,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/westminster_station.jsonl"
+    },
+    {
+      "slug": "aldgate_london",
+      "method": "region",
+      "query": "aldgate_london",
+      "raw_url_count": 209,
+      "unique_listing_count": 209,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/aldgate_london.jsonl"
+    },
+    {
+      "slug": "barbican_london",
+      "method": "region",
+      "query": "barbican_london",
+      "raw_url_count": 54,
+      "unique_listing_count": 54,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/barbican_london.jsonl"
+    },
+    {
+      "slug": "bayswater_london",
+      "method": "region",
+      "query": "bayswater_london",
+      "raw_url_count": 677,
+      "unique_listing_count": 677,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/bayswater_london.jsonl"
+    },
+    {
+      "slug": "belgravia_london",
+      "method": "region",
+      "query": "belgravia_london",
+      "raw_url_count": 281,
+      "unique_listing_count": 281,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/belgravia_london.jsonl"
+    },
+    {
+      "slug": "bermondsey_london",
+      "method": "region",
+      "query": "bermondsey_london",
+      "raw_url_count": 518,
+      "unique_listing_count": 518,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/bermondsey_london.jsonl"
+    },
+    {
+      "slug": "blackfriars_london",
+      "method": "region",
+      "query": "blackfriars_london",
+      "raw_url_count": 5,
+      "unique_listing_count": 5,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/blackfriars_london.jsonl"
+    },
+    {
+      "slug": "bloomsbury_london",
+      "method": "region",
+      "query": "bloomsbury_london",
+      "raw_url_count": 205,
+      "unique_listing_count": 205,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/bloomsbury_london.jsonl"
+    },
+    {
+      "slug": "borough_london",
+      "method": "region",
+      "query": "borough_london",
+      "raw_url_count": 262,
+      "unique_listing_count": 262,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/borough_london.jsonl"
+    },
+    {
+      "slug": "chelsea_london",
+      "method": "region",
+      "query": "chelsea_london",
+      "raw_url_count": 76,
+      "unique_listing_count": 76,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/chelsea_london.jsonl"
+    },
+    {
+      "slug": "chinatown_london",
+      "method": "region",
+      "query": "chinatown_london",
+      "raw_url_count": 33,
+      "unique_listing_count": 33,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/chinatown_london.jsonl"
+    },
+    {
+      "slug": "clerkenwell_london",
+      "method": "region",
+      "query": "clerkenwell_london",
+      "raw_url_count": 266,
+      "unique_listing_count": 266,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/clerkenwell_london.jsonl"
+    },
+    {
+      "slug": "covent_garden_london",
+      "method": "region",
+      "query": "covent_garden_london",
+      "raw_url_count": 123,
+      "unique_listing_count": 123,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/covent_garden_london.jsonl"
+    },
+    {
+      "slug": "elephant_castle_london",
+      "method": "region",
+      "query": "elephant_castle_london",
+      "raw_url_count": 351,
+      "unique_listing_count": 351,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/elephant_castle_london.jsonl"
+    },
+    {
+      "slug": "euston_london",
+      "method": "region",
+      "query": "euston_london",
+      "raw_url_count": 74,
+      "unique_listing_count": 74,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/euston_london.jsonl"
+    },
+    {
+      "slug": "fitzrovia_london",
+      "method": "region",
+      "query": "fitzrovia_london",
+      "raw_url_count": 185,
+      "unique_listing_count": 185,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/fitzrovia_london.jsonl"
+    },
+    {
+      "slug": "holborn_london",
+      "method": "region",
+      "query": "holborn_london",
+      "raw_url_count": 189,
+      "unique_listing_count": 189,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/holborn_london.jsonl"
+    },
+    {
+      "slug": "kennington_south_east_london",
+      "method": "region",
+      "query": "kennington_south_east_london",
+      "raw_url_count": 225,
+      "unique_listing_count": 225,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/kennington_south_east_london.jsonl"
+    },
+    {
+      "slug": "knightsbridge_london",
+      "method": "region",
+      "query": "knightsbridge_london",
+      "raw_url_count": 579,
+      "unique_listing_count": 579,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/knightsbridge_london.jsonl"
+    },
+    {
+      "slug": "marylebone_london",
+      "method": "region",
+      "query": "marylebone_london",
+      "raw_url_count": 692,
+      "unique_listing_count": 692,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/marylebone_london.jsonl"
+    },
+    {
+      "slug": "mayfair_london",
+      "method": "region",
+      "query": "mayfair_london",
+      "raw_url_count": 801,
+      "unique_listing_count": 801,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/mayfair_london.jsonl"
+    },
+    {
+      "slug": "moorgate_london",
+      "method": "region",
+      "query": "moorgate_london",
+      "raw_url_count": 13,
+      "unique_listing_count": 13,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/moorgate_london.jsonl"
+    },
+    {
+      "slug": "paddington_london",
+      "method": "region",
+      "query": "paddington_london",
+      "raw_url_count": 778,
+      "unique_listing_count": 778,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/paddington_london.jsonl"
+    },
+    {
+      "slug": "pimlico_london",
+      "method": "region",
+      "query": "pimlico_london",
+      "raw_url_count": 424,
+      "unique_listing_count": 424,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/pimlico_london.jsonl"
+    },
+    {
+      "slug": "regent_s_park_london",
+      "method": "region",
+      "query": "regent_s_park_london",
+      "raw_url_count": 221,
+      "unique_listing_count": 221,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/regent_s_park_london.jsonl"
+    },
+    {
+      "slug": "shoreditch_london",
+      "method": "region",
+      "query": "shoreditch_london",
+      "raw_url_count": 388,
+      "unique_listing_count": 388,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/shoreditch_london.jsonl"
+    },
+    {
+      "slug": "soho_london",
+      "method": "region",
+      "query": "soho_london",
+      "raw_url_count": 100,
+      "unique_listing_count": 100,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/soho_london.jsonl"
+    },
+    {
+      "slug": "south_bank_london",
+      "method": "region",
+      "query": "south_bank_london",
+      "raw_url_count": 3,
+      "unique_listing_count": 3,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/south_bank_london.jsonl"
+    },
+    {
+      "slug": "south_kensington_south_west_london",
+      "method": "region",
+      "query": "south_kensington_south_west_london",
+      "raw_url_count": 262,
+      "unique_listing_count": 262,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/south_kensington_south_west_london.jsonl"
+    },
+    {
+      "slug": "spitalfields_london",
+      "method": "region",
+      "query": "spitalfields_london",
+      "raw_url_count": 59,
+      "unique_listing_count": 59,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/spitalfields_london.jsonl"
+    },
+    {
+      "slug": "st_james_s_south_west_london",
+      "method": "region",
+      "query": "st_james_s_south_west_london",
+      "raw_url_count": 31,
+      "unique_listing_count": 31,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/st_james_s_south_west_london.jsonl"
+    },
+    {
+      "slug": "temple_london",
+      "method": "region",
+      "query": "temple_london",
+      "raw_url_count": 14,
+      "unique_listing_count": 14,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/temple_london.jsonl"
+    },
+    {
+      "slug": "vauxhall_london",
+      "method": "region",
+      "query": "vauxhall_london",
+      "raw_url_count": 786,
+      "unique_listing_count": 786,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/vauxhall_london.jsonl"
+    },
+    {
+      "slug": "victoria_london",
+      "method": "region",
+      "query": "victoria_london",
+      "raw_url_count": 503,
+      "unique_listing_count": 503,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/victoria_london.jsonl"
+    },
+    {
+      "slug": "waterloo_london",
+      "method": "region",
+      "query": "waterloo_london",
+      "raw_url_count": 181,
+      "unique_listing_count": 181,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/waterloo_london.jsonl"
+    },
+    {
+      "slug": "westminster_london",
+      "method": "region",
+      "query": "westminster_london",
+      "raw_url_count": 271,
+      "unique_listing_count": 271,
+      "index_file": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes/westminster_london.jsonl"
+    }
+  ],
+  "files": {
+    "global_simulated": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/global_listings_simulated.jsonl",
+    "dedup_urls_to_crawl": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/dedup_urls_to_crawl.txt",
+    "query_indexes_dir": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/query_indexes"
+  }
+}

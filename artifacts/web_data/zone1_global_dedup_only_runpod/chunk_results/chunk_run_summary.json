@@ -1,0 +1,307 @@
+{
+  "meta": {
+    "total_tasks": 49,
+    "ok": 49,
+    "failed": 0,
+    "skipped": 0,
+    "mode": "sequential",
+    "crawl_workers_per_task": 16,
+    "sleep_sec": 0.5
+  },
+  "results": [
+    {
+      "chunk": "chunk_000",
+      "status": "ok",
+      "returncode": 0,
+      "out_jsonl": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunk_results/properties_chunk_000.jsonl"
+    },
+    {
+      "chunk": "chunk_001",
+      "status": "ok",
+      "returncode": 0,
+      "out_jsonl": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunk_results/properties_chunk_001.jsonl"
+    },
+    {
+      "chunk": "chunk_002",
+      "status": "ok",
+      "returncode": 0,
+      "out_jsonl": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunk_results/properties_chunk_002.jsonl"
+    },
+    {
+      "chunk": "chunk_003",
+      "status": "ok",
+      "returncode": 0,
+      "out_jsonl": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunk_results/properties_chunk_003.jsonl"
+    },
+    {
+      "chunk": "chunk_004",
+      "status": "ok",
+      "returncode": 0,
+      "out_jsonl": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunk_results/properties_chunk_004.jsonl"
+    },
+    {
+      "chunk": "chunk_005",
+      "status": "ok",
+      "returncode": 0,
+      "out_jsonl": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunk_results/properties_chunk_005.jsonl"
+    },
+    {
+      "chunk": "chunk_006",
+      "status": "ok",
+      "returncode": 0,
+      "out_jsonl": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunk_results/properties_chunk_006.jsonl"
+    },
+    {
+      "chunk": "chunk_007",
+      "status": "ok",
+      "returncode": 0,
+      "out_jsonl": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunk_results/properties_chunk_007.jsonl"
+    },
+    {
+      "chunk": "chunk_008",
+      "status": "ok",
+      "returncode": 0,
+      "out_jsonl": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunk_results/properties_chunk_008.jsonl"
+    },
+    {
+      "chunk": "chunk_009",
+      "status": "ok",
+      "returncode": 0,
+      "out_jsonl": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunk_results/properties_chunk_009.jsonl"
+    },
+    {
+      "chunk": "chunk_010",
+      "status": "ok",
+      "returncode": 0,
+      "out_jsonl": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunk_results/properties_chunk_010.jsonl"
+    },
+    {
+      "chunk": "chunk_011",
+      "status": "ok",
+      "returncode": 0,
+      "out_jsonl": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunk_results/properties_chunk_011.jsonl"
+    },
+    {
+      "chunk": "chunk_012",
+      "status": "ok",
+      "returncode": 0,
+      "out_jsonl": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunk_results/properties_chunk_012.jsonl"
+    },
+    {
+      "chunk": "chunk_013",
+      "status": "ok",
+      "returncode": 0,
+      "out_jsonl": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunk_results/properties_chunk_013.jsonl"
+    },
+    {
+      "chunk": "chunk_014",
+      "status": "ok",
+      "returncode": 0,
+      "out_jsonl": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunk_results/properties_chunk_014.jsonl"
+    },
+    {
+      "chunk": "chunk_015",
+      "status": "ok",
+      "returncode": 0,
+      "out_jsonl": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunk_results/properties_chunk_015.jsonl"
+    },
+    {
+      "chunk": "chunk_016",
+      "status": "ok",
+      "returncode": 0,
+      "out_jsonl": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunk_results/properties_chunk_016.jsonl"
+    },
+    {
+      "chunk": "chunk_017",
+      "status": "ok",
+      "returncode": 0,
+      "out_jsonl": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunk_results/properties_chunk_017.jsonl"
+    },
+    {
+      "chunk": "chunk_018",
+      "status": "ok",
+      "returncode": 0,
+      "out_jsonl": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunk_results/properties_chunk_018.jsonl"
+    },
+    {
+      "chunk": "chunk_019",
+      "status": "ok",
+      "returncode": 0,
+      "out_jsonl": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunk_results/properties_chunk_019.jsonl"
+    },
+    {
+      "chunk": "chunk_020",
+      "status": "ok",
+      "returncode": 0,
+      "out_jsonl": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunk_results/properties_chunk_020.jsonl"
+    },
+    {
+      "chunk": "chunk_021",
+      "status": "ok",
+      "returncode": 0,
+      "out_jsonl": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunk_results/properties_chunk_021.jsonl"
+    },
+    {
+      "chunk": "chunk_022",
+      "status": "ok",
+      "returncode": 0,
+      "out_jsonl": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunk_results/properties_chunk_022.jsonl"
+    },
+    {
+      "chunk": "chunk_023",
+      "status": "ok",
+      "returncode": 0,
+      "out_jsonl": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunk_results/properties_chunk_023.jsonl"
+    },
+    {
+      "chunk": "chunk_024",
+      "status": "ok",
+      "returncode": 0,
+      "out_jsonl": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunk_results/properties_chunk_024.jsonl"
+    },
+    {
+      "chunk": "chunk_025",
+      "status": "ok",
+      "returncode": 0,
+      "out_jsonl": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunk_results/properties_chunk_025.jsonl"
+    },
+    {
+      "chunk": "chunk_026",
+      "status": "ok",
+      "returncode": 0,
+      "out_jsonl": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunk_results/properties_chunk_026.jsonl"
+    },
+    {
+      "chunk": "chunk_027",
+      "status": "ok",
+      "returncode": 0,
+      "out_jsonl": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunk_results/properties_chunk_027.jsonl"
+    },
+    {
+      "chunk": "chunk_028",
+      "status": "ok",
+      "returncode": 0,
+      "out_jsonl": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunk_results/properties_chunk_028.jsonl"
+    },
+    {
+      "chunk": "chunk_029",
+      "status": "ok",
+      "returncode": 0,
+      "out_jsonl": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunk_results/properties_chunk_029.jsonl"
+    },
+    {
+      "chunk": "chunk_030",
+      "status": "ok",
+      "returncode": 0,
+      "out_jsonl": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunk_results/properties_chunk_030.jsonl"
+    },
+    {
+      "chunk": "chunk_031",
+      "status": "ok",
+      "returncode": 0,
+      "out_jsonl": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunk_results/properties_chunk_031.jsonl"
+    },
+    {
+      "chunk": "chunk_032",
+      "status": "ok",
+      "returncode": 0,
+      "out_jsonl": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunk_results/properties_chunk_032.jsonl"
+    },
+    {
+      "chunk": "chunk_033",
+      "status": "ok",
+      "returncode": 0,
+      "out_jsonl": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunk_results/properties_chunk_033.jsonl"
+    },
+    {
+      "chunk": "chunk_034",
+      "status": "ok",
+      "returncode": 0,
+      "out_jsonl": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunk_results/properties_chunk_034.jsonl"
+    },
+    {
+      "chunk": "chunk_035",
+      "status": "ok",
+      "returncode": 0,
+      "out_jsonl": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunk_results/properties_chunk_035.jsonl"
+    },
+    {
+      "chunk": "chunk_036",
+      "status": "ok",
+      "returncode": 0,
+      "out_jsonl": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunk_results/properties_chunk_036.jsonl"
+    },
+    {
+      "chunk": "chunk_037",
+      "status": "ok",
+      "returncode": 0,
+      "out_jsonl": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunk_results/properties_chunk_037.jsonl"
+    },
+    {
+      "chunk": "chunk_038",
+      "status": "ok",
+      "returncode": 0,
+      "out_jsonl": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunk_results/properties_chunk_038.jsonl"
+    },
+    {
+      "chunk": "chunk_039",
+      "status": "ok",
+      "returncode": 0,
+      "out_jsonl": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunk_results/properties_chunk_039.jsonl"
+    },
+    {
+      "chunk": "chunk_040",
+      "status": "ok",
+      "returncode": 0,
+      "out_jsonl": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunk_results/properties_chunk_040.jsonl"
+    },
+    {
+      "chunk": "chunk_041",
+      "status": "ok",
+      "returncode": 0,
+      "out_jsonl": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunk_results/properties_chunk_041.jsonl"
+    },
+    {
+      "chunk": "chunk_042",
+      "status": "ok",
+      "returncode": 0,
+      "out_jsonl": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunk_results/properties_chunk_042.jsonl"
+    },
+    {
+      "chunk": "chunk_043",
+      "status": "ok",
+      "returncode": 0,
+      "out_jsonl": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunk_results/properties_chunk_043.jsonl"
+    },
+    {
+      "chunk": "chunk_044",
+      "status": "ok",
+      "returncode": 0,
+      "out_jsonl": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunk_results/properties_chunk_044.jsonl"
+    },
+    {
+      "chunk": "chunk_045",
+      "status": "ok",
+      "returncode": 0,
+      "out_jsonl": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunk_results/properties_chunk_045.jsonl"
+    },
+    {
+      "chunk": "chunk_046",
+      "status": "ok",
+      "returncode": 0,
+      "out_jsonl": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunk_results/properties_chunk_046.jsonl"
+    },
+    {
+      "chunk": "chunk_047",
+      "status": "ok",
+      "returncode": 0,
+      "out_jsonl": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunk_results/properties_chunk_047.jsonl"
+    },
+    {
+      "chunk": "chunk_048",
+      "status": "ok",
+      "returncode": 0,
+      "out_jsonl": "/workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunk_results/properties_chunk_048.jsonl"
+    }
+  ]
+}

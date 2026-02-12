@@ -1,0 +1,143 @@
+CMD: python3 /workspace/rent-chatbot/data/web_data/batch_crawl.py --urls-file /workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunks/chunk_001 --out-jsonl /workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunk_results/properties_chunk_001.jsonl --source-name rightmove --workers 8 --sleep-sec 0.5
+Loaded 200 urls from /workspace/rent-chatbot/artifacts/web_data/zone1_global_dedup_only_runpod/chunks/chunk_001
+[1/200] Extracting: https://www.rightmove.co.uk/properties/145374902#/?channel=RES_LET
+[2/200] Extracting: https://www.rightmove.co.uk/properties/145383059#/?channel=RES_LET
+[3/200] Extracting: https://www.rightmove.co.uk/properties/145428935#/?channel=RES_LET
+[4/200] Extracting: https://www.rightmove.co.uk/properties/145647356#/?channel=RES_LET
+[5/200] Extracting: https://www.rightmove.co.uk/properties/145676045#/?channel=RES_LET
+[6/200] Extracting: https://www.rightmove.co.uk/properties/145865375#/?channel=RES_LET
+[7/200] Extracting: https://www.rightmove.co.uk/properties/145993520#/?channel=RES_LET
+[8/200] Extracting: https://www.rightmove.co.uk/properties/146107850#/?channel=RES_LET
+[9/200] Extracting: https://www.rightmove.co.uk/properties/146110211#/?channel=RES_LET
+Progress: 1/200 done
+[10/200] Extracting: https://www.rightmove.co.uk/properties/146112869#/?channel=RES_LET
+Progress: 2/200 done
+[11/200] Extracting: https://www.rightmove.co.uk/properties/146117180#/?channel=RES_LET
+Progress: 3/200 done
+[12/200] Extracting: https://www.rightmove.co.uk/properties/146149715#/?channel=RES_LET
+Progress: 4/200 done
+[13/200] Extracting: https://www.rightmove.co.uk/properties/146206295#/?channel=RES_LET
+Progress: 5/200 done
+[14/200] Extracting: https://www.rightmove.co.uk/properties/146207132#/?channel=RES_LET
+Progress: 6/200 done
+[15/200] Extracting: https://www.rightmove.co.uk/properties/146268113#/?channel=RES_LET
+Progress: 7/200 done
+[16/200] Extracting: https://www.rightmove.co.uk/properties/146394122#/?channel=RES_LET
+Progress: 8/200 done
+[17/200] Extracting: https://www.rightmove.co.uk/properties/146394749#/?channel=RES_LET
+Progress: 9/200 done
+[18/200] Extracting: https://www.rightmove.co.uk/properties/146595302#/?channel=RES_LET
+Progress: 10/200 done
+[19/200] Extracting: https://www.rightmove.co.uk/properties/146721095#/?channel=RES_LET
+Progress: 11/200 done
+[20/200] Extracting: https://www.rightmove.co.uk/properties/146863721#/?channel=RES_LET
+Progress: 12/200 done
+[21/200] Extracting: https://www.rightmove.co.uk/properties/146899643#/?channel=RES_LET
+Progress: 13/200 done
+[22/200] Extracting: https://www.rightmove.co.uk/properties/146948777#/?channel=RES_LET
+Progress: 14/200 done
+[23/200] Extracting: https://www.rightmove.co.uk/properties/146962964#/?channel=RES_LET
+Progress: 15/200 done
+[24/200] Extracting: https://www.rightmove.co.uk/properties/146963222#/?channel=RES_LET
+Progress: 16/200 done
+[25/200] Extracting: https://www.rightmove.co.uk/properties/147033527#/?channel=RES_LET
+Progress: 17/200 done
+[26/200] Extracting: https://www.rightmove.co.uk/properties/147207473#/?channel=RES_LET
+Progress: 18/200 done
+[27/200] Extracting: https://www.rightmove.co.uk/properties/147274502#/?channel=RES_LET
+Progress: 19/200 done
+[28/200] Extracting: https://www.rightmove.co.uk/properties/147309344#/?channel=RES_LET
+Progress: 20/200 done
+[29/200] Extracting: https://www.rightmove.co.uk/properties/147392693#/?channel=RES_LET
+Progress: 21/200 done
+[30/200] Extracting: https://www.rightmove.co.uk/properties/147596342#/?channel=RES_LET
+Progress: 22/200 done
+[31/200] Extracting: https://www.rightmove.co.uk/properties/147611123#/?channel=RES_LET
+Progress: 23/200 done
+[32/200] Extracting: https://www.rightmove.co.uk/properties/147703718#/?channel=RES_LET
+Progress: 24/200 done
+[33/200] Extracting: https://www.rightmove.co.uk/properties/147703721#/?channel=RES_LET
+Progress: 25/200 done
+[34/200] Extracting: https://www.rightmove.co.uk/properties/147816722#/?channel=RES_LET
+Progress: 26/200 done
+[35/200] Extracting: https://www.rightmove.co.uk/properties/147921392#/?channel=RES_LET
+Progress: 27/200 done
+[36/200] Extracting: https://www.rightmove.co.uk/properties/147921710#/?channel=RES_LET
+Progress: 28/200 done
+[37/200] Extracting: https://www.rightmove.co.uk/properties/147957191#/?channel=RES_LET
+Warn: station extraction skipped for https://www.rightmove.co.uk/properties/146863721#/?channel=RES_LET: Page.wait_for_timeout: Target page, context or browser has been closed
+Traceback (most recent call last):
+  File "/workspace/rent-chatbot/data/web_data/batch_crawl.py", line 99, in crawl_urls
+    for fut in as_completed(futures):
+  File "/usr/lib/python3.11/concurrent/futures/_base.py", line 243, in as_completed
+    waiter.event.wait(wait_timeout)
+  File "/usr/lib/python3.11/threading.py", line 629, in wait
+    signaled = self._cond.wait(timeout)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.11/threading.py", line 327, in wait
+    waiter.acquire()
+KeyboardInterrupt
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/workspace/rent-chatbot/data/web_data/batch_crawl.py", line 145, in <module>
+    main()
+  File "/workspace/rent-chatbot/data/web_data/batch_crawl.py", line 133, in main
+    ok, fail = crawl_urls(
+               ^^^^^^^^^^^
+  File "/workspace/rent-chatbot/data/web_data/batch_crawl.py", line 97, in crawl_urls
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+  File "/usr/lib/python3.11/concurrent/futures/_base.py", line 647, in __exit__
+    self.shutdown(wait=True)
+  File "/usr/lib/python3.11/concurrent/futures/thread.py", line 235, in shutdown
+    t.join()
+  File "/usr/lib/python3.11/threading.py", line 1119, in join
+    self._wait_for_tstate_lock()
+  File "/usr/lib/python3.11/threading.py", line 1139, in _wait_for_tstate_lock
+    if lock.acquire(block, timeout):
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+KeyboardInterrupt
+Exception ignored in: <module 'threading' from '/usr/lib/python3.11/threading.py'>
+Traceback (most recent call last):
+  File "/usr/lib/python3.11/threading.py", line 1560, in _shutdown
+    atexit_call()
+  File "/usr/lib/python3.11/concurrent/futures/thread.py", line 31, in _python_exit
+    t.join()
+  File "/usr/lib/python3.11/threading.py", line 1119, in join
+    self._wait_for_tstate_lock()
+  File "/usr/lib/python3.11/threading.py", line 1139, in _wait_for_tstate_lock
+    if lock.acquire(block, timeout):
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+KeyboardInterrupt: 
+[38/200] Extracting: https://www.rightmove.co.uk/properties/147957197#/?channel=RES_LET
+[39/200] Extracting: https://www.rightmove.co.uk/properties/147957230#/?channel=RES_LET
+Task exception was never retrieved
+future: <Task finished name='Task-1460' coro=<Connection.run.<locals>.init() done, defined at /workspace/chat_bot/lib/python3.11/site-packages/playwright/_impl/_connection.py:309> exception=Exception('Connection.init: Connection closed while reading from the driver')>
+Traceback (most recent call last):
+  File "/workspace/chat_bot/lib/python3.11/site-packages/playwright/_impl/_connection.py", line 310, in init
+    self.playwright_future.set_result(await self._root_object.initialize())
+                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/chat_bot/lib/python3.11/site-packages/playwright/_impl/_connection.py", line 251, in initialize
+    await self._channel.send(
+  File "/workspace/chat_bot/lib/python3.11/site-packages/playwright/_impl/_connection.py", line 69, in send
+    return await self._connection.wrap_api_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/chat_bot/lib/python3.11/site-packages/playwright/_impl/_connection.py", line 559, in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+Exception: Connection.init: Connection closed while reading from the driver
+Task exception was never retrieved
+future: <Task finished name='Task-1489' coro=<Connection.run.<locals>.init() done, defined at /workspace/chat_bot/lib/python3.11/site-packages/playwright/_impl/_connection.py:309> exception=Exception('Connection.init: Connection closed while reading from the driver')>
+Traceback (most recent call last):
+  File "/workspace/chat_bot/lib/python3.11/site-packages/playwright/_impl/_connection.py", line 310, in init
+    self.playwright_future.set_result(await self._root_object.initialize())
+                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/chat_bot/lib/python3.11/site-packages/playwright/_impl/_connection.py", line 251, in initialize
+    await self._channel.send(
+  File "/workspace/chat_bot/lib/python3.11/site-packages/playwright/_impl/_connection.py", line 69, in send
+    return await self._connection.wrap_api_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/chat_bot/lib/python3.11/site-packages/playwright/_impl/_connection.py", line 559, in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+Exception: Connection.init: Connection closed while reading from the driver
+corrupted double-linked list
