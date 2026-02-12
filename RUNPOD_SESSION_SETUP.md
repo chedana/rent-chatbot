@@ -42,6 +42,7 @@ pip install lxml
 
 pip install sentence_transformers
 pip install -U pyarrow
+pip install -U qdrant-client
 pip install vllm huggingface_hub
 pip install pandas
 ```
@@ -71,4 +72,3 @@ python3 -m vllm.entrypoints.openai.api_server \
   --host 0.0.0.0 \
   --port 8000
 ```
-
