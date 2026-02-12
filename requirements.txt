@@ -141,6 +141,7 @@ python-json-logger==4.0.0
 python-multipart==0.0.22
 python-slugify==8.0.4
 pytz==2025.2
+qdrant-client==1.15.1
 PyYAML==6.0.3
 pyzmq==27.1.0
 ray==2.53.0

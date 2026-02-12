@@ -10,12 +10,16 @@ import numpy as np
 import pandas as pd
 import faiss
 from sentence_transformers import SentenceTransformer
+try:
+    from qdrant_client import QdrantClient
+except Exception:
+    QdrantClient = None
 
 
 from openai import OpenAI
 
 QWEN_BASE_URL = os.environ.get("QWEN_BASE_URL", "http://127.0.0.1:8000/v1")
-QWEN_MODEL    = os.environ.get("QWEN_MODEL", "./Qwen2.5-7B-Instruct")  # 你启动时的 model 名称
+QWEN_MODEL    = os.environ.get("QWEN_MODEL", "./Qwen3-14B")  # 你启动时的 model 名称
 QWEN_API_KEY  = os.environ.get("OPENAI_API_KEY", "dummy")
 
 qwen_client = OpenAI(base_url=QWEN_BASE_URL, api_key=QWEN_API_KEY)
@@ -1234,6 +1238,14 @@ OUT_DIR = os.environ.get("RENT_INDEX_DIR", DEFAULT_INDEX_DIR)
 
 LIST_INDEX_PATH = os.path.join(OUT_DIR, "listings_hnsw.faiss")
 LIST_META_PATH  = os.path.join(OUT_DIR, "listings_meta.parquet")
+QDRANT_LOCAL_PATH = os.environ.get(
+    "RENT_QDRANT_PATH",
+    os.path.join(ROOT_DIR, "artifacts", "qdrant_local"),
+)
+QDRANT_COLLECTION = os.environ.get("RENT_QDRANT_COLLECTION", "rent_listings")
+STAGEA_BACKEND = os.environ.get("RENT_STAGEA_BACKEND", "faiss").strip().lower()
+if STAGEA_BACKEND not in {"faiss", "qdrant"}:
+    STAGEA_BACKEND = "faiss"
 
 
 EMBED_MODEL = os.environ.get("RENT_EMBED_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
@@ -1261,6 +1273,19 @@ RANKING_LOG_PATH = os.environ.get(
     "RENT_RANKING_LOG_PATH",
     os.path.join(ROOT_DIR, "artifacts", "debug", "ranking_log.jsonl"),
 )
+STRUCTURED_POLICY = os.environ.get("RENT_STRUCTURED_POLICY", "RULE_FIRST").strip().upper()
+if STRUCTURED_POLICY not in {"RULE_FIRST", "HYBRID", "LLM_FIRST"}:
+    STRUCTURED_POLICY = "RULE_FIRST"
+STRUCTURED_CONFLICT_LOG_PATH = os.environ.get(
+    "RENT_STRUCTURED_CONFLICT_LOG_PATH",
+    os.path.join(ROOT_DIR, "artifacts", "debug", "structured_conflicts.jsonl"),
+)
+STRUCTURED_TRAINING_LOG_PATH = os.environ.get(
+    "RENT_STRUCTURED_TRAINING_LOG_PATH",
+    os.path.join(ROOT_DIR, "artifacts", "debug", "structured_training_samples.jsonl"),
+)
+ENABLE_STRUCTURED_CONFLICT_LOG = os.environ.get("RENT_STRUCTURED_CONFLICT_LOG", "1") != "0"
+ENABLE_STRUCTURED_TRAINING_LOG = os.environ.get("RENT_STRUCTURED_TRAINING_LOG", "1") != "0"
 SEMANTIC_TOP_K = int(os.environ.get("RENT_SEMANTIC_TOPK", "4"))
 SEMANTIC_FIELD_WEIGHTS = {
     "schools": 1.00,
@@ -1349,6 +1374,23 @@ def load_index_and_meta():
     print(f"[boot] faiss ntotal={index.ntotal}, meta rows={len(meta)}")
     return index, meta
 
+def load_qdrant_client() -> QdrantClient:
+    if QdrantClient is None:
+        raise ImportError("qdrant-client is not installed. Please run: pip install qdrant-client")
+    client = QdrantClient(path=QDRANT_LOCAL_PATH)
+    if not client.collection_exists(QDRANT_COLLECTION):
+        raise FileNotFoundError(
+            f"Missing Qdrant collection: {QDRANT_COLLECTION} (path={QDRANT_LOCAL_PATH})"
+        )
+    info = client.get_collection(QDRANT_COLLECTION)
+    print(f"[boot] qdrant collection={QDRANT_COLLECTION}, points={info.points_count}")
+    return client
+
+def load_stage_a_resources():
+    if STAGEA_BACKEND == "qdrant":
+        return load_qdrant_client(), None
+    return load_index_and_meta()
+
 def embed_query(embedder: SentenceTransformer, q: str) -> np.ndarray:
     x = embedder.encode(
         [q],
@@ -1357,7 +1399,9 @@ def embed_query(embedder: SentenceTransformer, q: str) -> np.ndarray:
         convert_to_numpy=True,
         normalize_embeddings=False,  # match your builder, then normalize with faiss
     ).astype("float32")
-    faiss.normalize_L2(x)  # IMPORTANT: match builder
+    norms = np.linalg.norm(x, axis=1, keepdims=True)
+    norms = np.maximum(norms, 1e-12)
+    x = x / norms
     return x
 
 
@@ -1392,6 +1436,39 @@ def faiss_search(index, embedder, meta: pd.DataFrame, query: str, recall: int) -
     # IMPORTANT:
     # Do not truncate to k before hard filters. We need a larger recall pool first.
     return pd.DataFrame(rows).reset_index(drop=True)
+
+
+def qdrant_search(client: QdrantClient, embedder, query: str, recall: int) -> pd.DataFrame:
+    qx = embed_query(embedder, query)[0].tolist()
+    hits = client.search(
+        collection_name=QDRANT_COLLECTION,
+        query_vector=qx,
+        limit=recall,
+        with_payload=True,
+        with_vectors=False,
+    )
+
+    rows = []
+    for h in hits:
+        payload = dict(h.payload or {})
+        score = float(h.score)
+        # Keep column compatibility for downstream ranking/logging code.
+        payload["faiss_score"] = score
+        payload["qdrant_score"] = score
+        payload["_faiss_id"] = None
+        payload["_qdrant_id"] = h.id
+        rows.append(payload)
+    if not rows:
+        return pd.DataFrame()
+    return pd.DataFrame(rows).reset_index(drop=True)
+
+
+def stage_a_search(index_or_client, embedder, meta: Optional[pd.DataFrame], query: str, recall: int) -> pd.DataFrame:
+    if STAGEA_BACKEND == "qdrant":
+        return qdrant_search(index_or_client, embedder, query=query, recall=recall)
+    if meta is None:
+        raise ValueError("meta is required when STAGEA_BACKEND=faiss")
+    return faiss_search(index_or_client, embedder, meta, query=query, recall=recall)
 
 
 def _safe_text(v: Any) -> str:
@@ -2122,6 +2199,218 @@ def append_ranking_log(obj: Dict[str, Any]) -> None:
     except Exception as e:
         print(f"[warn] failed to write ranking log: {e}")
 
+
+STRUCTURED_FIELDS = [
+    "max_rent_pcm",
+    "bedrooms",
+    "bedrooms_op",
+    "bathrooms",
+    "bathrooms_op",
+    "available_from",
+    "furnish_type",
+    "let_type",
+    "property_type",
+    "min_tenancy_months",
+    "min_size_sqm",
+    "location_keywords",
+    "must_have_keywords",
+    "k",
+]
+
+HIGH_RISK_STRUCTURED_FIELDS = {
+    "max_rent_pcm",
+    "bedrooms",
+    "bedrooms_op",
+    "bathrooms",
+    "bathrooms_op",
+    "available_from",
+    "let_type",
+    "property_type",
+    "min_tenancy_months",
+    "min_size_sqm",
+}
+
+
+def _append_jsonl(path: str, obj: Dict[str, Any], log_name: str) -> None:
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(obj, ensure_ascii=False) + "\n")
+    except Exception as e:
+        print(f"[warn] failed to write {log_name}: {e}")
+
+
+def _canon_for_structured_compare(v: Any) -> Any:
+    if v is None:
+        return None
+    if isinstance(v, float):
+        if np.isnan(v):
+            return None
+        return round(float(v), 6)
+    if isinstance(v, int):
+        return int(v)
+    if isinstance(v, list):
+        out: List[str] = []
+        seen = set()
+        for x in v:
+            s = str(x).strip()
+            if not s:
+                continue
+            k = s.lower()
+            if k in seen:
+                continue
+            seen.add(k)
+            out.append(s)
+        return sorted(out, key=lambda x: x.lower())
+    s = str(v).strip()
+    return s if s else None
+
+
+def _normalize_for_structured_policy(obj: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    out = _normalize_constraint_extract(obj or {})
+    out = normalize_budget_to_pcm(out)
+    out = normalize_constraints(out)
+    return out
+
+
+def _choose_structured_value(policy: str, field: str, llm_v: Any, rule_v: Any) -> Tuple[Any, str]:
+    same = _canon_for_structured_compare(llm_v) == _canon_for_structured_compare(rule_v)
+    high_risk = field in HIGH_RISK_STRUCTURED_FIELDS
+
+    if same:
+        return llm_v, "agree"
+
+    if policy == "RULE_FIRST":
+        return rule_v, "override_with_rule"
+
+    if policy == "LLM_FIRST":
+        if high_risk and rule_v is not None:
+            return rule_v, "guardrail_override_with_rule"
+        return llm_v, "prefer_llm"
+
+    # HYBRID: high-risk fields prefer rules, low-risk fields prefer llm.
+    if high_risk:
+        if rule_v is not None:
+            return rule_v, "override_with_rule_high_risk"
+        return llm_v, "fallback_llm_high_risk"
+
+    if llm_v is not None:
+        return llm_v, "prefer_llm_low_risk"
+    if rule_v is not None:
+        return rule_v, "fill_from_rule_low_risk"
+    return None, "both_none"
+
+
+def apply_structured_policy(
+    user_text: str,
+    llm_constraints: Dict[str, Any],
+    rule_constraints: Dict[str, Any],
+    policy: str,
+) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+    llm_n = _normalize_for_structured_policy(llm_constraints)
+    rule_n = _normalize_for_structured_policy(rule_constraints)
+
+    final_constraints: Dict[str, Any] = {}
+    conflicts: List[Dict[str, Any]] = []
+    agreements = 0
+
+    for field in STRUCTURED_FIELDS:
+        llm_v = llm_n.get(field)
+        rule_v = rule_n.get(field)
+        final_v, action = _choose_structured_value(policy, field, llm_v, rule_v)
+        final_constraints[field] = final_v
+
+        same = _canon_for_structured_compare(llm_v) == _canon_for_structured_compare(rule_v)
+        if same:
+            agreements += 1
+            continue
+
+        conflicts.append(
+            {
+                "field": field,
+                "risk": "high" if field in HIGH_RISK_STRUCTURED_FIELDS else "low",
+                "action": action,
+                "llm_value": llm_v,
+                "rule_value": rule_v,
+                "final_value": final_v,
+            }
+        )
+
+    final_constraints = _normalize_for_structured_policy(final_constraints)
+    total = len(STRUCTURED_FIELDS)
+    conflict_count = len(conflicts)
+    agreement_rate = float(agreements) / float(total) if total > 0 else 1.0
+
+    audit = {
+        "policy": policy,
+        "input_text": user_text,
+        "llm_constraints": llm_n,
+        "rule_constraints": rule_n,
+        "final_constraints": final_constraints,
+        "total_fields": total,
+        "agreement_fields": agreements,
+        "conflict_count": conflict_count,
+        "agreement_rate": agreement_rate,
+        "conflicts": conflicts,
+    }
+    return final_constraints, audit
+
+
+def append_structured_conflict_log(
+    user_text: str,
+    semantic_parse_source: str,
+    audit: Dict[str, Any],
+) -> None:
+    if not ENABLE_STRUCTURED_CONFLICT_LOG:
+        return
+    if not audit or int(audit.get("conflict_count", 0)) <= 0:
+        return
+    rec = {
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "policy": audit.get("policy"),
+        "semantic_parse_source": semantic_parse_source,
+        "user_text": user_text,
+        "agreement_rate": audit.get("agreement_rate"),
+        "conflict_count": audit.get("conflict_count"),
+        "conflicts": audit.get("conflicts", []),
+        "llm_constraints": audit.get("llm_constraints", {}),
+        "rule_constraints": audit.get("rule_constraints", {}),
+        "final_constraints": audit.get("final_constraints", {}),
+    }
+    _append_jsonl(STRUCTURED_CONFLICT_LOG_PATH, rec, "structured conflict log")
+
+
+def append_structured_training_samples(
+    user_text: str,
+    semantic_parse_source: str,
+    audit: Dict[str, Any],
+) -> None:
+    if not ENABLE_STRUCTURED_TRAINING_LOG:
+        return
+    if not audit:
+        return
+    conflicts = audit.get("conflicts", [])
+    if not conflicts:
+        return
+
+    ts = datetime.utcnow().isoformat() + "Z"
+    for item in conflicts:
+        rec = {
+            "timestamp": ts,
+            "sample_type": "rule_disagreement_supervision",
+            "policy": audit.get("policy"),
+            "semantic_parse_source": semantic_parse_source,
+            "user_text": user_text,
+            "field": item.get("field"),
+            "risk": item.get("risk"),
+            "action": item.get("action"),
+            "llm_value": item.get("llm_value"),
+            "rule_value": item.get("rule_value"),
+            "target_value": item.get("final_value"),
+            "target_constraints": audit.get("final_constraints", {}),
+        }
+        _append_jsonl(STRUCTURED_TRAINING_LOG_PATH, rec, "structured training samples")
+
 def format_listing_row(r: Dict[str, Any], i: int) -> str:
     title = str(r.get("title", "") or "").strip()
     url = str(r.get("url", "") or "").strip()
@@ -2388,7 +2677,7 @@ def parse_command(s: str) -> Tuple[Optional[str], str]:
 
 
 def run_chat():
-    index, meta = load_index_and_meta()
+    index, meta = load_stage_a_resources()
     embedder = SentenceTransformer(EMBED_MODEL)
 
     state = {
@@ -2402,10 +2691,19 @@ def run_chat():
 
     print("RentBot (minimal retrieval)")
     print("Commands: /exit /reset /k N /show /recall N /constraints /model")
-    print(f"Index: {LIST_INDEX_PATH}")
-    print(f"Meta : {LIST_META_PATH}")
+    if STAGEA_BACKEND == "qdrant":
+        print(f"StageA backend: qdrant")
+        print(f"Qdrant path   : {QDRANT_LOCAL_PATH}")
+        print(f"Collection    : {QDRANT_COLLECTION}")
+    else:
+        print(f"StageA backend: faiss")
+        print(f"Index: {LIST_INDEX_PATH}")
+        print(f"Meta : {LIST_META_PATH}")
     print(f"Embed: {EMBED_MODEL}")
     print(f"Log  : {RANKING_LOG_PATH}")
+    print(f"Structured policy: {STRUCTURED_POLICY}")
+    print(f"Structured conflict log: {STRUCTURED_CONFLICT_LOG_PATH}")
+    print(f"Structured training samples: {STRUCTURED_TRAINING_LOG_PATH}")
     print("----")
 
     while True:
@@ -2491,6 +2789,8 @@ def run_chat():
         if cmd == "/model":
             print(f"QWEN_BASE_URL={QWEN_BASE_URL}")
             print(f"QWEN_MODEL={QWEN_MODEL}")
+            print(f"RENT_STRUCTURED_POLICY={STRUCTURED_POLICY}")
+            print(f"RENT_STAGEA_BACKEND={STAGEA_BACKEND}")
             continue
         # normal query
         # query = user_in
@@ -2500,15 +2800,34 @@ def run_chat():
         prev_constraints = dict(state["constraints"] or {})
         semantic_parse_source = "llm_combined"
         combined = {"constraints": {}, "semantic_terms": {}}
+        llm_extracted: Dict[str, Any] = {}
+        rule_extracted: Dict[str, Any] = {}
+        structured_audit: Dict[str, Any] = {}
         try:
             combined = llm_extract_all_signals(user_in, state["constraints"])
-            extracted = combined.get("constraints") or {}
+            llm_extracted = combined.get("constraints") or {}
             semantic_terms = combined.get("semantic_terms") or {}
         except Exception:
             semantic_parse_source = "fallback_split_calls"
-            extracted = llm_extract(user_in, state["constraints"])
+            llm_extracted = llm_extract(user_in, state["constraints"])
             semantic_terms = {}
-        extracted = repair_extracted_constraints(extracted, user_in)
+        rule_extracted = repair_extracted_constraints(llm_extracted, user_in)
+        extracted, structured_audit = apply_structured_policy(
+            user_text=user_in,
+            llm_constraints=llm_extracted,
+            rule_constraints=rule_extracted,
+            policy=STRUCTURED_POLICY,
+        )
+        append_structured_conflict_log(
+            user_text=user_in,
+            semantic_parse_source=semantic_parse_source,
+            audit=structured_audit,
+        )
+        append_structured_training_samples(
+            user_text=user_in,
+            semantic_parse_source=semantic_parse_source,
+            audit=structured_audit,
+        )
         state["constraints"] = merge_constraints(state["constraints"], extracted)
         state["constraints"] = normalize_budget_to_pcm(state["constraints"])
         state["constraints"] = normalize_constraints(state["constraints"])
@@ -2524,7 +2843,14 @@ def run_chat():
         )
 
         print(f"[state] changes: {changes_line}")
-        print(f"[state] llm_constraints: {json.dumps(extracted, ensure_ascii=False)}")
+        print(f"[state] llm_constraints: {json.dumps(llm_extracted, ensure_ascii=False)}")
+        print(f"[state] rule_constraints: {json.dumps(rule_extracted, ensure_ascii=False)}")
+        print(f"[state] selected_constraints: {json.dumps(extracted, ensure_ascii=False)}")
+        print(
+            f"[state] structured_conflicts: "
+            f"policy={STRUCTURED_POLICY}, count={int(structured_audit.get('conflict_count', 0))}, "
+            f"agreement_rate={float(structured_audit.get('agreement_rate', 1.0)):.3f}"
+        )
         print(f"[state] llm_semantic_terms: {json.dumps(semantic_terms, ensure_ascii=False)}")
         print(f"[state] active_constraints: {json.dumps(active_line, ensure_ascii=False)}")
         print(f"[state] signals: {json.dumps(signals, ensure_ascii=False)}")
@@ -2534,14 +2860,17 @@ def run_chat():
         query = build_stage_a_query(signals, user_in)
 
         # Stage A: recall pool
-        stage_a_df = faiss_search(index, embedder, meta, query=query, recall=recall)
+        stage_a_df = stage_a_search(index, embedder, meta, query=query, recall=recall)
         stage_a_records = []
         if stage_a_df is not None and len(stage_a_df) > 0:
             for i, row in stage_a_df.reset_index(drop=True).iterrows():
                 rec = candidate_snapshot(row.to_dict())
                 rec["rank"] = i + 1
                 rec["score"] = rec.get("faiss_score")
-                rec["score_formula"] = "score = faiss_inner_product(query_A, listing_embedding)"
+                if STAGEA_BACKEND == "qdrant":
+                    rec["score_formula"] = "score = qdrant_cosine_similarity(query_A, listing_embedding)"
+                else:
+                    rec["score_formula"] = "score = faiss_inner_product(query_A, listing_embedding)"
                 stage_a_records.append(rec)
 
         # Stage B: hard filters (audit all candidates)
@@ -2602,6 +2931,7 @@ def run_chat():
                     "user_query": user_in,
                     "stage_a_query": query,
                     "constraints": c,
+                    "structured_audit": structured_audit,
                     "signals": signals,
                     "counts": {
                         "stage_a": len(stage_a_df),
@@ -2663,6 +2993,7 @@ def run_chat():
                 "user_query": user_in,
                 "stage_a_query": query,
                 "constraints": c,
+                "structured_audit": structured_audit,
                 "signals": signals,
                 "counts": {
                     "stage_a": len(stage_a_df),

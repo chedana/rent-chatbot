@@ -56,15 +56,15 @@ apt install -y vim
 ## 7) Download model
 
 ```bash
-huggingface-cli download Qwen/Qwen2.5-7B-Instruct \
-  --local-dir Qwen2.5-7B-Instruct
+huggingface-cli download Qwen/Qwen3-14B \
+  --local-dir Qwen3-14B
 ```
 
 ## 8) Start vLLM server
 
 ```bash
 python3 -m vllm.entrypoints.openai.api_server \
-  --model ./Qwen2.5-7B-Instruct \
+  --model ./Qwen3-14B \
   --dtype float16 \
   --max-model-len 8192 \
   --trust-remote-code \
