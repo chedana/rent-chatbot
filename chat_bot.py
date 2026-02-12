@@ -1545,6 +1545,33 @@ def qdrant_search(
                 )
             )
 
+        loc_values: List[str] = []
+        for term in (c.get("location_keywords") or []):
+            raw = _safe_text(term).lower()
+            if not raw:
+                continue
+            raw = re.sub(r"\s+", " ", raw).strip()
+            slug = re.sub(r"[^a-z0-9]+", "_", raw)
+            slug = re.sub(r"_+", "_", slug).strip("_")
+            if raw:
+                loc_values.append(raw)
+                if " " in raw:
+                    loc_values.append(raw.replace(" ", ""))
+            if slug:
+                loc_values.append(slug)
+                loc_values.append(f"{slug}_london")
+                if not slug.endswith("_station"):
+                    loc_values.append(f"{slug}_station")
+
+        loc_values = list(dict.fromkeys([x for x in loc_values if x]))
+        if loc_values:
+            must.append(
+                models.FieldCondition(
+                    key="location_tokens",
+                    match=models.MatchAny(any=loc_values),
+                )
+            )
+
         if not must:
             return None
         return models.Filter(must=must)

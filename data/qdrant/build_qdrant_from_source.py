@@ -1,5 +1,6 @@
 import json
 import os
+import re
 from typing import Any, Dict, List
 
 import pandas as pd
@@ -125,6 +126,81 @@ def _norm_let_type(v: Any) -> str:
     return s
 
 
+def _slugify(v: Any) -> str:
+    s = _norm_cat(v)
+    if not s:
+        return ""
+    s = re.sub(r"[^a-z0-9]+", "_", s)
+    s = re.sub(r"_+", "_", s).strip("_")
+    return s
+
+
+def _parse_jsonlike(v: Any) -> Any:
+    if isinstance(v, (list, dict)):
+        return v
+    s = _clean_text(v)
+    if not s:
+        return []
+    if not (s.startswith("[") or s.startswith("{")):
+        return []
+    try:
+        return json.loads(s)
+    except Exception:
+        return []
+
+
+def _extract_location_tokens(row: pd.Series) -> Dict[str, Any]:
+    tokens: List[str] = []
+    region_slugs: List[str] = []
+    station_slugs: List[str] = []
+    station_names_norm: List[str] = []
+
+    address_norm = _norm_cat(row.get("address"))
+    if address_norm:
+        tokens.append(address_norm)
+        for m in re.findall(r"\b[a-z]{1,2}\d[a-z0-9]?\s?\d[a-z]{2}\b", address_norm):
+            tokens.append(m.replace(" ", ""))
+
+    dqm = row.get("discovery_queries_by_method")
+    dqm_obj = _parse_jsonlike(dqm)
+    if isinstance(dqm_obj, dict):
+        for x in dqm_obj.get("region") or []:
+            sx = _slugify(x)
+            if sx:
+                region_slugs.append(sx)
+                tokens.append(sx)
+        for x in dqm_obj.get("station") or []:
+            sx = _slugify(x)
+            if sx:
+                station_slugs.append(sx)
+                tokens.append(sx)
+
+    stations_obj = _parse_jsonlike(row.get("stations"))
+    if isinstance(stations_obj, list):
+        for item in stations_obj:
+            if isinstance(item, dict):
+                nm = _norm_cat(item.get("name"))
+                if nm:
+                    station_names_norm.append(nm)
+                    tokens.append(_slugify(nm))
+                    tokens.append(nm)
+            else:
+                nm = _norm_cat(item)
+                if nm:
+                    station_names_norm.append(nm)
+                    tokens.append(_slugify(nm))
+                    tokens.append(nm)
+
+    uniq = lambda xs: list(dict.fromkeys([x for x in xs if x]))
+    return {
+        "location_tokens": uniq(tokens),
+        "location_region_slugs": uniq(region_slugs),
+        "location_station_slugs": uniq(station_slugs),
+        "station_names_norm": uniq(station_names_norm),
+        "address_norm": address_norm,
+    }
+
+
 def build_doc_text(row: pd.Series) -> str:
     fields: List[str] = []
     for k in (
@@ -216,6 +292,7 @@ def main() -> None:
             payload["let_type_norm"] = _norm_let_type(row.get("let_type"))
             payload["property_type_norm"] = _norm_property_type(row.get("property_type"))
             payload["furnish_type_norm"] = _norm_furnish(row.get("furnish_type"))
+            payload.update(_extract_location_tokens(row))
             points.append(
                 models.PointStruct(
                     id=j,
