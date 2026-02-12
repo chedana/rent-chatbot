@@ -23,6 +23,7 @@ from internal_helpers import (
     _score_intent_group,
 )
 from helpers import (
+    _canon_for_structured_compare,
     _norm_property_type_value,
     _norm_furnish_value,
     _normalize_for_structured_policy,
