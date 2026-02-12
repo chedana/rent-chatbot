@@ -1248,6 +1248,8 @@ STAGEA_BACKEND = os.environ.get("RENT_STAGEA_BACKEND", "faiss").strip().lower()
 if STAGEA_BACKEND not in {"faiss", "qdrant"}:
     STAGEA_BACKEND = "faiss"
 QDRANT_ENABLE_PREFILTER = os.environ.get("RENT_QDRANT_ENABLE_PREFILTER", "1") != "0"
+VERBOSE_STATE_LOG = os.environ.get("RENT_VERBOSE_STATE_LOG", "0") == "1"
+STAGEA_TRACE = os.environ.get("RENT_STAGEA_TRACE", "1") != "0"
 
 
 EMBED_MODEL = os.environ.get("RENT_EMBED_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
@@ -1458,12 +1460,19 @@ def qdrant_search(
         s = re.sub(r"\s+", " ", s).strip()
         return s
 
+    trace_info: Dict[str, Any] = {
+        "location_keywords": [],
+        "location_tokens": [],
+    }
+
     def _build_qdrant_filter(c: Optional[Dict[str, Any]]) -> Optional["models.Filter"]:
         c = c or {}
         must: List[Any] = []
 
         loc_values: List[str] = []
-        for term in (c.get("location_keywords") or []):
+        loc_keywords = [str(x).strip() for x in (c.get("location_keywords") or []) if str(x).strip()]
+        trace_info["location_keywords"] = loc_keywords
+        for term in loc_keywords:
             raw = _safe_text(term).lower()
             if not raw:
                 continue
@@ -1481,6 +1490,7 @@ def qdrant_search(
                     loc_values.append(f"{slug}_station")
 
         loc_values = list(dict.fromkeys([x for x in loc_values if x]))
+        trace_info["location_tokens"] = loc_values
         if loc_values:
             must.append(
                 models.FieldCondition(
@@ -1495,6 +1505,17 @@ def qdrant_search(
 
     qx = embed_query(embedder, query)[0].tolist()
     qfilter = _build_qdrant_filter(c) if QDRANT_ENABLE_PREFILTER else None
+    if STAGEA_TRACE:
+        print(f"[stageA] backend=qdrant recall={recall} prefilter={QDRANT_ENABLE_PREFILTER}")
+        print(f"[stageA] query={query}")
+        if trace_info.get("location_keywords"):
+            print(
+                f"[stageA] location keywords={json.dumps(trace_info.get('location_keywords', []), ensure_ascii=False)} "
+                f"tokens={json.dumps(trace_info.get('location_tokens', []), ensure_ascii=False)}"
+            )
+        else:
+            print("[stageA] location keywords=[]")
+
     if hasattr(client, "search"):
         hits = client.search(
             collection_name=QDRANT_COLLECTION,
@@ -1542,6 +1563,9 @@ def stage_a_search(
         return qdrant_search(index_or_client, embedder, query=query, recall=recall, c=c)
     if meta is None:
         raise ValueError("meta is required when STAGEA_BACKEND=faiss")
+    if STAGEA_TRACE:
+        print(f"[stageA] backend=faiss recall={recall}")
+        print(f"[stageA] query={query}")
     return faiss_search(index_or_client, embedder, meta, query=query, recall=recall)
 
 
@@ -2919,17 +2943,19 @@ def run_chat():
         )
 
         print(f"[state] changes: {changes_line}")
-        print(f"[state] llm_constraints: {json.dumps(llm_extracted, ensure_ascii=False)}")
-        print(f"[state] rule_constraints: {json.dumps(rule_extracted, ensure_ascii=False)}")
-        print(f"[state] selected_constraints: {json.dumps(extracted, ensure_ascii=False)}")
-        print(
-            f"[state] structured_conflicts: "
-            f"policy={STRUCTURED_POLICY}, count={int(structured_audit.get('conflict_count', 0))}, "
-            f"agreement_rate={float(structured_audit.get('agreement_rate', 1.0)):.3f}"
-        )
-        print(f"[state] llm_semantic_terms: {json.dumps(semantic_terms, ensure_ascii=False)}")
         print(f"[state] active_constraints: {json.dumps(active_line, ensure_ascii=False)}")
-        print(f"[state] signals: {json.dumps(signals, ensure_ascii=False)}")
+        conflict_count = int(structured_audit.get("conflict_count", 0))
+        if conflict_count > 0:
+            print(
+                f"[state] structured_conflicts: policy={STRUCTURED_POLICY}, "
+                f"count={conflict_count}, agreement_rate={float(structured_audit.get('agreement_rate', 1.0)):.3f}"
+            )
+        if VERBOSE_STATE_LOG:
+            print(f"[state][verbose] llm_constraints: {json.dumps(llm_extracted, ensure_ascii=False)}")
+            print(f"[state][verbose] rule_constraints: {json.dumps(rule_extracted, ensure_ascii=False)}")
+            print(f"[state][verbose] selected_constraints: {json.dumps(extracted, ensure_ascii=False)}")
+            print(f"[state][verbose] llm_semantic_terms: {json.dumps(semantic_terms, ensure_ascii=False)}")
+            print(f"[state][verbose] signals: {json.dumps(signals, ensure_ascii=False)}")
 
         k = int(c.get("k", DEFAULT_K) or DEFAULT_K)
         recall = int(state["recall"])
