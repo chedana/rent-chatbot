@@ -45,6 +45,86 @@ def _as_payload_value(v: Any) -> Any:
     return str(v)
 
 
+def _to_float(v: Any) -> Any:
+    if v is None:
+        return None
+    try:
+        s = str(v).strip()
+        if not s:
+            return None
+        s = s.replace(",", "")
+        s = "".join(ch for ch in s if ch.isdigit() or ch in {".", "-"})
+        if not s:
+            return None
+        return float(s)
+    except Exception:
+        return None
+
+
+def _to_int(v: Any) -> Any:
+    fv = _to_float(v)
+    if fv is None:
+        return None
+    try:
+        return int(round(float(fv)))
+    except Exception:
+        return None
+
+
+def _norm_cat(v: Any) -> str:
+    s = _clean_text(v).lower()
+    if not s:
+        return ""
+    s = s.replace("_", " ").replace("-", " ")
+    s = " ".join(s.split())
+    return s
+
+
+def _norm_furnish(v: Any) -> str:
+    s = _norm_cat(v)
+    if not s:
+        return ""
+    if s in {"ask agent", "ask the agent", "unknown", "not provided", "not known", "n/a", "na"}:
+        return "ask agent"
+    if "furnished or unfurnished" in s or ("landlord" in s and "flexible" in s):
+        return "flexible"
+    if "unfurn" in s:
+        return "unfurnished"
+    if "part" in s and "furnish" in s:
+        return "part-furnished"
+    if "furnish" in s:
+        return "furnished"
+    return s
+
+
+def _norm_property_type(v: Any) -> str:
+    s = _norm_cat(v)
+    if not s:
+        return ""
+    if s in {"ask agent", "ask the agent", "unknown", "not provided", "not known", "n/a", "na"}:
+        return "ask agent"
+    if s == "studio":
+        return "studio"
+    if s in {"apartment", "apartments", "apt", "apts"}:
+        return "apartment"
+    if s in {"flat", "flats", "ground flat", "maisonette", "duplex", "penthouse"}:
+        return "flat"
+    if s in {"house", "detached", "semi detached", "semi-detached", "town house", "terraced", "cottage", "bungalow"}:
+        return "house"
+    return s
+
+
+def _norm_let_type(v: Any) -> str:
+    s = _norm_cat(v)
+    if not s:
+        return ""
+    if "short" in s:
+        return "short term"
+    if "long" in s:
+        return "long term"
+    return s
+
+
 def build_doc_text(row: pd.Series) -> str:
     fields: List[str] = []
     for k in (
@@ -130,6 +210,12 @@ def main() -> None:
         for j, (_, row) in enumerate(chunk.iterrows(), start=i):
             payload = {str(k): _as_payload_value(v) for k, v in row.to_dict().items()}
             payload["_doc_text"] = texts[j]
+            payload["price_pcm_num"] = _to_float(row.get("price_pcm"))
+            payload["bedrooms_num"] = _to_int(row.get("bedrooms"))
+            payload["bathrooms_num"] = _to_float(row.get("bathrooms"))
+            payload["let_type_norm"] = _norm_let_type(row.get("let_type"))
+            payload["property_type_norm"] = _norm_property_type(row.get("property_type"))
+            payload["furnish_type_norm"] = _norm_furnish(row.get("furnish_type"))
             points.append(
                 models.PointStruct(
                     id=j,

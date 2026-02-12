@@ -11,9 +11,10 @@ import pandas as pd
 import faiss
 from sentence_transformers import SentenceTransformer
 try:
-    from qdrant_client import QdrantClient
+    from qdrant_client import QdrantClient, models
 except Exception:
     QdrantClient = None
+    models = None
 
 
 from openai import OpenAI
@@ -1246,6 +1247,7 @@ QDRANT_COLLECTION = os.environ.get("RENT_QDRANT_COLLECTION", "rent_listings")
 STAGEA_BACKEND = os.environ.get("RENT_STAGEA_BACKEND", "faiss").strip().lower()
 if STAGEA_BACKEND not in {"faiss", "qdrant"}:
     STAGEA_BACKEND = "faiss"
+QDRANT_ENABLE_PREFILTER = os.environ.get("RENT_QDRANT_ENABLE_PREFILTER", "1") != "0"
 
 
 EMBED_MODEL = os.environ.get("RENT_EMBED_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
@@ -1375,7 +1377,7 @@ def load_index_and_meta():
     return index, meta
 
 def load_qdrant_client() -> QdrantClient:
-    if QdrantClient is None:
+    if QdrantClient is None or models is None:
         raise ImportError("qdrant-client is not installed. Please run: pip install qdrant-client")
     client = QdrantClient(path=QDRANT_LOCAL_PATH)
     if not client.collection_exists(QDRANT_COLLECTION):
@@ -1438,11 +1440,121 @@ def faiss_search(index, embedder, meta: pd.DataFrame, query: str, recall: int) -
     return pd.DataFrame(rows).reset_index(drop=True)
 
 
-def qdrant_search(client: QdrantClient, embedder, query: str, recall: int) -> pd.DataFrame:
+def qdrant_search(
+    client: QdrantClient,
+    embedder,
+    query: str,
+    recall: int,
+    c: Optional[Dict[str, Any]] = None,
+) -> pd.DataFrame:
+    if models is None:
+        raise ImportError("qdrant-client models are unavailable. Please run: pip install qdrant-client")
+
+    def _norm_cat(v: Any) -> str:
+        s = _safe_text(v).lower()
+        if not s:
+            return ""
+        s = s.replace("_", " ").replace("-", " ")
+        s = re.sub(r"\s+", " ", s).strip()
+        return s
+
+    def _build_qdrant_filter(c: Optional[Dict[str, Any]]) -> Optional["models.Filter"]:
+        c = c or {}
+        must: List[Any] = []
+
+        rent_req = c.get("max_rent_pcm")
+        if rent_req is not None:
+            try:
+                must.append(
+                    models.FieldCondition(
+                        key="price_pcm_num",
+                        range=models.Range(lte=float(rent_req)),
+                    )
+                )
+            except Exception:
+                pass
+
+        bed_req = c.get("bedrooms")
+        if bed_req is not None:
+            op = str(c.get("bedrooms_op") or "eq").lower()
+            try:
+                req = float(bed_req)
+                if op == "gte":
+                    must.append(
+                        models.FieldCondition(
+                            key="bedrooms_num",
+                            range=models.Range(gte=req),
+                        )
+                    )
+                else:
+                    must.append(
+                        models.FieldCondition(
+                            key="bedrooms_num",
+                            range=models.Range(gte=req, lte=req),
+                        )
+                    )
+            except Exception:
+                pass
+
+        bath_req = c.get("bathrooms")
+        if bath_req is not None:
+            op = str(c.get("bathrooms_op") or "eq").lower()
+            try:
+                req = float(bath_req)
+                if op == "gte":
+                    must.append(
+                        models.FieldCondition(
+                            key="bathrooms_num",
+                            range=models.Range(gte=req),
+                        )
+                    )
+                else:
+                    must.append(
+                        models.FieldCondition(
+                            key="bathrooms_num",
+                            range=models.Range(gte=req, lte=req),
+                        )
+                    )
+            except Exception:
+                pass
+
+        let_req = _norm_cat(c.get("let_type"))
+        if let_req:
+            must.append(
+                models.FieldCondition(
+                    key="let_type_norm",
+                    match=models.MatchValue(value=let_req),
+                )
+            )
+
+        prop_req = _norm_property_type_value(c.get("property_type"))
+        if prop_req:
+            must.append(
+                models.FieldCondition(
+                    key="property_type_norm",
+                    match=models.MatchValue(value=prop_req),
+                )
+            )
+
+        furn_req = _norm_furnish_value(c.get("furnish_type"))
+        if furn_req and furn_req not in {"ask agent", "flexible"}:
+            must.append(
+                models.FieldCondition(
+                    key="furnish_type_norm",
+                    match=models.MatchValue(value=furn_req),
+                )
+            )
+
+        if not must:
+            return None
+        return models.Filter(must=must)
+
     qx = embed_query(embedder, query)[0].tolist()
+    qfilter = _build_qdrant_filter(c) if QDRANT_ENABLE_PREFILTER else None
     hits = client.search(
         collection_name=QDRANT_COLLECTION,
         query_vector=qx,
+        query_filter=qfilter,
         limit=recall,
         with_payload=True,
         with_vectors=False,
@@ -1463,9 +1575,16 @@ def qdrant_search(client: QdrantClient, embedder, query: str, recall: int) -> pd
     return pd.DataFrame(rows).reset_index(drop=True)
 
 
-def stage_a_search(index_or_client, embedder, meta: Optional[pd.DataFrame], query: str, recall: int) -> pd.DataFrame:
+def stage_a_search(
+    index_or_client,
+    embedder,
+    meta: Optional[pd.DataFrame],
+    query: str,
+    recall: int,
+    c: Optional[Dict[str, Any]] = None,
+) -> pd.DataFrame:
     if STAGEA_BACKEND == "qdrant":
-        return qdrant_search(index_or_client, embedder, query=query, recall=recall)
+        return qdrant_search(index_or_client, embedder, query=query, recall=recall, c=c)
     if meta is None:
         raise ValueError("meta is required when STAGEA_BACKEND=faiss")
     return faiss_search(index_or_client, embedder, meta, query=query, recall=recall)
@@ -2695,6 +2814,7 @@ def run_chat():
         print(f"StageA backend: qdrant")
         print(f"Qdrant path   : {QDRANT_LOCAL_PATH}")
         print(f"Collection    : {QDRANT_COLLECTION}")
+        print(f"Qdrant prefilter: {QDRANT_ENABLE_PREFILTER}")
     else:
         print(f"StageA backend: faiss")
         print(f"Index: {LIST_INDEX_PATH}")
@@ -2791,6 +2911,7 @@ def run_chat():
             print(f"QWEN_MODEL={QWEN_MODEL}")
             print(f"RENT_STRUCTURED_POLICY={STRUCTURED_POLICY}")
             print(f"RENT_STAGEA_BACKEND={STAGEA_BACKEND}")
+            print(f"RENT_QDRANT_ENABLE_PREFILTER={QDRANT_ENABLE_PREFILTER}")
             continue
         # normal query
         # query = user_in
@@ -2860,7 +2981,7 @@ def run_chat():
         query = build_stage_a_query(signals, user_in)
 
         # Stage A: recall pool
-        stage_a_df = stage_a_search(index, embedder, meta, query=query, recall=recall)
+        stage_a_df = stage_a_search(index, embedder, meta, query=query, recall=recall, c=c)
         stage_a_records = []
         if stage_a_df is not None and len(stage_a_df) > 0:
             for i, row in stage_a_df.reset_index(drop=True).iterrows():
