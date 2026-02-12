@@ -1578,14 +1578,25 @@ def qdrant_search(
 
     qx = embed_query(embedder, query)[0].tolist()
     qfilter = _build_qdrant_filter(c) if QDRANT_ENABLE_PREFILTER else None
-    hits = client.search(
-        collection_name=QDRANT_COLLECTION,
-        query_vector=qx,
-        query_filter=qfilter,
-        limit=recall,
-        with_payload=True,
-        with_vectors=False,
-    )
+    if hasattr(client, "search"):
+        hits = client.search(
+            collection_name=QDRANT_COLLECTION,
+            query_vector=qx,
+            query_filter=qfilter,
+            limit=recall,
+            with_payload=True,
+            with_vectors=False,
+        )
+    else:
+        qp = client.query_points(
+            collection_name=QDRANT_COLLECTION,
+            query=qx,
+            query_filter=qfilter,
+            limit=recall,
+            with_payload=True,
+            with_vectors=False,
+        )
+        hits = list(getattr(qp, "points", []) or [])
 
     rows = []
     for h in hits:
