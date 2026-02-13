@@ -179,11 +179,11 @@ def _norm_property_type_value(v: Any) -> str:
     if not s:
         return ""
     if s in {"ask agent", "ask the agent", "unknown", "not provided", "not known", "n/a", "na"}:
-        return "ask agent"
+        return "other"
     if s == "studio":
-        return "studio"
+        return "flat"
     if s in {"apartment", "apartments"}:
-        return "apartment"
+        return "flat"
     if s in {"flat", "flats"}:
         return "flat"
     if s == "house":
@@ -193,7 +193,7 @@ def _norm_property_type_value(v: Any) -> str:
     if s in PROPERTY_TYPE_FLAT_LIKE:
         return "flat"
     if s in PROPERTY_TYPE_SPECIAL_OR_UNKNOWN:
-        return "ask agent"
+        return "other"
     return s
 
 def _infer_property_type_from_query(text: Any) -> Optional[str]:
@@ -204,6 +204,126 @@ def _infer_property_type_from_query(text: Any) -> Optional[str]:
         if pattern.search(src):
             return mapped
     return None
+
+
+def _normalize_layout_options(raw: Any) -> List[Dict[str, Any]]:
+    out: List[Dict[str, Any]] = []
+    seen = set()
+    for item in (raw or []):
+        if not isinstance(item, dict):
+            continue
+        bed = item.get("bedrooms")
+        bath = item.get("bathrooms")
+        ptype = item.get("property_type")
+        tag = _safe_text(item.get("layout_tag")).lower()
+        bed_n: Optional[int] = None
+        bath_n: Optional[float] = None
+        ptype_n: Optional[str] = None
+        tag_n: Optional[str] = None
+        if bed is not None:
+            try:
+                bed_n = int(float(bed))
+            except Exception:
+                bed_n = None
+        if bath is not None:
+            try:
+                bath_n = float(bath)
+            except Exception:
+                bath_n = None
+        pnorm = _norm_property_type_value(ptype)
+        if pnorm in {"flat", "house", "other"}:
+            ptype_n = pnorm
+        if tag in {"studio"}:
+            tag_n = tag
+        key = (bed_n, bath_n, ptype_n, tag_n)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(
+            {
+                "bedrooms": bed_n,
+                "bathrooms": bath_n,
+                "property_type": ptype_n,
+                "layout_tag": tag_n,
+            }
+        )
+    return out
+
+
+def _extract_layout_options_candidates(text: Any) -> List[Dict[str, Any]]:
+    src = _safe_text(text).lower()
+    if not src:
+        return []
+    for w, d in NUM_WORDS.items():
+        src = re.sub(rf"\b{w}\b", d, src)
+
+    options: List[Dict[str, Any]] = []
+    used_spans: List[Tuple[int, int]] = []
+
+    for m in re.finditer(
+        r"\b(\d+(?:\.\d+)?)\s*(?:bed(?:room)?s?|bd|br|b)\s*[/,-]?\s*(\d+(?:\.\d+)?)\s*(?:bath(?:room)?s?|ba|b)\b",
+        src,
+        flags=re.I,
+    ):
+        try:
+            bed = int(float(m.group(1)))
+            bath = float(m.group(2))
+            options.append({"bedrooms": bed, "bathrooms": bath, "property_type": None})
+            used_spans.append((m.start(), m.end()))
+        except Exception:
+            continue
+
+    mask = [True] * len(src)
+    for a, b in used_spans:
+        for i in range(max(0, a), min(len(src), b)):
+            mask[i] = False
+    remain = "".join(ch if mask[i] else " " for i, ch in enumerate(src))
+
+    for m in re.finditer(r"\b(\d+(?:\.\d+)?)\s*(?:bed(?:room)?s?|bd|br)\b", remain, flags=re.I):
+        try:
+            bed = int(float(m.group(1)))
+            options.append({"bedrooms": bed, "bathrooms": None, "property_type": None})
+        except Exception:
+            continue
+
+    for m in re.finditer(r"\b(\d+(?:\.\d+)?)\s*(?:bath(?:room)?s?|ba)\b", remain, flags=re.I):
+        try:
+            bath = float(m.group(1))
+            options.append({"bedrooms": None, "bathrooms": bath, "property_type": None})
+        except Exception:
+            continue
+
+    for _ in re.finditer(r"\bstudio\b", src, flags=re.I):
+        options.append(
+            {
+                "bedrooms": None,
+                "bathrooms": None,
+                "property_type": "flat",
+                "layout_tag": "studio",
+            }
+        )
+
+    normalized = _normalize_layout_options(options)
+    return normalized
+
+
+def _infer_layout_options_from_query(text: Any) -> List[Dict[str, Any]]:
+    normalized = _extract_layout_options_candidates(text)
+    return normalized if len(normalized) >= 2 else []
+
+
+def _infer_layout_remove_ops_from_query(text: Any) -> Dict[str, Any]:
+    src = _safe_text(text).lower()
+    if not src:
+        return {"remove_layout_options": []}
+
+    has_remove_verb = bool(re.search(r"\b(?:remove|drop|delete|clear)\b", src))
+    remove_layout_options: List[Dict[str, Any]] = []
+    if has_remove_verb:
+        remove_layout_options = _extract_layout_options_candidates(src)
+    return {
+        "remove_layout_options": _normalize_layout_options(remove_layout_options),
+    }
 
 def _infer_max_rent_pcm_from_query(text: Any) -> Optional[float]:
     src = _safe_text(text)
@@ -288,6 +408,8 @@ def repair_extracted_constraints(extracted: Dict[str, Any], user_text: str) -> D
     inferred_furnish = _infer_furnish_type_from_query(user_text)
     inferred_property_type = _infer_property_type_from_query(user_text)
     inferred_max_rent_pcm = _infer_max_rent_pcm_from_query(user_text)
+    inferred_layout_options = _infer_layout_options_from_query(user_text)
+    inferred_layout_remove_ops = _infer_layout_remove_ops_from_query(user_text)
 
     # Rescue common slot-mapping error:
     # available_from_op gets "short/long term" text by mistake.
@@ -342,6 +464,19 @@ def repair_extracted_constraints(extracted: Dict[str, Any], user_text: str) -> D
     if inferred_max_rent_pcm is not None:
         out["max_rent_pcm"] = inferred_max_rent_pcm
 
+    if len(inferred_layout_options) >= 2:
+        out["layout_options"] = inferred_layout_options
+        # Multi-layout alternatives take precedence over singular layout slots.
+        out["bedrooms"] = None
+        out["bedrooms_op"] = None
+        out["bathrooms"] = None
+        out["bathrooms_op"] = None
+        out["property_type"] = None
+
+    remove_opts = inferred_layout_remove_ops.get("remove_layout_options") or []
+    if remove_opts:
+        out["_remove_layout_options"] = remove_opts
+
     # Deprecated field: always ignore op and use latest move-in semantics.
     out["available_from_op"] = None
 
@@ -363,11 +498,11 @@ def _normalize_constraint_extract(obj: dict) -> dict:
     obj.setdefault("furnish_type", None)
     obj.setdefault("let_type", None)
     obj.setdefault("property_type", None)
+    obj.setdefault("layout_options", [])
     obj.setdefault("min_tenancy_months", None)
     obj.setdefault("min_size_sqm", None)
     obj.setdefault("min_size_sqft", None)
     obj.setdefault("location_keywords", [])
-    obj.setdefault("must_have_keywords", [])
     return obj
 
 def _normalize_semantic_extract(obj: dict) -> dict:
@@ -516,9 +651,10 @@ def normalize_constraints(c: dict) -> dict:
     c["furnish_type"] = furn
     c["let_type"] = _norm_cat_text(c.get("let_type"))
     ptype = _norm_property_type_value(c.get("property_type"))
-    if ptype not in {"studio", "apartment", "flat", "house"}:
+    if ptype not in {"flat", "house", "other"}:
         ptype = None
     c["property_type"] = ptype
+    c["layout_options"] = _normalize_layout_options(c.get("layout_options") or [])
 
     if c.get("min_tenancy_months") is not None:
         try:
@@ -541,28 +677,34 @@ def normalize_constraints(c: dict) -> dict:
         c["min_size_sqm"] = float(c["min_size_sqft"]) * 0.092903
     c.pop("min_size_sqft", None)
 
-    # Disabled on purpose:
-    # Do not auto-move location_keywords entries (e.g. "near tube/station")
-    # into must_have_keywords. Keep LLM-structured fields as-is.
-    #
-    # locs = []
-    # must = set([str(x).strip() for x in (c.get("must_have_keywords") or []) if str(x).strip()])
-    # for x in (c.get("location_keywords") or []):
-    #     s = str(x).strip()
-    #     if not s:
-    #         continue
-    #     if s.lower() in NEAR_WORDS:
-    #         must.add(s)
-    #     else:
-    #         locs.append(s)
-    # c["location_keywords"] = locs
-    # c["must_have_keywords"] = list(must)
     return c
 
 def merge_constraints(old: Optional[dict], new: dict) -> dict:
     if old is None:
         old = {}
     out = dict(old)
+
+    def _layout_selector_match(item: Dict[str, Any], selector: Dict[str, Any]) -> bool:
+        if not isinstance(item, dict) or not isinstance(selector, dict):
+            return False
+        for k in ("bedrooms", "bathrooms", "property_type", "layout_tag"):
+            sv = selector.get(k)
+            if sv is None:
+                continue
+            if item.get(k) != sv:
+                return False
+        return True
+
+    cur_layout = _normalize_layout_options(out.get("layout_options") or [])
+    remove_selectors = _normalize_layout_options(new.get("_remove_layout_options") or [])
+    if remove_selectors:
+        kept = []
+        for opt in cur_layout:
+            if any(_layout_selector_match(opt, sel) for sel in remove_selectors):
+                continue
+            kept.append(opt)
+        cur_layout = kept
+    out["layout_options"] = cur_layout
 
     # scalar fields: new overrides if not null
     for key in [
@@ -600,7 +742,8 @@ def merge_constraints(old: Optional[dict], new: dict) -> dict:
         return res
 
     out["location_keywords"] = merge_list(old.get("location_keywords"), new.get("location_keywords"))
-    out["must_have_keywords"] = merge_list(old.get("must_have_keywords"), new.get("must_have_keywords"))
+    if new.get("layout_options"):
+        out["layout_options"] = _normalize_layout_options(new.get("layout_options"))
 
     # default k
     if out.get("k") is None:
@@ -654,7 +797,7 @@ def summarize_constraint_changes(old_c: Optional[dict], new_c: dict) -> str:
                 out.append(s)
         return out
 
-    for k in ["location_keywords", "must_have_keywords"]:
+    for k in ["location_keywords"]:
         old_list = _norm_list(old_c.get(k))
         new_list = _norm_list(new_c.get(k))
         old_set = set([x.lower() for x in old_list])
@@ -665,6 +808,16 @@ def summarize_constraint_changes(old_c: Optional[dict], new_c: dict) -> str:
             changes.append(f"added {k}: {added}")
         if removed:
             changes.append(f"removed {k}: {removed}")
+
+    old_layout = _normalize_layout_options(old_c.get("layout_options") or [])
+    new_layout = _normalize_layout_options(new_c.get("layout_options") or [])
+    if _canon_for_structured_compare(old_layout) != _canon_for_structured_compare(new_layout):
+        if not old_layout and new_layout:
+            changes.append(f"added layout_options: {new_layout}")
+        elif old_layout and not new_layout:
+            changes.append("removed layout_options")
+        else:
+            changes.append(f"updated layout_options: {old_layout} -> {new_layout}")
 
     return "; ".join(changes) if changes else "no constraint changes"
 
@@ -677,9 +830,9 @@ def compact_constraints_view(c: Optional[dict]) -> dict:
         "bedrooms", "bedrooms_op",
         "bathrooms", "bathrooms_op",
         "available_from",
-        "furnish_type", "let_type", "property_type",
+        "furnish_type", "let_type", "property_type", "layout_options",
         "min_tenancy_months", "min_size_sqm",
-        "location_keywords", "must_have_keywords",
+        "location_keywords",
         "k",
     ]
     for k in keep_keys:
@@ -765,6 +918,27 @@ def _canon_for_structured_compare(v: Any) -> Any:
     if isinstance(v, int):
         return int(v)
     if isinstance(v, list):
+        if len(v) > 0 and isinstance(v[0], dict):
+            norm = _normalize_layout_options(v)
+            canon_items = []
+            for it in norm:
+                canon_items.append(
+                    {
+                        "bedrooms": it.get("bedrooms"),
+                        "bathrooms": it.get("bathrooms"),
+                        "property_type": it.get("property_type"),
+                        "layout_tag": it.get("layout_tag"),
+                    }
+                )
+            return sorted(
+                canon_items,
+                key=lambda x: (
+                    -1 if x.get("bedrooms") is None else int(x.get("bedrooms")),
+                    -1 if x.get("bathrooms") is None else float(x.get("bathrooms")),
+                    str(x.get("property_type") or ""),
+                    str(x.get("layout_tag") or ""),
+                ),
+            )
         out: List[str] = []
         seen = set()
         for x in v:

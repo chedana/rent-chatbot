@@ -16,7 +16,7 @@ EMBED_MODEL = os.environ.get("RENT_EMBED_MODEL", "sentence-transformers/all-Mini
 BATCH = int(os.environ.get("RENT_EMBED_BATCH", "256"))
 
 DEFAULT_K = int(os.environ.get("RENT_K", "5"))
-DEFAULT_RECALL = int(os.environ.get("RENT_RECALL", "200"))
+DEFAULT_RECALL = int(os.environ.get("RENT_RECALL", "1000"))
 
 UNKNOWN_PENALTY_WEIGHTS = {
     "price": 0.35,

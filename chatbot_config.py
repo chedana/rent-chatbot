@@ -18,16 +18,15 @@ Schema:
   "furnish_type": string|null,
   "let_type": string|null,
   "property_type": string|null,
+  "layout_options": [{"bedrooms": int|null, "bathrooms": number|null, "property_type": string|null, "layout_tag": string|null}],
   "min_tenancy_months": number|null,
   "min_size_sqm": number|null,
   "min_size_sqft": number|null,
   "location_keywords": string[],
-  "must_have_keywords": string[],
   "k": int|null
 }
 Rules:
 - location_keywords are place names/areas/postcodes (e.g., "Canary Wharf", "E14", "Shoreditch").
-- must_have_keywords are requirements/features (e.g., "balcony", "pet friendly", "near tube").
 - bedrooms_op must be one of: "eq", "gte", or null.
 - Set bedrooms/bedrooms_op only for hard constraints:
   - "at least/minimum/>= X bedrooms" -> {"bedrooms": X, "bedrooms_op": "gte"}
@@ -43,7 +42,15 @@ Rules:
 - Do not output available_from_op.
 - furnish_type should be one of: "furnished", "unfurnished", "part-furnished", or null.
 - let_type examples: "long term", "short term", or null.
-- property_type examples: "flat", "apartment", "studio", "house", or null.
+- property_type examples: "flat", "house", "other", or null.
+- layout_options is for explicit layout alternatives (OR set). Each item is one acceptable layout option.
+  - layout_tag currently supports: "studio" (optional).
+  Examples:
+  - "1 bed and 2 bed" -> [{"bedrooms":1,"bathrooms":null,"property_type":null,"layout_tag":null},{"bedrooms":2,"bathrooms":null,"property_type":null,"layout_tag":null}]
+  - "studio and 1 bed" -> [{"bedrooms":null,"bathrooms":null,"property_type":"flat","layout_tag":"studio"},{"bedrooms":1,"bathrooms":null,"property_type":null,"layout_tag":null}]
+  - "1b1b 2b1b" -> [{"bedrooms":1,"bathrooms":1,"property_type":null,"layout_tag":null},{"bedrooms":2,"bathrooms":1,"property_type":null,"layout_tag":null}]
+  - "1b1b/2b1b" -> same as above.
+  - If only one layout is requested (not alternatives), leave layout_options as [] and use the scalar fields.
 - min_tenancy_months is numeric months (e.g., 6, 12) when user specifies tenancy term.
 - size constraints:
   - "at least X sqm/sq m/m2" -> min_size_sqm = X
@@ -83,11 +90,11 @@ Schema:
     "furnish_type": string|null,
     "let_type": string|null,
     "property_type": string|null,
+    "layout_options": [{"bedrooms": int|null, "bathrooms": number|null, "property_type": string|null, "layout_tag": string|null}],
     "min_tenancy_months": number|null,
     "min_size_sqm": number|null,
     "min_size_sqft": number|null,
     "location_keywords": string[],
-    "must_have_keywords": string[],
     "k": int|null
   },
   "semantic_terms": {
@@ -99,6 +106,8 @@ Schema:
 Rules:
 - constraints: extract hard constraints only.
 - semantic_terms: extract phrase-level semantic intents.
+- For multiple explicit layout alternatives (e.g., "1 bed and 2 bed", "studio and 1 bed", "1b1b 2b1b"), put them into constraints.layout_options.
+- If only one layout is requested (not alternatives), keep constraints.layout_options as [] and use scalar layout fields.
 - Keep named entities as full phrases (e.g., "Seven Mills Primary School", "Heron Quays Station").
 - Do NOT put hard constraints into semantic_terms (budget, bedroom count, property type, strict location filters).
 - Do NOT split one entity into component words.
@@ -204,10 +213,10 @@ FURNISH_QUERY_PATTERNS: List[Tuple[re.Pattern, str]] = [
     (re.compile(r"\\bfurnish(?:ed)?\\b", re.I), "furnished"),
 ]
 PROPERTY_TYPE_QUERY_PATTERNS: List[Tuple[re.Pattern, str]] = [
-    (re.compile(r"\\bstudio\\b", re.I), "studio"),
-    (re.compile(r"\\bapartment(?:s)?\\b", re.I), "apartment"),
-    (re.compile(r"\\bapt(?:s)?\\b", re.I), "apartment"),
-    (re.compile(r"\\bappartment(?:s)?\\b", re.I), "apartment"),
+    (re.compile(r"\\bstudio\\b", re.I), "flat"),
+    (re.compile(r"\\bapartment(?:s)?\\b", re.I), "flat"),
+    (re.compile(r"\\bapt(?:s)?\\b", re.I), "flat"),
+    (re.compile(r"\\bappartment(?:s)?\\b", re.I), "flat"),
     (re.compile(r"\\bground\\s*flat\\b", re.I), "flat"),
     (re.compile(r"\\bflat(?:s)?\\b", re.I), "flat"),
     (re.compile(r"\\bsemi\\s*[- ]?\\s*detached\\b", re.I), "house"),

@@ -186,6 +186,7 @@ HIGH_RISK_STRUCTURED_FIELDS = {
     "available_from",
     "let_type",
     "property_type",
+    "layout_options",
     "min_tenancy_months",
     "min_size_sqm",
 }
