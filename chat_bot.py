@@ -1238,7 +1238,14 @@ def run_chat():
         # Stage A: recall pool
         stage_note("Stage A", f"Because we need a broad candidate pool first, running vector recall (recall={recall})")
         stage_a_df = stage_a_search(qdrant_client, embedder, query=query, recall=recall, c=c)
-        stage_note("Stage A", f"Because recall finished, got {len(stage_a_df)} candidates")
+        prefilter_count = stage_a_df.attrs.get("prefilter_count") if hasattr(stage_a_df, "attrs") else None
+        if prefilter_count is not None:
+            stage_note(
+                "Stage A",
+                f"Because prefilter finished first, candidate pool={prefilter_count}; after vector recall limit, got {len(stage_a_df)} candidates",
+            )
+        else:
+            stage_note("Stage A", f"Because recall finished, got {len(stage_a_df)} candidates")
         stage_a_records = []
         if stage_a_df is not None and len(stage_a_df) > 0:
             for i, row in stage_a_df.reset_index(drop=True).iterrows():

@@ -65,7 +65,24 @@ def qdrant_search(
     trace_info: Dict[str, Any] = {
         "location_keywords": [],
         "location_tokens": [],
+        "prefilter_count": None,
     }
+
+    def _count_prefilter_candidates(qfilter: Optional["models.Filter"]) -> Optional[int]:
+        if qfilter is None:
+            return None
+        try:
+            # Fast path: qdrant count API.
+            resp = client.count(
+                collection_name=QDRANT_COLLECTION,
+                count_filter=qfilter,
+                exact=True,
+            )
+            n = getattr(resp, "count", None)
+            return int(n) if n is not None else None
+        except Exception:
+            # Fallback: unknown count on this backend/version.
+            return None
 
     def _build_qdrant_filter(c: Optional[Dict[str, Any]]) -> Optional["models.Filter"]:
         c = c or {}
@@ -107,9 +124,13 @@ def qdrant_search(
 
     qx = embed_query(embedder, query)[0].tolist()
     qfilter = _build_qdrant_filter(c) if QDRANT_ENABLE_PREFILTER else None
+    prefilter_count = _count_prefilter_candidates(qfilter)
+    trace_info["prefilter_count"] = prefilter_count
     if STAGEA_TRACE:
         log_message("DEBUG", f"stageA backend=qdrant recall={recall} prefilter={QDRANT_ENABLE_PREFILTER}")
         log_message("DEBUG", f"stageA query={query}")
+        if prefilter_count is not None:
+            log_message("DEBUG", f"stageA prefilter_count={prefilter_count}")
         if trace_info.get("location_keywords"):
             log_message(
                 "DEBUG",
@@ -150,8 +171,12 @@ def qdrant_search(
         payload["_qdrant_id"] = h.id
         rows.append(payload)
     if not rows:
-        return pd.DataFrame()
-    return pd.DataFrame(rows).reset_index(drop=True)
+        df = pd.DataFrame()
+        df.attrs["prefilter_count"] = prefilter_count
+        return df
+    df = pd.DataFrame(rows).reset_index(drop=True)
+    df.attrs["prefilter_count"] = prefilter_count
+    return df
 
 
 def stage_a_search(
