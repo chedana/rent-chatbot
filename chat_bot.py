@@ -49,6 +49,7 @@ from settings import (
     DEFAULT_RECALL,
     EMBED_MODEL,
     ENABLE_STRUCTURED_CONFLICT_LOG,
+    ENABLE_STAGE_D_EXPLAIN,
     ENABLE_STRUCTURED_TRAINING_LOG,
     INTENT_EVIDENCE_TOP_N,
     INTENT_HIT_THRESHOLD,
@@ -1065,6 +1066,7 @@ def run_chat():
     print(f"Embed: {EMBED_MODEL}")
     print(f"Log  : {RANKING_LOG_PATH}")
     print(f"Structured policy: {STRUCTURED_POLICY}")
+    print(f"Stage D explain enabled: {ENABLE_STAGE_D_EXPLAIN}")
     print(f"Structured conflict log: {STRUCTURED_CONFLICT_LOG_PATH}")
     print(f"Structured training samples: {STRUCTURED_TRAINING_LOG_PATH}")
     print("----")
@@ -1313,7 +1315,7 @@ def run_chat():
         else:
             df = ranked.head(k).reset_index(drop=True)
 
-        if df is not None and len(df) > 0:
+        if ENABLE_STAGE_D_EXPLAIN and df is not None and len(df) > 0:
             stage_note("Stage D", "Because explainability is required, building evidence and generating grounded explanation")
             df = df.copy()
             df["evidence"] = df.apply(lambda row: build_evidence_for_row(row.to_dict(), c, user_in), axis=1)
@@ -1362,32 +1364,35 @@ def run_chat():
         lines = [f"Top {min(k, len(df))} results:"]
         for i, r in df.iterrows():
             lines.append(format_listing_row(r.to_dict(), i + 1, view_mode=state.get("view_mode", "summary")))
-        try:
-            grounded_out, stage_d_payload, stage_d_raw_output = llm_grounded_explain(
-                user_query=user_in,
-                c=c,
-                signals=signals,
-                df=df,
-            )
-            stage_d_output = grounded_out
-            if grounded_out:
-                lines.append("")
-                lines.append("Grounded explanation:")
-                if state.get("view_mode", "summary") == "debug":
-                    lines.append(grounded_out)
-                else:
-                    short_lines = [x for x in grounded_out.splitlines() if x.strip()][:5]
-                    lines.append("\n".join(short_lines))
-            if state.get("view_mode", "summary") == "debug":
-                ev_txt = format_grounded_evidence(df=df, max_items=min(8, len(df)))
-                if ev_txt:
+        if ENABLE_STAGE_D_EXPLAIN:
+            try:
+                grounded_out, stage_d_payload, stage_d_raw_output = llm_grounded_explain(
+                    user_query=user_in,
+                    c=c,
+                    signals=signals,
+                    df=df,
+                )
+                stage_d_output = grounded_out
+                if grounded_out:
                     lines.append("")
-                    lines.append("Grounded evidence:")
-                    lines.append(ev_txt)
-        except Exception as e:
-            stage_d_error = str(e)
-            lines.append("")
-            lines.append(f"[warn] grounded explanation unavailable: {e}")
+                    lines.append("Grounded explanation:")
+                    if state.get("view_mode", "summary") == "debug":
+                        lines.append(grounded_out)
+                    else:
+                        short_lines = [x for x in grounded_out.splitlines() if x.strip()][:5]
+                        lines.append("\n".join(short_lines))
+                if state.get("view_mode", "summary") == "debug":
+                    ev_txt = format_grounded_evidence(df=df, max_items=min(8, len(df)))
+                    if ev_txt:
+                        lines.append("")
+                        lines.append("Grounded evidence:")
+                        lines.append(ev_txt)
+            except Exception as e:
+                stage_d_error = str(e)
+                lines.append("")
+                lines.append(f"[warn] grounded explanation unavailable: {e}")
+        else:
+            stage_d_error = "disabled_by_config"
         append_ranking_log_entry(RANKING_LOG_PATH, 
             {
                 "timestamp": datetime.utcnow().isoformat() + "Z",
