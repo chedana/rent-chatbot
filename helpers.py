@@ -447,6 +447,60 @@ def _infer_layout_remove_ops_from_query(text: Any) -> Dict[str, Any]:
         "remove_layout_options": _normalize_layout_options(remove_layout_options),
     }
 
+
+def _infer_replace_all_from_query(text: Any) -> bool:
+    src = _safe_text(text).lower()
+    if not src:
+        return False
+    patterns = [
+        r"\bstart over\b",
+        r"\bnew search\b",
+        r"\bignore (the )?(previous|last)\b",
+        r"\breset (the )?(constraints|filters|search)\b",
+        r"\bfrom scratch\b",
+    ]
+    return any(re.search(p, src) for p in patterns)
+
+
+def _infer_append_mode_from_query(text: Any) -> bool:
+    src = _safe_text(text).lower()
+    if not src:
+        return False
+    patterns = [
+        r"\balso\b",
+        r"\bin addition\b",
+        r"\bas well\b",
+        r"\bplus\b",
+        r"\balong with\b",
+    ]
+    return any(re.search(p, src) for p in patterns)
+
+
+def _infer_replace_mode_from_query(text: Any) -> bool:
+    src = _safe_text(text).lower()
+    if not src:
+        return False
+    patterns = [
+        r"\binstead\b",
+        r"\bswitch to\b",
+        r"\bchange to\b",
+        r"\breplace\b",
+    ]
+    return any(re.search(p, src) for p in patterns)
+
+
+def _infer_clear_location_from_query(text: Any) -> bool:
+    src = _safe_text(text).lower()
+    if not src:
+        return False
+    patterns = [
+        r"\bany location\b",
+        r"\bno location preference\b",
+        r"\bremove location\b",
+        r"\bdon'?t care (about )?location\b",
+    ]
+    return any(re.search(p, src) for p in patterns)
+
 def _infer_max_rent_pcm_from_query(text: Any) -> Optional[float]:
     src = _safe_text(text)
     if not src:
@@ -528,6 +582,10 @@ def repair_extracted_constraints(extracted: Dict[str, Any], user_text: str) -> D
     inferred_max_rent_pcm = _infer_max_rent_pcm_from_query(user_text)
     inferred_layout_options = _infer_layout_options_from_query(user_text)
     inferred_layout_remove_ops = _infer_layout_remove_ops_from_query(user_text)
+    inferred_replace_all = _infer_replace_all_from_query(user_text)
+    inferred_append = _infer_append_mode_from_query(user_text)
+    inferred_replace = _infer_replace_mode_from_query(user_text)
+    inferred_clear_location = _infer_clear_location_from_query(user_text)
     remove_opts = inferred_layout_remove_ops.get("remove_layout_options") or []
 
     # Rescue common slot-mapping error:
@@ -572,6 +630,40 @@ def repair_extracted_constraints(extracted: Dict[str, Any], user_text: str) -> D
     if remove_opts:
         out["_remove_layout_options"] = remove_opts
 
+    llm_scope = _safe_text(out.get("update_scope")).lower()
+    llm_replace_all = out.get("_replace_all_constraints")
+    if not isinstance(llm_replace_all, bool):
+        llm_replace_all = (llm_scope == "replace_all")
+    if isinstance(llm_replace_all, bool):
+        out["_replace_all_constraints"] = bool(llm_replace_all or inferred_replace_all)
+    else:
+        out["_replace_all_constraints"] = bool(inferred_replace_all)
+
+    llm_loc_mode = _safe_text(out.get("_location_update_mode")).lower()
+    if llm_loc_mode not in {"keep", "replace", "append"}:
+        llm_loc_mode = _safe_text(out.get("location_update_mode")).lower()
+    if inferred_append and not inferred_replace:
+        out["_location_update_mode"] = "append"
+    elif inferred_replace:
+        out["_location_update_mode"] = "replace"
+    elif llm_loc_mode in {"keep", "replace", "append"}:
+        out["_location_update_mode"] = llm_loc_mode
+    else:
+        out["_location_update_mode"] = "replace"
+    out["_clear_location_keywords"] = bool(inferred_clear_location)
+
+    llm_layout_mode = _safe_text(out.get("_layout_update_mode")).lower()
+    if llm_layout_mode not in {"replace", "append"}:
+        llm_layout_mode = _safe_text(out.get("layout_update_mode")).lower()
+    if inferred_append and not inferred_replace:
+        out["_layout_update_mode"] = "append"
+    elif inferred_replace:
+        out["_layout_update_mode"] = "replace"
+    elif llm_layout_mode in {"replace", "append"}:
+        out["_layout_update_mode"] = llm_layout_mode
+    else:
+        out["_layout_update_mode"] = "replace"
+
     # Deprecated field: always ignore op and use latest move-in semantics.
     out["available_from_op"] = None
 
@@ -594,6 +686,14 @@ def _normalize_constraint_extract(obj: dict) -> dict:
     obj.setdefault("min_size_sqm", None)
     obj.setdefault("min_size_sqft", None)
     obj.setdefault("location_keywords", [])
+    obj.setdefault("update_scope", "patch")
+    obj.setdefault("location_update_mode", "replace")
+    obj.setdefault("layout_update_mode", "replace")
+    obj.setdefault("_replace_all_constraints", False)
+    obj.setdefault("_location_update_mode", "replace")
+    obj.setdefault("_layout_update_mode", "replace")
+    obj.setdefault("_clear_location_keywords", False)
+    obj.setdefault("_remove_layout_options", [])
     return obj
 
 def _normalize_semantic_extract(obj: dict) -> dict:
@@ -726,6 +826,11 @@ def merge_constraints(old: Optional[dict], new: dict) -> dict:
     if old is None:
         old = {}
     out = dict(old)
+    if bool(new.get("_replace_all_constraints")):
+        old_k = out.get("k")
+        out = {}
+        if old_k is not None and new.get("k") is None:
+            out["k"] = old_k
 
     def _layout_selector_match(item: Dict[str, Any], selector: Dict[str, Any]) -> bool:
         if not isinstance(item, dict) or not isinstance(selector, dict):
@@ -779,9 +884,27 @@ def merge_constraints(old: Optional[dict], new: dict) -> dict:
             res.append(s)
         return res
 
-    out["location_keywords"] = merge_list(old.get("location_keywords"), new.get("location_keywords"))
-    if new.get("layout_options"):
-        out["layout_options"] = _normalize_layout_options(new.get("layout_options"))
+    old_locs = old.get("location_keywords") or []
+    new_locs = new.get("location_keywords") or []
+    if bool(new.get("_clear_location_keywords")):
+        out["location_keywords"] = []
+    else:
+        location_mode = _safe_text(new.get("_location_update_mode")).lower()
+        if location_mode == "append":
+            out["location_keywords"] = merge_list(old_locs, new_locs)
+        elif location_mode == "keep":
+            out["location_keywords"] = merge_list(old_locs, [])
+        else:
+            # default hard-filter behavior: replace when new location is explicitly provided.
+            out["location_keywords"] = merge_list(new_locs, []) if len(new_locs) > 0 else merge_list(old_locs, [])
+
+    new_layout = _normalize_layout_options(new.get("layout_options") or [])
+    if new_layout:
+        layout_mode = _safe_text(new.get("_layout_update_mode")).lower()
+        if layout_mode == "append":
+            out["layout_options"] = _normalize_layout_options((out.get("layout_options") or []) + new_layout)
+        else:
+            out["layout_options"] = new_layout
 
     # default k
     if out.get("k") is None:

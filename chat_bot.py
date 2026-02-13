@@ -916,11 +916,11 @@ def format_listing_row_summary(r: Dict[str, Any], i: int) -> str:
     if line2:
         parts.append("   " + " | ".join(line2))
     if final_score is not None:
-        parts.append(f"   最终分: {final_score:.4f}")
+        parts.append(f"   Final score: {final_score:.4f}")
     if hit_terms:
-        parts.append("   因为命中: " + ", ".join(hit_terms))
+        parts.append("   Because matched: " + ", ".join(hit_terms))
     if penalty_reasons:
-        parts.append("   因为降权: " + penalty_reasons[0])
+        parts.append("   Because penalized: " + penalty_reasons[0])
     if url:
         parts.append("   " + url)
     return "\n".join(parts)
@@ -1099,7 +1099,7 @@ def run_chat():
                 if n <= 0 or n > 50:
                     raise ValueError()
                 state["k"] = n
-                # 关键：同时写入 constraints.k，保证后面用到的是新值
+                # Keep constraints.k in sync so downstream uses the updated k.
                 if state["constraints"] is None:
                     state["constraints"] = {
                         "k": n,
@@ -1166,7 +1166,7 @@ def run_chat():
         # k = int(state["k"])
         # recall = int(state["recall"])
         prev_constraints = dict(state["constraints"] or {})
-        stage_note("Pre Stage A", "解析输入，抽取/修复约束与偏好信号")
+        stage_note("Pre Stage A", "Parsing input and extracting/repairing constraints and preference signals")
         semantic_parse_source = "llm_combined"
         combined = {"constraints": {}, "semantic_terms": {}}
         llm_extracted: Dict[str, Any] = {}
@@ -1203,8 +1203,8 @@ def run_chat():
 
         changes_line = summarize_constraint_changes(prev_constraints, state["constraints"])
         active_line = compact_constraints_view(state["constraints"])
-        stage_note("Pre Stage A", f"因为用户输入发生约束变化，所以状态更新为: {changes_line}")
-        stage_note("Pre Stage A", f"因为需要后续检索与过滤，所以当前有效约束: {json.dumps(active_line, ensure_ascii=False)}")
+        stage_note("Pre Stage A", f"Because the input changed constraints, state was updated to: {changes_line}")
+        stage_note("Pre Stage A", f"Because retrieval/filtering depends on active constraints, current constraints: {json.dumps(active_line, ensure_ascii=False)}")
         c = state["constraints"] or {}
         signals = split_query_signals(
             user_in,
@@ -1234,9 +1234,9 @@ def run_chat():
         query = build_stage_a_query(signals, user_in)
 
         # Stage A: recall pool
-        stage_note("Stage A", f"因为要先扩大候选池，所以执行向量召回 (recall={recall})")
+        stage_note("Stage A", f"Because we need a broad candidate pool first, running vector recall (recall={recall})")
         stage_a_df = stage_a_search(qdrant_client, embedder, query=query, recall=recall, c=c)
-        stage_note("Stage A", f"因为召回完成，所以得到 {len(stage_a_df)} 条 candidates")
+        stage_note("Stage A", f"Because recall finished, got {len(stage_a_df)} candidates")
         stage_a_records = []
         if stage_a_df is not None and len(stage_a_df) > 0:
             for i, row in stage_a_df.reset_index(drop=True).iterrows():
@@ -1247,7 +1247,7 @@ def run_chat():
                 stage_a_records.append(rec)
 
         # Stage B: hard filters (audit all candidates)
-        stage_note("Stage B", "因为这些是硬约束，所以执行硬过滤（预算/户型/入住时间等）")
+        stage_note("Stage B", "Because these are hard constraints, applying hard filters (budget/layout/move-in, etc.)")
         filtered, hard_audits = apply_hard_filters_with_audit(stage_a_df, c)
         stage_b_pass_records = [x for x in hard_audits if x.get("hard_pass")]
         fail_counter: Dict[str, int] = {}
@@ -1261,9 +1261,9 @@ def run_chat():
             fail_counter[key] = fail_counter.get(key, 0) + 1
         fail_brief = ", ".join([f"{k}:{v}" for k, v in sorted(fail_counter.items(), key=lambda x: x[1], reverse=True)[:3]])
         if fail_brief:
-            stage_note("Stage B", f"因为硬约束过滤，结果 pass={len(filtered)}/{len(stage_a_df)}；主要淘汰: {fail_brief}")
+            stage_note("Stage B", f"Because of hard filtering, result is pass={len(filtered)}/{len(stage_a_df)}; top eliminations: {fail_brief}")
         else:
-            stage_note("Stage B", f"因为硬约束过滤，结果 pass={len(filtered)}/{len(stage_a_df)}")
+            stage_note("Stage B", f"Because of hard filtering, result is pass={len(filtered)}/{len(stage_a_df)}")
 
         # Stage C: rerank only on topic/preference scores (qdrant score as tie-break)
         pref_terms_all = (
@@ -1271,10 +1271,10 @@ def run_chat():
             + list(signals.get("topic_preferences", {}).get("school_terms", []) or [])
             + list(signals.get("general_semantic", []) or [])
         )
-        pref_preview = ", ".join([str(x) for x in pref_terms_all[:3]]) if pref_terms_all else "无显式偏好"
-        stage_note("Stage C", f"因为偏好信号[{pref_preview}]，所以执行软重排与unknown-pass降权")
+        pref_preview = ", ".join([str(x) for x in pref_terms_all[:3]]) if pref_terms_all else "no explicit preference"
+        stage_note("Stage C", f"Because preference signals are [{pref_preview}], running soft rerank and unknown-pass penalties")
         ranked, stage_c_weights = rank_stage_c(filtered, signals, embedder=embedder)
-        stage_note("Stage C", f"因为重排完成，所以 ranked={len(ranked)}；权重={json.dumps(stage_c_weights, ensure_ascii=False)}")
+        stage_note("Stage C", f"Because reranking finished, ranked={len(ranked)}; weights={json.dumps(stage_c_weights, ensure_ascii=False)}")
         stage_c_records = []
         if ranked is not None and len(ranked) > 0:
             for i, row in ranked.iterrows():
@@ -1308,13 +1308,13 @@ def run_chat():
         stage_d_error: str = ""
 
         if len(filtered) < k:
-            print("\nBot> 符合当前硬性条件（价格/卧室/卫生间/入住时间/配置/租期/面积）的房源不足。你可以放宽预算或修改约束。")
+            print("\nBot> Not enough listings pass current hard constraints (price/bedrooms/bathrooms/move-in/furnishing/tenancy/size). You can relax budget or update constraints.")
             df = ranked.reset_index(drop=True)
         else:
             df = ranked.head(k).reset_index(drop=True)
 
         if df is not None and len(df) > 0:
-            stage_note("Stage D", "因为需要可解释推荐，所以构建 evidence 并生成 grounded explanation")
+            stage_note("Stage D", "Because explainability is required, building evidence and generating grounded explanation")
             df = df.copy()
             df["evidence"] = df.apply(lambda row: build_evidence_for_row(row.to_dict(), c, user_in), axis=1)
 

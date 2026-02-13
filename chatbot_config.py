@@ -18,7 +18,10 @@ Schema:
   "min_size_sqm": number|null,
   "min_size_sqft": number|null,
   "location_keywords": string[],
-  "k": int|null
+  "k": int|null,
+  "update_scope": string|null,
+  "location_update_mode": string|null,
+  "layout_update_mode": string|null
 }
 Rules:
 - location_keywords are place names/areas/postcodes (e.g., "Canary Wharf", "E14", "Shoreditch").
@@ -42,6 +45,12 @@ Rules:
   - "at least X sqm/sq m/m2" -> min_size_sqm = X
   - "at least X sqft/sq ft/ft2" -> min_size_sqft = X
 - If unknown use null or [].
+- update_scope: "patch" (default) or "replace_all".
+- location_update_mode: "replace" (default), "append", or "keep".
+- layout_update_mode: "replace" (default) or "append".
+- Use "replace_all" only when user explicitly resets search (e.g., "start over", "ignore previous", "new search").
+- Use append only when user explicitly adds options (e.g., "also", "in addition", "plus", "as well as").
+- If no explicit update intent is present, set update_scope="patch", location_update_mode="replace", layout_update_mode="replace".
 """
 
 SEMANTIC_EXTRACT_SYSTEM = """You output STRICT JSON only (no markdown, no explanation).
@@ -76,7 +85,10 @@ Schema:
     "min_size_sqm": number|null,
     "min_size_sqft": number|null,
     "location_keywords": string[],
-    "k": int|null
+    "k": int|null,
+    "update_scope": string|null,
+    "location_update_mode": string|null,
+    "layout_update_mode": string|null
   },
   "semantic_terms": {
     "transit_terms": string[],
@@ -93,6 +105,12 @@ Rules:
 - Do NOT split one entity into component words.
 - Avoid generic filler terms like "school" when a concrete entity/phrase exists.
 - If unknown use null or [].
+- update_scope: "patch" (default) or "replace_all".
+- location_update_mode: "replace" (default), "append", or "keep".
+- layout_update_mode: "replace" (default) or "append".
+- Use "replace_all" only when user explicitly resets search (e.g., "start over", "ignore previous", "new search").
+- Use append only when user explicitly adds options (e.g., "also", "in addition", "plus", "as well as").
+- If no explicit update intent is present, set update_scope="patch", location_update_mode="replace", layout_update_mode="replace".
 """
 
 GROUNDED_EXPLAIN_SYSTEM = """You are a grounded rental explanation engine.

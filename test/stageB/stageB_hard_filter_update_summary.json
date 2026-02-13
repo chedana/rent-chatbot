@@ -1,0 +1,499 @@
+{
+  "suite": "stageB_constraint_update_intent",
+  "description": "Sequential test cases for hard-constraint update behavior (patch/replace_all, location replace/append/clear, layout replace/append/remove).",
+  "notes": [
+    "Run cases in order; expected_state_after is the target state after applying each query on top of the previous case.",
+    "Currency values are in pcm.",
+    "Location and layout update modes are expected routing outcomes for merge logic."
+  ],
+  "cases": [
+    {
+      "id": 1,
+      "query": "I’m looking for a 1 bed near Liverpool Street, max £2800, move-in by 2026-03-01.",
+      "expected_update": {
+        "update_scope": "patch",
+        "location_update_mode": "replace",
+        "layout_update_mode": "replace"
+      },
+      "expected_state_after": {
+        "location_keywords": [
+          "Liverpool Street"
+        ],
+        "layout_options": [
+          {
+            "bedrooms": 1,
+            "bathrooms": null,
+            "property_type": null,
+            "layout_tag": null,
+            "max_rent_pcm": 2800.0
+          }
+        ],
+        "max_rent_pcm": 2800.0,
+        "available_from": "2026-03-01"
+      }
+    },
+    {
+      "id": 2,
+      "query": "Change to Vauxhall instead.",
+      "expected_update": {
+        "update_scope": "patch",
+        "location_update_mode": "replace"
+      },
+      "expected_state_after": {
+        "location_keywords": [
+          "Vauxhall"
+        ],
+        "layout_options": [
+          {
+            "bedrooms": 1,
+            "bathrooms": null,
+            "property_type": null,
+            "layout_tag": null,
+            "max_rent_pcm": 2800.0
+          }
+        ],
+        "max_rent_pcm": 2800.0,
+        "available_from": "2026-03-01"
+      }
+    },
+    {
+      "id": 3,
+      "query": "Also add Canary Wharf.",
+      "expected_update": {
+        "update_scope": "patch",
+        "location_update_mode": "append"
+      },
+      "expected_state_after": {
+        "location_keywords": [
+          "Vauxhall",
+          "Canary Wharf"
+        ],
+        "layout_options": [
+          {
+            "bedrooms": 1,
+            "bathrooms": null,
+            "property_type": null,
+            "layout_tag": null,
+            "max_rent_pcm": 2800.0
+          }
+        ],
+        "max_rent_pcm": 2800.0,
+        "available_from": "2026-03-01"
+      }
+    },
+    {
+      "id": 4,
+      "query": "Ignore previous constraints. New search: 2 bed in Greenwich under £3200.",
+      "expected_update": {
+        "update_scope": "replace_all",
+        "location_update_mode": "replace",
+        "layout_update_mode": "replace"
+      },
+      "expected_state_after": {
+        "location_keywords": [
+          "Greenwich"
+        ],
+        "layout_options": [
+          {
+            "bedrooms": 2,
+            "bathrooms": null,
+            "property_type": null,
+            "layout_tag": null,
+            "max_rent_pcm": 3200.0
+          }
+        ],
+        "max_rent_pcm": 3200.0,
+        "available_from": null
+      }
+    },
+    {
+      "id": 5,
+      "query": "Start over. Studio near King’s Cross, budget £2200.",
+      "expected_update": {
+        "update_scope": "replace_all",
+        "location_update_mode": "replace",
+        "layout_update_mode": "replace"
+      },
+      "expected_state_after": {
+        "location_keywords": [
+          "King’s Cross"
+        ],
+        "layout_options": [
+          {
+            "bedrooms": null,
+            "bathrooms": null,
+            "property_type": "flat",
+            "layout_tag": "studio",
+            "max_rent_pcm": 2200.0
+          }
+        ],
+        "max_rent_pcm": 2200.0,
+        "available_from": null
+      }
+    },
+    {
+      "id": 6,
+      "query": "Keep the same area, but change budget to £2500.",
+      "expected_update": {
+        "update_scope": "patch",
+        "location_update_mode": "keep"
+      },
+      "expected_state_after": {
+        "location_keywords": [
+          "King’s Cross"
+        ],
+        "layout_options": [
+          {
+            "bedrooms": null,
+            "bathrooms": null,
+            "property_type": "flat",
+            "layout_tag": "studio",
+            "max_rent_pcm": 2200.0
+          }
+        ],
+        "max_rent_pcm": 2500.0,
+        "available_from": null
+      }
+    },
+    {
+      "id": 7,
+      "query": "Also include Shoreditch and Aldgate.",
+      "expected_update": {
+        "update_scope": "patch",
+        "location_update_mode": "append"
+      },
+      "expected_state_after": {
+        "location_keywords": [
+          "King’s Cross",
+          "Shoreditch",
+          "Aldgate"
+        ],
+        "layout_options": [
+          {
+            "bedrooms": null,
+            "bathrooms": null,
+            "property_type": "flat",
+            "layout_tag": "studio",
+            "max_rent_pcm": 2200.0
+          }
+        ],
+        "max_rent_pcm": 2500.0,
+        "available_from": null
+      }
+    },
+    {
+      "id": 8,
+      "query": "Replace location with Stratford.",
+      "expected_update": {
+        "update_scope": "patch",
+        "location_update_mode": "replace"
+      },
+      "expected_state_after": {
+        "location_keywords": [
+          "Stratford"
+        ],
+        "layout_options": [
+          {
+            "bedrooms": null,
+            "bathrooms": null,
+            "property_type": "flat",
+            "layout_tag": "studio",
+            "max_rent_pcm": 2200.0
+          }
+        ],
+        "max_rent_pcm": 2500.0,
+        "available_from": null
+      }
+    },
+    {
+      "id": 9,
+      "query": "No location preference.",
+      "expected_update": {
+        "update_scope": "patch",
+        "location_update_mode": "replace",
+        "clear_location": true
+      },
+      "expected_state_after": {
+        "location_keywords": [],
+        "layout_options": [
+          {
+            "bedrooms": null,
+            "bathrooms": null,
+            "property_type": "flat",
+            "layout_tag": "studio",
+            "max_rent_pcm": 2200.0
+          }
+        ],
+        "max_rent_pcm": 2500.0,
+        "available_from": null
+      }
+    },
+    {
+      "id": 10,
+      "query": "Remove location constraint and keep everything else.",
+      "expected_update": {
+        "update_scope": "patch",
+        "location_update_mode": "keep",
+        "clear_location": true
+      },
+      "expected_state_after": {
+        "location_keywords": [],
+        "layout_options": [
+          {
+            "bedrooms": null,
+            "bathrooms": null,
+            "property_type": "flat",
+            "layout_tag": "studio",
+            "max_rent_pcm": 2200.0
+          }
+        ],
+        "max_rent_pcm": 2500.0,
+        "available_from": null
+      }
+    },
+    {
+      "id": 11,
+      "query": "I need long term only.",
+      "expected_update": {
+        "update_scope": "patch"
+      },
+      "expected_state_after": {
+        "location_keywords": [],
+        "layout_options": [
+          {
+            "bedrooms": null,
+            "bathrooms": null,
+            "property_type": "flat",
+            "layout_tag": "studio",
+            "max_rent_pcm": 2200.0
+          }
+        ],
+        "max_rent_pcm": 2500.0,
+        "let_type": "long term",
+        "available_from": null
+      }
+    },
+    {
+      "id": 12,
+      "query": "Change to short term instead.",
+      "expected_update": {
+        "update_scope": "patch"
+      },
+      "expected_state_after": {
+        "location_keywords": [],
+        "layout_options": [
+          {
+            "bedrooms": null,
+            "bathrooms": null,
+            "property_type": "flat",
+            "layout_tag": "studio",
+            "max_rent_pcm": 2200.0
+          }
+        ],
+        "max_rent_pcm": 2500.0,
+        "let_type": "short term",
+        "available_from": null
+      }
+    },
+    {
+      "id": 13,
+      "query": "Set minimum tenancy to 12 months.",
+      "expected_update": {
+        "update_scope": "patch"
+      },
+      "expected_state_after": {
+        "location_keywords": [],
+        "layout_options": [
+          {
+            "bedrooms": null,
+            "bathrooms": null,
+            "property_type": "flat",
+            "layout_tag": "studio",
+            "max_rent_pcm": 2200.0
+          }
+        ],
+        "max_rent_pcm": 2500.0,
+        "let_type": "short term",
+        "min_tenancy_months": 12.0,
+        "available_from": null
+      }
+    },
+    {
+      "id": 14,
+      "query": "Actually remove minimum tenancy requirement.",
+      "expected_update": {
+        "update_scope": "patch"
+      },
+      "expected_state_after": {
+        "location_keywords": [],
+        "layout_options": [
+          {
+            "bedrooms": null,
+            "bathrooms": null,
+            "property_type": "flat",
+            "layout_tag": "studio",
+            "max_rent_pcm": 2200.0
+          }
+        ],
+        "max_rent_pcm": 2500.0,
+        "let_type": "short term",
+        "min_tenancy_months": null,
+        "available_from": null
+      }
+    },
+    {
+      "id": 15,
+      "query": "1b1b only.",
+      "expected_update": {
+        "update_scope": "patch",
+        "layout_update_mode": "replace"
+      },
+      "expected_state_after": {
+        "location_keywords": [],
+        "layout_options": [
+          {
+            "bedrooms": 1,
+            "bathrooms": 1.0,
+            "property_type": null,
+            "layout_tag": null,
+            "max_rent_pcm": null
+          }
+        ],
+        "max_rent_pcm": 2500.0,
+        "let_type": "short term",
+        "min_tenancy_months": null,
+        "available_from": null
+      }
+    },
+    {
+      "id": 16,
+      "query": "Also include 2b1b options.",
+      "expected_update": {
+        "update_scope": "patch",
+        "layout_update_mode": "append"
+      },
+      "expected_state_after": {
+        "location_keywords": [],
+        "layout_options": [
+          {
+            "bedrooms": 1,
+            "bathrooms": 1.0,
+            "property_type": null,
+            "layout_tag": null,
+            "max_rent_pcm": null
+          },
+          {
+            "bedrooms": 2,
+            "bathrooms": 1.0,
+            "property_type": null,
+            "layout_tag": null,
+            "max_rent_pcm": null
+          }
+        ],
+        "max_rent_pcm": 2500.0,
+        "let_type": "short term",
+        "min_tenancy_months": null,
+        "available_from": null
+      }
+    },
+    {
+      "id": 17,
+      "query": "Replace layout with studio only.",
+      "expected_update": {
+        "update_scope": "patch",
+        "layout_update_mode": "replace"
+      },
+      "expected_state_after": {
+        "location_keywords": [],
+        "layout_options": [
+          {
+            "bedrooms": null,
+            "bathrooms": null,
+            "property_type": "flat",
+            "layout_tag": "studio",
+            "max_rent_pcm": null
+          }
+        ],
+        "max_rent_pcm": 2500.0,
+        "let_type": "short term",
+        "min_tenancy_months": null,
+        "available_from": null
+      }
+    },
+    {
+      "id": 18,
+      "query": "Remove the 2b1b option.",
+      "expected_update": {
+        "update_scope": "patch",
+        "layout_remove": true
+      },
+      "expected_state_after": {
+        "location_keywords": [],
+        "layout_options": [
+          {
+            "bedrooms": null,
+            "bathrooms": null,
+            "property_type": "flat",
+            "layout_tag": "studio",
+            "max_rent_pcm": null
+          }
+        ],
+        "max_rent_pcm": 2500.0,
+        "let_type": "short term",
+        "min_tenancy_months": null,
+        "available_from": null
+      }
+    },
+    {
+      "id": 19,
+      "query": "Keep previous constraints, just change move-in to 2026-04-15.",
+      "expected_update": {
+        "update_scope": "patch"
+      },
+      "expected_state_after": {
+        "location_keywords": [],
+        "layout_options": [
+          {
+            "bedrooms": null,
+            "bathrooms": null,
+            "property_type": "flat",
+            "layout_tag": "studio",
+            "max_rent_pcm": null
+          }
+        ],
+        "max_rent_pcm": 2500.0,
+        "let_type": "short term",
+        "min_tenancy_months": null,
+        "available_from": "2026-04-15"
+      }
+    },
+    {
+      "id": 20,
+      "query": "New search from scratch: furnished 1 bed in Vauxhall under £2600, move-in by 2026-03-20.",
+      "expected_update": {
+        "update_scope": "replace_all",
+        "location_update_mode": "replace",
+        "layout_update_mode": "replace"
+      },
+      "expected_state_after": {
+        "location_keywords": [
+          "Vauxhall"
+        ],
+        "layout_options": [
+          {
+            "bedrooms": 1,
+            "bathrooms": null,
+            "property_type": null,
+            "layout_tag": null,
+            "max_rent_pcm": 2600.0
+          }
+        ],
+        "max_rent_pcm": 2600.0,
+        "furnish_type": "furnished",
+        "available_from": "2026-03-20"
+      }
+    }
+  ],
+  "purpose": "Validate Stage B hard-constraint update behavior across multi-turn queries, including patch vs replace_all scope, location replace/append/clear behavior, layout replace/append/remove behavior, and scalar hard-filter field replacement consistency.",
+  "expected_outcome": "Constraint state transitions are deterministic and consistent with update intent; location does not accidentally accumulate unless append intent is explicit."
+}
