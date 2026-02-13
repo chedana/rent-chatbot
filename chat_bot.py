@@ -50,7 +50,6 @@ from settings import (
     EMBED_MODEL,
     ENABLE_STRUCTURED_CONFLICT_LOG,
     ENABLE_STRUCTURED_TRAINING_LOG,
-    FURNISH_ASK_AGENT_PENALTY,
     INTENT_EVIDENCE_TOP_N,
     INTENT_HIT_THRESHOLD,
     QDRANT_COLLECTION,
@@ -501,23 +500,58 @@ def rank_stage_c(
         penalty_score = 0.0
         unknown_penalty_raw = 0.0
         unknown_items: List[str] = []
+        unknown_item_set = set()
+
+        def _add_unknown(field_key: str) -> None:
+            nonlocal unknown_penalty_raw
+            if field_key in unknown_item_set:
+                return
+            w = float(UNKNOWN_PENALTY_WEIGHTS.get(field_key, 0.0))
+            if w <= 0.0:
+                return
+            unknown_item_set.add(field_key)
+            unknown_items.append(field_key)
+            unknown_penalty_raw += w
 
         # Penalize unknown values (e.g. "Ask agent") on active hard constraints.
         if hard.get("max_rent_pcm") is not None and _to_float(r.get("price_pcm")) is None:
-            unknown_penalty_raw += float(UNKNOWN_PENALTY_WEIGHTS.get("price", 0.0))
-            unknown_items.append("price")
+            _add_unknown("price")
         layout_opts = hard.get("layout_options") or []
+        requires_price = any(isinstance(x, dict) and x.get("max_rent_pcm") is not None for x in layout_opts)
         requires_bed = any(isinstance(x, dict) and x.get("bedrooms") is not None for x in layout_opts)
         requires_bath = any(isinstance(x, dict) and x.get("bathrooms") is not None for x in layout_opts)
+        requires_prop = any(
+            isinstance(x, dict) and _safe_text(x.get("property_type")).strip()
+            for x in layout_opts
+        )
+        if requires_price and _to_float(r.get("price_pcm")) is None:
+            _add_unknown("price")
         if requires_bed and _to_float(r.get("bedrooms")) is None:
-            unknown_penalty_raw += float(UNKNOWN_PENALTY_WEIGHTS.get("bedrooms", 0.0))
-            unknown_items.append("bedrooms")
+            _add_unknown("bedrooms")
         if requires_bath and _to_float(r.get("bathrooms")) is None:
-            unknown_penalty_raw += float(UNKNOWN_PENALTY_WEIGHTS.get("bathrooms", 0.0))
-            unknown_items.append("bathrooms")
+            _add_unknown("bathrooms")
+        if requires_prop and not _safe_text(r.get("property_type")).strip():
+            _add_unknown("property_type")
         if hard.get("available_from") is not None and pd.isna(pd.to_datetime(r.get("available_from"), errors="coerce")):
-            unknown_penalty_raw += float(UNKNOWN_PENALTY_WEIGHTS.get("available_from", 0.0))
-            unknown_items.append("available_from")
+            _add_unknown("available_from")
+
+        furnish_req = _norm_furnish_value(hard.get("furnish_type"))
+        if furnish_req:
+            furn_val = _norm_furnish_value(r.get("furnish_type"))
+            if not furn_val or furn_val == "ask agent":
+                _add_unknown("furnish_type")
+
+        if _safe_text(hard.get("let_type")).strip() and not _safe_text(r.get("let_type")).strip():
+            _add_unknown("let_type")
+
+        if hard.get("min_tenancy_months") is not None:
+            tenancy_txt = _safe_text(r.get("min_tenancy")).lower()
+            if not re.search(r"(\d+(?:\.\d+)?)", tenancy_txt):
+                _add_unknown("min_tenancy_months")
+
+        if hard.get("min_size_sqm") is not None:
+            if _to_float(r.get("size_sqm")) is None and _to_float(r.get("size_sqft")) is None:
+                _add_unknown("min_size_sqm")
 
         if unknown_penalty_raw > 0.0:
             unknown_penalty = min(float(UNKNOWN_PENALTY_CAP), float(unknown_penalty_raw))
@@ -525,15 +559,6 @@ def rank_stage_c(
             penalties.append(
                 f"unknown_hard({','.join(unknown_items)};+{unknown_penalty:.2f})"
             )
-
-        # Furnish policy:
-        # - ask agent: pass hard filter but apply small ranking penalty.
-        # - flexible ("furnished or unfurnished, landlord is flexible"): no penalty.
-        if hard.get("furnish_type"):
-            furn_val = _norm_furnish_value(r.get("furnish_type"))
-            if furn_val == "ask agent":
-                penalty_score += float(FURNISH_ASK_AGENT_PENALTY)
-                penalties.append(f"furnish_ask_agent(+{float(FURNISH_ASK_AGENT_PENALTY):.2f})")
 
         if transit_terms and not stations_items:
             penalty_score += 0.12
@@ -722,7 +747,7 @@ def append_structured_training_samples(
         }
         append_jsonl(STRUCTURED_TRAINING_LOG_PATH, rec, "structured training samples")
 
-def format_listing_row(r: Dict[str, Any], i: int) -> str:
+def format_listing_row_debug(r: Dict[str, Any], i: int) -> str:
     title = str(r.get("title", "") or "").strip()
     url = str(r.get("url", "") or "").strip()
     address = str(r.get("address", "") or "").strip()
@@ -862,6 +887,51 @@ def format_listing_row(r: Dict[str, Any], i: int) -> str:
     return "\n".join(bits)
 
 
+def format_listing_row_summary(r: Dict[str, Any], i: int) -> str:
+    title = _safe_text(r.get("title")) or "(no title)"
+    url = _safe_text(r.get("url"))
+    address = _safe_text(r.get("address"))
+    price = _to_float(r.get("price_pcm"))
+    beds = _to_float(r.get("bedrooms"))
+    baths = _to_float(r.get("bathrooms"))
+    final_score = _to_float(r.get("final_score"))
+
+    transit_hits = [x.strip() for x in _safe_text(r.get("transit_hits")).split(",") if x.strip()]
+    school_hits = [x.strip() for x in _safe_text(r.get("school_hits")).split(",") if x.strip()]
+    pref_hits = [x.strip() for x in _safe_text(r.get("preference_hits")).split(",") if x.strip()]
+    hit_terms = (pref_hits + transit_hits + school_hits)[:2]
+    penalty_reasons = [x.strip() for x in _safe_text(r.get("penalty_reasons")).split(",") if x.strip()]
+
+    parts: List[str] = []
+    parts.append(f"{i}. {title}")
+    line2: List[str] = []
+    if price is not None:
+        line2.append(f"£{int(round(price))}/pcm")
+    if beds is not None:
+        line2.append(f"{int(round(beds))} bed")
+    if baths is not None:
+        line2.append(f"{int(round(baths))} bath")
+    if address:
+        line2.append(address)
+    if line2:
+        parts.append("   " + " | ".join(line2))
+    if final_score is not None:
+        parts.append(f"   最终分: {final_score:.4f}")
+    if hit_terms:
+        parts.append("   因为命中: " + ", ".join(hit_terms))
+    if penalty_reasons:
+        parts.append("   因为降权: " + penalty_reasons[0])
+    if url:
+        parts.append("   " + url)
+    return "\n".join(parts)
+
+
+def format_listing_row(r: Dict[str, Any], i: int, view_mode: str = "summary") -> str:
+    if str(view_mode).strip().lower() == "debug":
+        return format_listing_row_debug(r, i)
+    return format_listing_row_summary(r, i)
+
+
 def build_evidence_for_row(r: Dict[str, Any], c: Dict[str, Any], user_query: str = "") -> Dict[str, Any]:
     url = str(r.get("url", "") or "").strip()
     source = str(r.get("source", "") or "").strip()
@@ -980,10 +1050,14 @@ def run_chat():
         "last_query": None,
         "last_df": None,
         "constraints": None,
+        "view_mode": "summary",
     }
 
+    def stage_note(stage: str, detail: str) -> None:
+        print(f"\nBot> [{stage}] {detail}")
+
     print("RentBot (minimal retrieval)")
-    print("Commands: /exit /reset /k N /show /recall N /constraints /model")
+    print("Commands: /exit /reset /k N /show /recall N /constraints /model /view summary|debug")
     print(f"StageA backend: qdrant")
     print(f"Qdrant path   : {QDRANT_LOCAL_PATH}")
     print(f"Collection    : {QDRANT_COLLECTION}")
@@ -1064,7 +1138,15 @@ def run_chat():
             df = state["last_df"]
             print(f"\nBot> Showing last results (k={state['k']}, recall={state['recall']})")
             for i, r in df.iterrows():
-                print(format_listing_row(r.to_dict(), i + 1))
+                print(format_listing_row(r.to_dict(), i + 1, view_mode=state.get("view_mode", "summary")))
+            continue
+        if cmd == "/view":
+            mode = str(arg or "").strip().lower()
+            if mode not in {"summary", "debug"}:
+                print("Usage: /view summary   or   /view debug")
+                continue
+            state["view_mode"] = mode
+            print(f"OK. view = {mode}")
             continue
         if cmd == "/constraints":
             print(json.dumps(state.get("constraints") or {}, ensure_ascii=False, indent=2))
@@ -1084,6 +1166,7 @@ def run_chat():
         # k = int(state["k"])
         # recall = int(state["recall"])
         prev_constraints = dict(state["constraints"] or {})
+        stage_note("Pre Stage A", "解析输入，抽取/修复约束与偏好信号")
         semantic_parse_source = "llm_combined"
         combined = {"constraints": {}, "semantic_terms": {}}
         llm_extracted: Dict[str, Any] = {}
@@ -1120,6 +1203,8 @@ def run_chat():
 
         changes_line = summarize_constraint_changes(prev_constraints, state["constraints"])
         active_line = compact_constraints_view(state["constraints"])
+        stage_note("Pre Stage A", f"因为用户输入发生约束变化，所以状态更新为: {changes_line}")
+        stage_note("Pre Stage A", f"因为需要后续检索与过滤，所以当前有效约束: {json.dumps(active_line, ensure_ascii=False)}")
         c = state["constraints"] or {}
         signals = split_query_signals(
             user_in,
@@ -1149,7 +1234,9 @@ def run_chat():
         query = build_stage_a_query(signals, user_in)
 
         # Stage A: recall pool
+        stage_note("Stage A", f"因为要先扩大候选池，所以执行向量召回 (recall={recall})")
         stage_a_df = stage_a_search(qdrant_client, embedder, query=query, recall=recall, c=c)
+        stage_note("Stage A", f"因为召回完成，所以得到 {len(stage_a_df)} 条 candidates")
         stage_a_records = []
         if stage_a_df is not None and len(stage_a_df) > 0:
             for i, row in stage_a_df.reset_index(drop=True).iterrows():
@@ -1160,11 +1247,34 @@ def run_chat():
                 stage_a_records.append(rec)
 
         # Stage B: hard filters (audit all candidates)
+        stage_note("Stage B", "因为这些是硬约束，所以执行硬过滤（预算/户型/入住时间等）")
         filtered, hard_audits = apply_hard_filters_with_audit(stage_a_df, c)
         stage_b_pass_records = [x for x in hard_audits if x.get("hard_pass")]
+        fail_counter: Dict[str, int] = {}
+        for rec in hard_audits:
+            if rec.get("hard_pass"):
+                continue
+            reasons = rec.get("hard_fail_reasons") or []
+            if not reasons:
+                continue
+            key = str(reasons[0]).split(" ", 1)[0]
+            fail_counter[key] = fail_counter.get(key, 0) + 1
+        fail_brief = ", ".join([f"{k}:{v}" for k, v in sorted(fail_counter.items(), key=lambda x: x[1], reverse=True)[:3]])
+        if fail_brief:
+            stage_note("Stage B", f"因为硬约束过滤，结果 pass={len(filtered)}/{len(stage_a_df)}；主要淘汰: {fail_brief}")
+        else:
+            stage_note("Stage B", f"因为硬约束过滤，结果 pass={len(filtered)}/{len(stage_a_df)}")
 
         # Stage C: rerank only on topic/preference scores (qdrant score as tie-break)
+        pref_terms_all = (
+            list(signals.get("topic_preferences", {}).get("transit_terms", []) or [])
+            + list(signals.get("topic_preferences", {}).get("school_terms", []) or [])
+            + list(signals.get("general_semantic", []) or [])
+        )
+        pref_preview = ", ".join([str(x) for x in pref_terms_all[:3]]) if pref_terms_all else "无显式偏好"
+        stage_note("Stage C", f"因为偏好信号[{pref_preview}]，所以执行软重排与unknown-pass降权")
         ranked, stage_c_weights = rank_stage_c(filtered, signals, embedder=embedder)
+        stage_note("Stage C", f"因为重排完成，所以 ranked={len(ranked)}；权重={json.dumps(stage_c_weights, ensure_ascii=False)}")
         stage_c_records = []
         if ranked is not None and len(ranked) > 0:
             for i, row in ranked.iterrows():
@@ -1204,6 +1314,7 @@ def run_chat():
             df = ranked.head(k).reset_index(drop=True)
 
         if df is not None and len(df) > 0:
+            stage_note("Stage D", "因为需要可解释推荐，所以构建 evidence 并生成 grounded explanation")
             df = df.copy()
             df["evidence"] = df.apply(lambda row: build_evidence_for_row(row.to_dict(), c, user_in), axis=1)
 
@@ -1250,7 +1361,7 @@ def run_chat():
         # print results
         lines = [f"Top {min(k, len(df))} results:"]
         for i, r in df.iterrows():
-            lines.append(format_listing_row(r.to_dict(), i + 1))
+            lines.append(format_listing_row(r.to_dict(), i + 1, view_mode=state.get("view_mode", "summary")))
         try:
             grounded_out, stage_d_payload, stage_d_raw_output = llm_grounded_explain(
                 user_query=user_in,
@@ -1262,12 +1373,17 @@ def run_chat():
             if grounded_out:
                 lines.append("")
                 lines.append("Grounded explanation:")
-                lines.append(grounded_out)
-            ev_txt = format_grounded_evidence(df=df, max_items=min(8, len(df)))
-            if ev_txt:
-                lines.append("")
-                lines.append("Grounded evidence:")
-                lines.append(ev_txt)
+                if state.get("view_mode", "summary") == "debug":
+                    lines.append(grounded_out)
+                else:
+                    short_lines = [x for x in grounded_out.splitlines() if x.strip()][:5]
+                    lines.append("\n".join(short_lines))
+            if state.get("view_mode", "summary") == "debug":
+                ev_txt = format_grounded_evidence(df=df, max_items=min(8, len(df)))
+                if ev_txt:
+                    lines.append("")
+                    lines.append("Grounded evidence:")
+                    lines.append(ev_txt)
         except Exception as e:
             stage_d_error = str(e)
             lines.append("")

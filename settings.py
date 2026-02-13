@@ -18,14 +18,20 @@ BATCH = int(os.environ.get("RENT_EMBED_BATCH", "256"))
 DEFAULT_K = int(os.environ.get("RENT_K", "5"))
 DEFAULT_RECALL = int(os.environ.get("RENT_RECALL", "1000"))
 
+# Stage C: unknown-pass penalties for active hard constraints.
+# These are intentionally conservative defaults and should be tuned with offline eval.
 UNKNOWN_PENALTY_WEIGHTS = {
-    "price": 0.35,
-    "bedrooms": 0.30,
-    "bathrooms": 0.20,
-    "available_from": 0.15,
+    "price": 0.20,
+    "bedrooms": 0.16,
+    "bathrooms": 0.12,
+    "available_from": 0.14,
+    "furnish_type": 0.08,
+    "let_type": 0.10,
+    "min_tenancy_months": 0.08,
+    "min_size_sqm": 0.10,
+    "property_type": 0.12,
 }
 UNKNOWN_PENALTY_CAP = 0.60
-FURNISH_ASK_AGENT_PENALTY = 0.06
 
 RANKING_LOG_PATH = os.environ.get(
     "RENT_RANKING_LOG_PATH",
