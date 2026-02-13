@@ -150,6 +150,7 @@ def build_stage_a_query(signals: Dict[str, Any], user_in: str) -> str:
         bath = opt.get("bathrooms")
         ptype = opt.get("property_type")
         ltag = str(opt.get("layout_tag") or "").strip().lower()
+        obudget = opt.get("max_rent_pcm")
         seg: List[str] = []
         if ltag == "studio":
             seg.append("studio")
@@ -165,6 +166,11 @@ def build_stage_a_query(signals: Dict[str, Any], user_in: str) -> str:
                 pass
         if ptype:
             seg.append(str(ptype))
+        if obudget is not None:
+            try:
+                seg.append(f"under {int(float(obudget))} pcm")
+            except Exception:
+                pass
         if seg:
             parts.append(" ".join(seg))
     if hard.get("min_tenancy_months") is not None:
@@ -247,6 +253,7 @@ def apply_hard_filters_with_audit(df: pd.DataFrame, c: Dict[str, Any]) -> Tuple[
                 req_bath = opt.get("bathrooms")
                 req_prop = _safe_text(opt.get("property_type")).lower()
                 req_tag = str(opt.get("layout_tag") or "").strip().lower()
+                req_rent = opt.get("max_rent_pcm")
                 opt_fail: List[str] = []
 
                 if req_bed is not None and bed_val is not None:
@@ -274,6 +281,14 @@ def apply_hard_filters_with_audit(df: pd.DataFrame, c: Dict[str, Any]) -> Tuple[
                     )
                     if not (is_raw_studio or is_flat_zero_bed):
                         opt_fail.append("layout_tag 'studio' not matched")
+                rent_val = _to_float(r.get("price_pcm"))
+                eff_rent_req = req_rent if req_rent is not None else c.get("max_rent_pcm")
+                if eff_rent_req is not None and rent_val is not None:
+                    try:
+                        if float(rent_val) > float(eff_rent_req):
+                            opt_fail.append(f"price {rent_val:g} > {float(eff_rent_req):g}")
+                    except Exception:
+                        pass
 
                 passed = len(opt_fail) == 0
                 any_pass = any_pass or passed
@@ -284,11 +299,13 @@ def apply_hard_filters_with_audit(df: pd.DataFrame, c: Dict[str, Any]) -> Tuple[
                             "bathrooms": req_bath,
                             "property_type": req_prop or None,
                             "layout_tag": req_tag or None,
+                            "max_rent_pcm": eff_rent_req,
                         },
                         "actual": {
                             "bedrooms": bed_val,
                             "bathrooms": bath_val,
                             "property_type": prop_val or None,
+                            "price_pcm": rent_val,
                         },
                         "pass": passed,
                         "fail_reasons": opt_fail,
@@ -305,7 +322,11 @@ def apply_hard_filters_with_audit(df: pd.DataFrame, c: Dict[str, Any]) -> Tuple[
                 reasons.append("layout_options no option matched")
 
         rent_req = c.get("max_rent_pcm")
-        if rent_req is not None:
+        has_layout_budget = any(
+            isinstance(x, dict) and x.get("max_rent_pcm") is not None
+            for x in (layout_options or [])
+        )
+        if rent_req is not None and not use_layout_options and not has_layout_budget:
             rent_val = _to_float(r.get("price_pcm"))
             checks["max_rent_pcm"] = {"actual": rent_val, "required": float(rent_req), "op": "lte"}
             if rent_val is not None and rent_val > float(rent_req):

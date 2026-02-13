@@ -13,7 +13,7 @@ Schema:
   "available_from": string|null,
   "furnish_type": string|null,
   "let_type": string|null,
-  "layout_options": [{"bedrooms": int|null, "bathrooms": number|null, "property_type": string|null, "layout_tag": string|null}],
+  "layout_options": [{"bedrooms": int|null, "bathrooms": number|null, "property_type": string|null, "layout_tag": string|null, "max_rent_pcm": number|null}],
   "min_tenancy_months": number|null,
   "min_size_sqm": number|null,
   "min_size_sqft": number|null,
@@ -31,9 +31,10 @@ Rules:
 - layout_options is for explicit layout alternatives (OR set). Each item is one acceptable layout option.
   - layout_tag currently supports: "studio" (optional).
   Examples:
-  - "1 bed and 2 bed" -> [{"bedrooms":1,"bathrooms":null,"property_type":null,"layout_tag":null},{"bedrooms":2,"bathrooms":null,"property_type":null,"layout_tag":null}]
-  - "studio and 1 bed" -> [{"bedrooms":null,"bathrooms":null,"property_type":"flat","layout_tag":"studio"},{"bedrooms":1,"bathrooms":null,"property_type":null,"layout_tag":null}]
-  - "1b1b 2b1b" -> [{"bedrooms":1,"bathrooms":1,"property_type":null,"layout_tag":null},{"bedrooms":2,"bathrooms":1,"property_type":null,"layout_tag":null}]
+  - "1 bed and 2 bed" -> [{"bedrooms":1,"bathrooms":null,"property_type":null,"layout_tag":null,"max_rent_pcm":null},{"bedrooms":2,"bathrooms":null,"property_type":null,"layout_tag":null,"max_rent_pcm":null}]
+  - "studio and 1 bed" -> [{"bedrooms":null,"bathrooms":null,"property_type":"flat","layout_tag":"studio","max_rent_pcm":null},{"bedrooms":1,"bathrooms":null,"property_type":null,"layout_tag":null,"max_rent_pcm":null}]
+  - "1b1b 2b1b" -> [{"bedrooms":1,"bathrooms":1,"property_type":null,"layout_tag":null,"max_rent_pcm":null},{"bedrooms":2,"bathrooms":1,"property_type":null,"layout_tag":null,"max_rent_pcm":null}]
+  - "1b1b under 2600 and 2b2b under 3400" -> [{"bedrooms":1,"bathrooms":1,"property_type":null,"layout_tag":null,"max_rent_pcm":2600},{"bedrooms":2,"bathrooms":2,"property_type":null,"layout_tag":null,"max_rent_pcm":3400}]
   - "1b1b/2b1b" -> same as above.
   - If only one layout is requested, still output one item in layout_options.
 - min_tenancy_months is numeric months (e.g., 6, 12) when user specifies tenancy term.
@@ -70,7 +71,7 @@ Schema:
     "available_from": string|null,
     "furnish_type": string|null,
     "let_type": string|null,
-    "layout_options": [{"bedrooms": int|null, "bathrooms": number|null, "property_type": string|null, "layout_tag": string|null}],
+    "layout_options": [{"bedrooms": int|null, "bathrooms": number|null, "property_type": string|null, "layout_tag": string|null, "max_rent_pcm": number|null}],
     "min_tenancy_months": number|null,
     "min_size_sqm": number|null,
     "min_size_sqft": number|null,

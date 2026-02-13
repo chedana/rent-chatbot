@@ -216,10 +216,12 @@ def _normalize_layout_options(raw: Any) -> List[Dict[str, Any]]:
         bath = item.get("bathrooms")
         ptype = item.get("property_type")
         tag = _safe_text(item.get("layout_tag")).lower()
+        budget = item.get("max_rent_pcm")
         bed_n: Optional[int] = None
         bath_n: Optional[float] = None
         ptype_n: Optional[str] = None
         tag_n: Optional[str] = None
+        budget_n: Optional[float] = None
         if bed is not None:
             try:
                 bed_n = int(float(bed))
@@ -235,7 +237,14 @@ def _normalize_layout_options(raw: Any) -> List[Dict[str, Any]]:
             ptype_n = pnorm
         if tag in {"studio"}:
             tag_n = tag
-        key = (bed_n, bath_n, ptype_n, tag_n)
+        if budget is not None:
+            try:
+                budget_n = float(budget)
+                if budget_n <= 0:
+                    budget_n = None
+            except Exception:
+                budget_n = None
+        key = (bed_n, bath_n, ptype_n, tag_n, budget_n)
         if key in seen:
             continue
         seen.add(key)
@@ -245,6 +254,7 @@ def _normalize_layout_options(raw: Any) -> List[Dict[str, Any]]:
                 "bathrooms": bath_n,
                 "property_type": ptype_n,
                 "layout_tag": tag_n,
+                "max_rent_pcm": budget_n,
             }
         )
     return out
@@ -260,6 +270,80 @@ def _extract_layout_options_candidates(text: Any) -> List[Dict[str, Any]]:
     options: List[Dict[str, Any]] = []
     used_spans: List[Tuple[int, int]] = []
 
+    budget_patterns = [
+        re.compile(r"(?:under|below|max(?:imum)?|up\s*to|within|at\s*most|budget)\s*£?\s*([0-9][0-9,]*(?:\.\d+)?)", re.I),
+        re.compile(r"£\s*([0-9][0-9,]*(?:\.\d+)?)\s*(?:pcm|per\s*month|p/?m|pm)\b", re.I),
+        re.compile(r"\b([0-9][0-9,]*(?:\.\d+)?)\s*(?:pcm|per\s*month|p/?m|pm)\b", re.I),
+    ]
+
+    clause_boundaries: List[Tuple[int, int]] = []
+    cut_points = [0]
+    for sep in re.finditer(r"\b(?:and|or)\b|[,;]", src, flags=re.I):
+        cut_points.append(sep.start())
+        cut_points.append(sep.end())
+    cut_points.append(len(src))
+    cut_points = sorted(set(x for x in cut_points if 0 <= x <= len(src)))
+    for i in range(0, len(cut_points) - 1, 2):
+        a = cut_points[i]
+        b = cut_points[i + 1]
+        if a < b:
+            clause_boundaries.append((a, b))
+    if not clause_boundaries:
+        clause_boundaries = [(0, len(src))]
+
+    def _clause_index(pos: int) -> int:
+        for i, (a, b) in enumerate(clause_boundaries):
+            if a <= pos < b:
+                return i
+        return max(0, len(clause_boundaries) - 1)
+
+    budget_hits: List[Tuple[int, int, float]] = []
+    for pat in budget_patterns:
+        for m in pat.finditer(src):
+            try:
+                v = float(str(m.group(1)).replace(",", ""))
+                if v > 0:
+                    budget_hits.append((m.start(), m.end(), v))
+            except Exception:
+                continue
+
+    def _nearest_budget(start: int, end: int, max_gap: int = 48) -> Optional[float]:
+        if not budget_hits:
+            return None
+        cid = _clause_index(start)
+        local_hits = [(bs, be, v) for bs, be, v in budget_hits if _clause_index(bs) == cid]
+        hits = local_hits if local_hits else budget_hits
+        # Prefer explicit price mention immediately after the layout phrase.
+        after = [(bs - end, v) for bs, be, v in hits if bs >= end and (bs - end) <= max_gap]
+        if after:
+            after.sort(key=lambda x: x[0])
+            return float(after[0][1])
+
+        # Then allow price mention immediately before the layout phrase.
+        before = [(start - be, v) for bs, be, v in hits if be <= start and (start - be) <= max_gap]
+        if before:
+            before.sort(key=lambda x: x[0])
+            return float(before[0][1])
+
+        # Fallback to nearest absolute distance when still close enough.
+        nearest: List[Tuple[int, float]] = []
+        for bs, be, v in hits:
+            if be <= start:
+                d = start - be
+            elif bs >= end:
+                d = bs - end
+            else:
+                d = 0
+            if d <= max_gap:
+                nearest.append((d, v))
+        if nearest:
+            nearest.sort(key=lambda x: x[0])
+            return float(nearest[0][1])
+        return None
+
+    def _local_budget(start: int, end: int) -> Optional[float]:
+        return _nearest_budget(start, end)
+
     for m in re.finditer(
         r"\b(\d+(?:\.\d+)?)\s*(?:bed(?:room)?s?|bd|br|b)\s*[/,-]?\s*(\d+(?:\.\d+)?)\s*(?:bath(?:room)?s?|ba|b)\b",
         src,
@@ -268,7 +352,14 @@ def _extract_layout_options_candidates(text: Any) -> List[Dict[str, Any]]:
         try:
             bed = int(float(m.group(1)))
             bath = float(m.group(2))
-            options.append({"bedrooms": bed, "bathrooms": bath, "property_type": None})
+            options.append(
+                {
+                    "bedrooms": bed,
+                    "bathrooms": bath,
+                    "property_type": None,
+                    "max_rent_pcm": _local_budget(m.start(), m.end()),
+                }
+            )
             used_spans.append((m.start(), m.end()))
         except Exception:
             continue
@@ -282,14 +373,28 @@ def _extract_layout_options_candidates(text: Any) -> List[Dict[str, Any]]:
     for m in re.finditer(r"\b(\d+(?:\.\d+)?)\s*(?:bed(?:room)?s?|bd|br)\b", remain, flags=re.I):
         try:
             bed = int(float(m.group(1)))
-            options.append({"bedrooms": bed, "bathrooms": None, "property_type": None})
+            options.append(
+                {
+                    "bedrooms": bed,
+                    "bathrooms": None,
+                    "property_type": None,
+                    "max_rent_pcm": _local_budget(m.start(), m.end()),
+                }
+            )
         except Exception:
             continue
 
     for m in re.finditer(r"\b(\d+(?:\.\d+)?)\s*(?:bath(?:room)?s?|ba)\b", remain, flags=re.I):
         try:
             bath = float(m.group(1))
-            options.append({"bedrooms": None, "bathrooms": bath, "property_type": None})
+            options.append(
+                {
+                    "bedrooms": None,
+                    "bathrooms": bath,
+                    "property_type": None,
+                    "max_rent_pcm": _local_budget(m.start(), m.end()),
+                }
+            )
         except Exception:
             continue
 
@@ -300,6 +405,7 @@ def _extract_layout_options_candidates(text: Any) -> List[Dict[str, Any]]:
                 "bathrooms": None,
                 "property_type": "flat",
                 "layout_tag": "studio",
+                "max_rent_pcm": _local_budget(_.start(), _.end()),
             }
         )
 
@@ -311,6 +417,7 @@ def _extract_layout_options_candidates(text: Any) -> List[Dict[str, Any]]:
                 "bathrooms": None,
                 "property_type": inferred_ptype,
                 "layout_tag": None,
+                "max_rent_pcm": None,
             }
         )
 
@@ -332,6 +439,10 @@ def _infer_layout_remove_ops_from_query(text: Any) -> Dict[str, Any]:
     remove_layout_options: List[Dict[str, Any]] = []
     if has_remove_verb:
         remove_layout_options = _extract_layout_options_candidates(src)
+        # Delete selectors should match layout identity, not budget amounts.
+        for it in remove_layout_options:
+            if isinstance(it, dict):
+                it["max_rent_pcm"] = None
     return {
         "remove_layout_options": _normalize_layout_options(remove_layout_options),
     }
@@ -851,6 +962,7 @@ def _canon_for_structured_compare(v: Any) -> Any:
                         "bathrooms": it.get("bathrooms"),
                         "property_type": it.get("property_type"),
                         "layout_tag": it.get("layout_tag"),
+                        "max_rent_pcm": it.get("max_rent_pcm"),
                     }
                 )
             return sorted(
@@ -860,6 +972,7 @@ def _canon_for_structured_compare(v: Any) -> Any:
                     -1 if x.get("bathrooms") is None else float(x.get("bathrooms")),
                     str(x.get("property_type") or ""),
                     str(x.get("layout_tag") or ""),
+                    -1 if x.get("max_rent_pcm") is None else float(x.get("max_rent_pcm")),
                 ),
             )
         out: List[str] = []
