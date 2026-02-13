@@ -81,8 +81,26 @@ def qdrant_search(
             n = getattr(resp, "count", None)
             return int(n) if n is not None else None
         except Exception:
-            # Fallback: unknown count on this backend/version.
-            return None
+            # Fallback for older qdrant-client versions: scroll and count.
+            try:
+                total = 0
+                offset = None
+                while True:
+                    points, offset = client.scroll(
+                        collection_name=QDRANT_COLLECTION,
+                        scroll_filter=qfilter,
+                        limit=512,
+                        offset=offset,
+                        with_payload=False,
+                        with_vectors=False,
+                    )
+                    total += len(points or [])
+                    if offset is None:
+                        break
+                return int(total)
+            except Exception:
+                # Still unavailable on this backend/version.
+                return None
 
     def _build_qdrant_filter(c: Optional[Dict[str, Any]]) -> Optional["models.Filter"]:
         c = c or {}
