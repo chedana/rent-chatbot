@@ -303,13 +303,24 @@ def _extract_layout_options_candidates(text: Any) -> List[Dict[str, Any]]:
             }
         )
 
+    inferred_ptype = _infer_property_type_from_query(src)
+    if inferred_ptype is not None:
+        options.append(
+            {
+                "bedrooms": None,
+                "bathrooms": None,
+                "property_type": inferred_ptype,
+                "layout_tag": None,
+            }
+        )
+
     normalized = _normalize_layout_options(options)
     return normalized
 
 
 def _infer_layout_options_from_query(text: Any) -> List[Dict[str, Any]]:
     normalized = _extract_layout_options_candidates(text)
-    return normalized if len(normalized) >= 2 else []
+    return normalized if len(normalized) >= 1 else []
 
 
 def _infer_layout_remove_ops_from_query(text: Any) -> Dict[str, Any]:
@@ -402,14 +413,11 @@ def repair_extracted_constraints(extracted: Dict[str, Any], user_text: str) -> D
     inferred_from_query = _infer_let_type_from_text(user_text)
     inferred_tenancy_months = _infer_min_tenancy_months_from_text(user_text)
     inferred_available_from = _infer_available_from_from_text(user_text)
-    inferred_bed_compact, inferred_bath_compact = _infer_bed_bath_compact_from_query(user_text)
-    inferred_bedrooms_eq = _infer_numeric_eq_from_patterns(user_text, BEDROOM_EQ_PATTERNS)
-    inferred_bathrooms_eq = _infer_float_eq_from_patterns(user_text, BATHROOM_EQ_PATTERNS)
     inferred_furnish = _infer_furnish_type_from_query(user_text)
-    inferred_property_type = _infer_property_type_from_query(user_text)
     inferred_max_rent_pcm = _infer_max_rent_pcm_from_query(user_text)
     inferred_layout_options = _infer_layout_options_from_query(user_text)
     inferred_layout_remove_ops = _infer_layout_remove_ops_from_query(user_text)
+    remove_opts = inferred_layout_remove_ops.get("remove_layout_options") or []
 
     # Rescue common slot-mapping error:
     # available_from_op gets "short/long term" text by mistake.
@@ -441,39 +449,15 @@ def repair_extracted_constraints(extracted: Dict[str, Any], user_text: str) -> D
     else:
         out["available_from"] = _parse_user_date_uk_first(out.get("available_from"))
 
-    if inferred_bed_compact is not None:
-        out["bedrooms"] = inferred_bed_compact
-        out["bedrooms_op"] = "eq"
-    elif inferred_bedrooms_eq is not None:
-        out["bedrooms"] = inferred_bedrooms_eq
-        out["bedrooms_op"] = "eq"
-
-    if inferred_bath_compact is not None:
-        out["bathrooms"] = float(inferred_bath_compact)
-        out["bathrooms_op"] = "eq"
-    elif inferred_bathrooms_eq is not None:
-        out["bathrooms"] = float(inferred_bathrooms_eq)
-        out["bathrooms_op"] = "eq"
-
     if inferred_furnish is not None:
         out["furnish_type"] = inferred_furnish
-
-    if inferred_property_type is not None:
-        out["property_type"] = inferred_property_type
 
     if inferred_max_rent_pcm is not None:
         out["max_rent_pcm"] = inferred_max_rent_pcm
 
-    if len(inferred_layout_options) >= 2:
+    if len(inferred_layout_options) >= 1 and not remove_opts:
         out["layout_options"] = inferred_layout_options
-        # Multi-layout alternatives take precedence over singular layout slots.
-        out["bedrooms"] = None
-        out["bedrooms_op"] = None
-        out["bathrooms"] = None
-        out["bathrooms_op"] = None
-        out["property_type"] = None
 
-    remove_opts = inferred_layout_remove_ops.get("remove_layout_options") or []
     if remove_opts:
         out["_remove_layout_options"] = remove_opts
 
@@ -490,14 +474,10 @@ def _extract_json_obj(txt: str) -> dict:
 def _normalize_constraint_extract(obj: dict) -> dict:
     obj = obj or {}
     obj.setdefault("k", None)
-    obj.setdefault("bedrooms_op", None)
-    obj.setdefault("bathrooms", None)
-    obj.setdefault("bathrooms_op", None)
     obj.setdefault("available_from", None)
     obj.setdefault("available_from_op", None)
     obj.setdefault("furnish_type", None)
     obj.setdefault("let_type", None)
-    obj.setdefault("property_type", None)
     obj.setdefault("layout_options", [])
     obj.setdefault("min_tenancy_months", None)
     obj.setdefault("min_size_sqm", None)
@@ -589,50 +569,6 @@ def normalize_budget_to_pcm(c: dict) -> dict:
 
     return c
 def normalize_constraints(c: dict) -> dict:
-    # normalize bedrooms hard-constraint operator
-    bed_op = c.get("bedrooms_op")
-    if bed_op is not None:
-        bed_op = str(bed_op).strip().lower()
-        if bed_op in ("==", "=", "exact", "exactly", "eq"):
-            bed_op = "eq"
-        elif bed_op in (">=", "min", "minimum", "at_least", "at least", "gte"):
-            bed_op = "gte"
-        else:
-            bed_op = None
-    c["bedrooms_op"] = bed_op
-
-    if c.get("bedrooms") is not None:
-        try:
-            c["bedrooms"] = int(float(c["bedrooms"]))
-        except:
-            c["bedrooms"] = None
-
-    # default to strict equality when bedrooms is set but operator is absent
-    if c.get("bedrooms") is not None and c.get("bedrooms_op") is None:
-        c["bedrooms_op"] = "eq"
-
-    # normalize bathrooms hard-constraint operator
-    op = c.get("bathrooms_op")
-    if op is not None:
-        op = str(op).strip().lower()
-        if op in ("==", "=", "exact", "exactly", "eq"):
-            op = "eq"
-        elif op in (">=", "min", "minimum", "at_least", "at least", "gte"):
-            op = "gte"
-        else:
-            op = None
-    c["bathrooms_op"] = op
-
-    if c.get("bathrooms") is not None:
-        try:
-            c["bathrooms"] = float(c["bathrooms"])
-        except:
-            c["bathrooms"] = None
-
-    # default to strict equality when bathrooms is set but operator is absent
-    if c.get("bathrooms") is not None and c.get("bathrooms_op") is None:
-        c["bathrooms_op"] = "eq"
-
     if c.get("available_from") is not None:
         c["available_from"] = _parse_user_date_uk_first(c.get("available_from"))
     c["available_from_op"] = None
@@ -650,10 +586,6 @@ def normalize_constraints(c: dict) -> dict:
         furn = None
     c["furnish_type"] = furn
     c["let_type"] = _norm_cat_text(c.get("let_type"))
-    ptype = _norm_property_type_value(c.get("property_type"))
-    if ptype not in {"flat", "house", "other"}:
-        ptype = None
-    c["property_type"] = ptype
     c["layout_options"] = _normalize_layout_options(c.get("layout_options") or [])
 
     if c.get("min_tenancy_months") is not None:
@@ -709,14 +641,9 @@ def merge_constraints(old: Optional[dict], new: dict) -> dict:
     # scalar fields: new overrides if not null
     for key in [
         "max_rent_pcm",
-        "bedrooms",
-        "bedrooms_op",
-        "bathrooms",
-        "bathrooms_op",
         "available_from",
         "furnish_type",
         "let_type",
-        "property_type",
         "min_tenancy_months",
         "min_size_sqm",
         "min_size_sqft",
@@ -769,10 +696,8 @@ def summarize_constraint_changes(old_c: Optional[dict], new_c: dict) -> str:
     new_c = new_c or {}
     keys = [
         "max_rent_pcm",
-        "bedrooms", "bedrooms_op",
-        "bathrooms", "bathrooms_op",
         "available_from",
-        "furnish_type", "let_type", "property_type",
+        "furnish_type", "let_type",
         "min_tenancy_months", "min_size_sqm",
         "k",
     ]
@@ -827,10 +752,8 @@ def compact_constraints_view(c: Optional[dict]) -> dict:
     out = {}
     keep_keys = [
         "max_rent_pcm",
-        "bedrooms", "bedrooms_op",
-        "bathrooms", "bathrooms_op",
         "available_from",
-        "furnish_type", "let_type", "property_type", "layout_options",
+        "furnish_type", "let_type", "layout_options",
         "min_tenancy_months", "min_size_sqm",
         "location_keywords",
         "k",

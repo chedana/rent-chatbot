@@ -179,13 +179,8 @@ def _score_intent_group(
 
 HIGH_RISK_STRUCTURED_FIELDS = {
     "max_rent_pcm",
-    "bedrooms",
-    "bedrooms_op",
-    "bathrooms",
-    "bathrooms_op",
     "available_from",
     "let_type",
-    "property_type",
     "layout_options",
     "min_tenancy_months",
     "min_size_sqm",

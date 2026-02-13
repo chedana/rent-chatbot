@@ -24,7 +24,6 @@ from internal_helpers import (
 )
 from helpers import (
     _canon_for_structured_compare,
-    _norm_property_type_value,
     _norm_furnish_value,
     _normalize_for_structured_policy,
     _safe_text,
@@ -108,14 +107,9 @@ def split_query_signals(
     return {
         "hard_constraints": {
             "max_rent_pcm": c.get("max_rent_pcm"),
-            "bedrooms": c.get("bedrooms"),
-            "bedrooms_op": c.get("bedrooms_op"),
-            "bathrooms": c.get("bathrooms"),
-            "bathrooms_op": c.get("bathrooms_op"),
             "available_from": c.get("available_from"),
             "furnish_type": c.get("furnish_type"),
             "let_type": c.get("let_type"),
-            "property_type": c.get("property_type"),
             "layout_options": c.get("layout_options") or [],
             "min_tenancy_months": c.get("min_tenancy_months"),
             "min_size_sqm": c.get("min_size_sqm"),
@@ -143,26 +137,12 @@ def build_stage_a_query(signals: Dict[str, Any], user_in: str) -> str:
     hard = signals.get("hard_constraints", {}) or {}
 
     # Keep hard hints in Stage A retrieval to improve recall coverage.
-    if hard.get("bedrooms") is not None:
-        op = str(hard.get("bedrooms_op") or "eq").lower()
-        if op == "gte":
-            parts.append(f"at least {int(float(hard.get('bedrooms')))} bedroom")
-        else:
-            parts.append(f"{int(float(hard.get('bedrooms')))} bedroom")
-    if hard.get("bathrooms") is not None:
-        op = str(hard.get("bathrooms_op") or "eq").lower()
-        if op == "gte":
-            parts.append(f"at least {float(hard.get('bathrooms')):g} bathroom")
-        else:
-            parts.append(f"{float(hard.get('bathrooms')):g} bathroom")
     if hard.get("max_rent_pcm") is not None:
         parts.append(f"under {int(float(hard.get('max_rent_pcm')))} pcm")
     if hard.get("furnish_type"):
         parts.append(str(hard.get("furnish_type")))
     if hard.get("let_type"):
         parts.append(str(hard.get("let_type")))
-    if hard.get("property_type"):
-        parts.append(str(hard.get("property_type")))
     for opt in (hard.get("layout_options") or []):
         if not isinstance(opt, dict):
             continue
@@ -254,7 +234,7 @@ def apply_hard_filters_with_audit(df: pd.DataFrame, c: Dict[str, Any]) -> Tuple[
         use_layout_options = isinstance(layout_options, list) and len(layout_options) > 0
 
         if use_layout_options:
-            prop_val = _norm_property_type_value(r.get("property_type"))
+            prop_val = _safe_text(r.get("property_type")).lower()
             bed_val = _to_float(r.get("bedrooms"))
             bath_val = _to_float(r.get("bathrooms"))
             option_audits: List[Dict[str, Any]] = []
@@ -265,7 +245,7 @@ def apply_hard_filters_with_audit(df: pd.DataFrame, c: Dict[str, Any]) -> Tuple[
                     continue
                 req_bed = opt.get("bedrooms")
                 req_bath = opt.get("bathrooms")
-                req_prop = _norm_property_type_value(opt.get("property_type"))
+                req_prop = _safe_text(opt.get("property_type")).lower()
                 req_tag = str(opt.get("layout_tag") or "").strip().lower()
                 opt_fail: List[str] = []
 
@@ -288,7 +268,7 @@ def apply_hard_filters_with_audit(df: pd.DataFrame, c: Dict[str, Any]) -> Tuple[
                     raw_prop = _safe_text(r.get("property_type")).lower()
                     is_raw_studio = (raw_prop == "studio")
                     is_flat_zero_bed = (
-                        prop_val == "flat"
+                        (raw_prop in {"flat", "apartment", "studio"})
                         and bed_val is not None
                         and int(round(bed_val)) == 0
                     )
@@ -323,28 +303,6 @@ def apply_hard_filters_with_audit(df: pd.DataFrame, c: Dict[str, Any]) -> Tuple[
             }
             if not any_pass:
                 reasons.append("layout_options no option matched")
-
-        bed_req = c.get("bedrooms")
-        if (not use_layout_options) and bed_req is not None:
-            bed_val = _to_float(r.get("bedrooms"))
-            op = str(c.get("bedrooms_op") or "eq").lower()
-            checks["bedrooms"] = {"actual": bed_val, "required": int(bed_req), "op": op}
-            if bed_val is not None:
-                if op == "gte" and bed_val < float(bed_req):
-                    reasons.append(f"bedrooms {bed_val:g} < {float(bed_req):g}")
-                if op != "gte" and int(round(bed_val)) != int(bed_req):
-                    reasons.append(f"bedrooms {bed_val:g} != {int(bed_req)}")
-
-        bath_req = c.get("bathrooms")
-        if (not use_layout_options) and bath_req is not None:
-            bath_val = _to_float(r.get("bathrooms"))
-            op = str(c.get("bathrooms_op") or "eq").lower()
-            checks["bathrooms"] = {"actual": bath_val, "required": float(bath_req), "op": op}
-            if bath_val is not None:
-                if op == "gte" and bath_val < float(bath_req):
-                    reasons.append(f"bathrooms {bath_val:g} < {float(bath_req):g}")
-                if op != "gte" and bath_val != float(bath_req):
-                    reasons.append(f"bathrooms {bath_val:g} != {float(bath_req):g}")
 
         rent_req = c.get("max_rent_pcm")
         if rent_req is not None:
@@ -381,13 +339,6 @@ def apply_hard_filters_with_audit(df: pd.DataFrame, c: Dict[str, Any]) -> Tuple[
             checks["let_type"] = {"actual": let_val or None, "required": let_req, "op": "eq"}
             if let_val and let_val != let_req:
                 reasons.append(f"let_type '{let_val}' != '{let_req}'")
-
-        prop_req = _norm_property_type_value(c.get("property_type"))
-        if (not use_layout_options) and prop_req:
-            prop_val = _norm_property_type_value(r.get("property_type"))
-            checks["property_type"] = {"actual": prop_val or None, "required": prop_req, "op": "eq"}
-            if prop_val and prop_val != prop_req:
-                reasons.append(f"property_type '{prop_val}' != '{prop_req}'")
 
         tenancy_req = c.get("min_tenancy_months")
         if tenancy_req is not None:
@@ -534,10 +485,13 @@ def rank_stage_c(
         if hard.get("max_rent_pcm") is not None and _to_float(r.get("price_pcm")) is None:
             unknown_penalty_raw += float(UNKNOWN_PENALTY_WEIGHTS.get("price", 0.0))
             unknown_items.append("price")
-        if hard.get("bedrooms") is not None and _to_float(r.get("bedrooms")) is None:
+        layout_opts = hard.get("layout_options") or []
+        requires_bed = any(isinstance(x, dict) and x.get("bedrooms") is not None for x in layout_opts)
+        requires_bath = any(isinstance(x, dict) and x.get("bathrooms") is not None for x in layout_opts)
+        if requires_bed and _to_float(r.get("bedrooms")) is None:
             unknown_penalty_raw += float(UNKNOWN_PENALTY_WEIGHTS.get("bedrooms", 0.0))
             unknown_items.append("bedrooms")
-        if hard.get("bathrooms") is not None and _to_float(r.get("bathrooms")) is None:
+        if requires_bath and _to_float(r.get("bathrooms")) is None:
             unknown_penalty_raw += float(UNKNOWN_PENALTY_WEIGHTS.get("bathrooms", 0.0))
             unknown_items.append("bathrooms")
         if hard.get("available_from") is not None and pd.isna(pd.to_datetime(r.get("available_from"), errors="coerce")):
@@ -628,14 +582,9 @@ def rank_stage_c(
 
 STRUCTURED_FIELDS = [
     "max_rent_pcm",
-    "bedrooms",
-    "bedrooms_op",
-    "bathrooms",
-    "bathrooms_op",
     "available_from",
     "furnish_type",
     "let_type",
-    "property_type",
     "layout_options",
     "min_tenancy_months",
     "min_size_sqm",
@@ -925,24 +874,6 @@ def build_evidence_for_row(r: Dict[str, Any], c: Dict[str, Any], user_query: str
         except Exception:
             fields["within_budget"] = None
 
-    if c.get("bedrooms") is not None:
-        try:
-            b = pd.to_numeric(r.get("bedrooms"), errors="coerce")
-            fields["bedrooms"] = None if pd.isna(b) else int(float(b))
-            fields["bedrooms_required"] = int(c["bedrooms"])
-            fields["bedrooms_op"] = str(c.get("bedrooms_op") or "eq")
-        except Exception:
-            fields["bedrooms"] = None
-
-    if c.get("bathrooms") is not None:
-        try:
-            b = pd.to_numeric(r.get("bathrooms"), errors="coerce")
-            fields["bathrooms"] = None if pd.isna(b) else float(b)
-            fields["bathrooms_required"] = float(c["bathrooms"])
-            fields["bathrooms_op"] = str(c.get("bathrooms_op") or "eq")
-        except Exception:
-            fields["bathrooms"] = None
-
     if c.get("available_from") is not None:
         dt = pd.to_datetime(r.get("available_from"), errors="coerce")
         fields["available_from"] = None if pd.isna(dt) else dt.date().isoformat()
@@ -1079,15 +1010,10 @@ def run_chat():
                         "k": n,
                         "location_keywords": [],
                         "max_rent_pcm": None,
-                        "bedrooms": None,
-                        "bedrooms_op": None,
-                        "bathrooms": None,
-                        "bathrooms_op": None,
                         "available_from": None,
                         "available_from_op": None,
                         "furnish_type": None,
                         "let_type": None,
-                        "property_type": None,
                         "layout_options": [],
                         "min_tenancy_months": None,
                         "min_size_sqm": None,

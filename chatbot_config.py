@@ -10,14 +10,9 @@ EXTRACT_SYSTEM = """You output STRICT JSON only (no markdown, no explanation).
 Schema:
 {
   "max_rent_pcm": number|null,
-  "bedrooms": int|null,
-  "bedrooms_op": string|null,
-  "bathrooms": number|null,
-  "bathrooms_op": string|null,
   "available_from": string|null,
   "furnish_type": string|null,
   "let_type": string|null,
-  "property_type": string|null,
   "layout_options": [{"bedrooms": int|null, "bathrooms": number|null, "property_type": string|null, "layout_tag": string|null}],
   "min_tenancy_months": number|null,
   "min_size_sqm": number|null,
@@ -27,22 +22,12 @@ Schema:
 }
 Rules:
 - location_keywords are place names/areas/postcodes (e.g., "Canary Wharf", "E14", "Shoreditch").
-- bedrooms_op must be one of: "eq", "gte", or null.
-- Set bedrooms/bedrooms_op only for hard constraints:
-  - "at least/minimum/>= X bedrooms" -> {"bedrooms": X, "bedrooms_op": "gte"}
-  - "exactly/only X bedrooms" -> {"bedrooms": X, "bedrooms_op": "eq"}
-  - soft wording (prefer/ideally/nice to have) -> bedrooms = null, bedrooms_op = null
-- bathrooms_op must be one of: "eq", "gte", or null.
-- Set bathrooms/bathrooms_op only for hard constraints:
-  - "at least/minimum/>= X bathrooms" -> {"bathrooms": X, "bathrooms_op": "gte"}
-  - "exactly/only X bathrooms" -> {"bathrooms": X, "bathrooms_op": "eq"}
-  - soft wording (prefer/ideally/nice to have) -> bathrooms = null, bathrooms_op = null
 - available_from should be an ISO date string "YYYY-MM-DD" when possible.
 - available_from means user's latest move-in date.
 - Do not output available_from_op.
 - furnish_type should be one of: "furnished", "unfurnished", "part-furnished", or null.
 - let_type examples: "long term", "short term", or null.
-- property_type examples: "flat", "house", "other", or null.
+- Use layout_options as the only layout constraint representation.
 - layout_options is for explicit layout alternatives (OR set). Each item is one acceptable layout option.
   - layout_tag currently supports: "studio" (optional).
   Examples:
@@ -50,7 +35,7 @@ Rules:
   - "studio and 1 bed" -> [{"bedrooms":null,"bathrooms":null,"property_type":"flat","layout_tag":"studio"},{"bedrooms":1,"bathrooms":null,"property_type":null,"layout_tag":null}]
   - "1b1b 2b1b" -> [{"bedrooms":1,"bathrooms":1,"property_type":null,"layout_tag":null},{"bedrooms":2,"bathrooms":1,"property_type":null,"layout_tag":null}]
   - "1b1b/2b1b" -> same as above.
-  - If only one layout is requested (not alternatives), leave layout_options as [] and use the scalar fields.
+  - If only one layout is requested, still output one item in layout_options.
 - min_tenancy_months is numeric months (e.g., 6, 12) when user specifies tenancy term.
 - size constraints:
   - "at least X sqm/sq m/m2" -> min_size_sqm = X
@@ -82,14 +67,9 @@ Schema:
 {
   "constraints": {
     "max_rent_pcm": number|null,
-    "bedrooms": int|null,
-    "bedrooms_op": string|null,
-    "bathrooms": number|null,
-    "bathrooms_op": string|null,
     "available_from": string|null,
     "furnish_type": string|null,
     "let_type": string|null,
-    "property_type": string|null,
     "layout_options": [{"bedrooms": int|null, "bathrooms": number|null, "property_type": string|null, "layout_tag": string|null}],
     "min_tenancy_months": number|null,
     "min_size_sqm": number|null,
@@ -106,8 +86,7 @@ Schema:
 Rules:
 - constraints: extract hard constraints only.
 - semantic_terms: extract phrase-level semantic intents.
-- For multiple explicit layout alternatives (e.g., "1 bed and 2 bed", "studio and 1 bed", "1b1b 2b1b"), put them into constraints.layout_options.
-- If only one layout is requested (not alternatives), keep constraints.layout_options as [] and use scalar layout fields.
+- For any explicit layout request (single or multiple), put them into constraints.layout_options.
 - Keep named entities as full phrases (e.g., "Seven Mills Primary School", "Heron Quays Station").
 - Do NOT put hard constraints into semantic_terms (budget, bedroom count, property type, strict location filters).
 - Do NOT split one entity into component words.
