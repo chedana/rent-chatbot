@@ -13,7 +13,7 @@ cd "${APP_DIR}"
 export RENT_QDRANT_PATH="${RENT_QDRANT_PATH:-/workspace/rent-chatbot/artifacts/qdrant_local}"
 export RENT_QDRANT_COLLECTION="${RENT_QDRANT_COLLECTION:-rent_listings}"
 export RENT_QDRANT_ENABLE_PREFILTER="${RENT_QDRANT_ENABLE_PREFILTER:-1}"
-export RENT_PREF_VECTOR_PATH="${RENT_PREF_VECTOR_PATH:-/workspace/rent-chatbot/artifacts/qdrant_local/collection/rent_listings/pref_vectors.parquet}"
+export RENT_PREF_VECTOR_PATH="${RENT_PREF_VECTOR_PATH:-/workspace/rent-chatbot/artifacts/features/pref_vectors.parquet}"
 
 # Retrieval / structured policy
 export RENT_RECALL="${RENT_RECALL:-1000}"
