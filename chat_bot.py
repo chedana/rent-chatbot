@@ -1193,6 +1193,30 @@ def format_listing_row_debug(r: Dict[str, Any], i: int) -> str:
             bits.append("   " + f"freshness_calc: {freshness_detail}")
         if penalty_detail:
             bits.append("   " + f"penalty_calc: {penalty_detail}")
+        pref_ev_raw = r.get("preference_evidence")
+        pref_ev: List[Dict[str, Any]] = []
+        if isinstance(pref_ev_raw, list):
+            pref_ev = [x for x in pref_ev_raw if isinstance(x, dict)]
+        elif isinstance(pref_ev_raw, str):
+            s = pref_ev_raw.strip()
+            if s:
+                try:
+                    obj = json.loads(s)
+                    if isinstance(obj, list):
+                        pref_ev = [x for x in obj if isinstance(x, dict)]
+                except Exception:
+                    pref_ev = []
+        if pref_ev:
+            bits.append("   preference_top_matches:")
+            for item in pref_ev:
+                it = _safe_text(item.get("intent"))
+                field = _safe_text(item.get("field"))
+                text = _safe_text(item.get("text"))
+                sim = _to_float(item.get("sim"))
+                if sim is None:
+                    bits.append(f"   - pref='{it}' | field={field} | text={text[:120]}")
+                else:
+                    bits.append(f"   - pref='{it}' | field={field} | sim={sim:.4f} | text={text[:120]}")
 
     evidence = r.get("evidence")
     if isinstance(evidence, dict) and evidence:
