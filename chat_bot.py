@@ -347,14 +347,16 @@ def apply_hard_filters_with_audit(df: pd.DataFrame, c: Dict[str, Any]) -> Tuple[
 
         avail_req = c.get("available_from")
         if avail_req is not None:
-            listing_dt = pd.to_datetime(r.get("available_from"), errors="coerce")
+            listing_raw = r.get("available_from")
+            listing_now = _is_available_now(listing_raw)
+            listing_dt = _parse_available_from_date(listing_raw)
             req_dt = pd.to_datetime(avail_req, errors="coerce")
             checks["available_from"] = {
-                "actual": None if pd.isna(listing_dt) else listing_dt.date().isoformat(),
+                "actual": "now" if listing_now else (None if pd.isna(listing_dt) else listing_dt.date().isoformat()),
                 "required": None if pd.isna(req_dt) else req_dt.date().isoformat(),
-                "op": "lte",
+                "op": "now_pass" if listing_now else "lte",
             }
-            if pd.notna(listing_dt) and pd.notna(req_dt) and listing_dt > req_dt:
+            if (not listing_now) and pd.notna(listing_dt) and pd.notna(req_dt) and listing_dt > req_dt:
                 reasons.append(
                     f"available_from {listing_dt.date().isoformat()} > {req_dt.date().isoformat()}"
                 )
@@ -490,6 +492,21 @@ def _score_freshness(raw_added_date: Any) -> Tuple[float, str]:
     half_life = max(1.0, float(FRESHNESS_HALF_LIFE_DAYS))
     score = math.exp(-math.log(2.0) * (float(age_days) / half_life))
     return float(score), f"age_days={age_days};half_life={half_life:.1f};score={score:.4f}"
+
+
+def _parse_available_from_date(v: Any) -> pd.Timestamp:
+    s = _safe_text(v).strip()
+    if not s:
+        return pd.NaT
+    lowered = s.lower()
+    if lowered in {"now", "available now", "immediately", "immediate"}:
+        return pd.Timestamp(datetime.utcnow().date())
+    return pd.to_datetime(s, errors="coerce", dayfirst=True)
+
+
+def _is_available_now(v: Any) -> bool:
+    s = _safe_text(v).strip().lower()
+    return s in {"now", "available now", "immediately", "immediate"}
 
 
 _PREF_VECTOR_STORE: Optional[Dict[str, Dict[str, Any]]] = None
@@ -797,7 +814,7 @@ def rank_stage_c(
             _add_unknown("bathrooms")
         if requires_prop and not _safe_text(r.get("property_type")).strip():
             _add_unknown("property_type")
-        if hard.get("available_from") is not None and pd.isna(pd.to_datetime(r.get("available_from"), errors="coerce")):
+        if hard.get("available_from") is not None and pd.isna(_parse_available_from_date(r.get("available_from"))):
             _add_unknown("available_from")
 
         furnish_req = _norm_furnish_value(hard.get("furnish_type"))
@@ -1273,7 +1290,7 @@ def build_evidence_for_row(r: Dict[str, Any], c: Dict[str, Any], user_query: str
             fields["within_budget"] = None
 
     if c.get("available_from") is not None:
-        dt = pd.to_datetime(r.get("available_from"), errors="coerce")
+        dt = _parse_available_from_date(r.get("available_from"))
         fields["available_from"] = None if pd.isna(dt) else dt.date().isoformat()
         fields["available_required"] = str(c["available_from"])
         fields["available_op"] = "lte"
@@ -1305,7 +1322,7 @@ def build_evidence_for_row(r: Dict[str, Any], c: Dict[str, Any], user_query: str
     fields["price_pcm"] = None if pd.isna(pd.to_numeric(r.get("price_pcm"), errors="coerce")) else float(pd.to_numeric(r.get("price_pcm"), errors="coerce"))
     fields["bedrooms"] = None if pd.isna(pd.to_numeric(r.get("bedrooms"), errors="coerce")) else int(float(pd.to_numeric(r.get("bedrooms"), errors="coerce")))
     fields["bathrooms"] = None if pd.isna(pd.to_numeric(r.get("bathrooms"), errors="coerce")) else float(pd.to_numeric(r.get("bathrooms"), errors="coerce"))
-    dt_any = pd.to_datetime(r.get("available_from"), errors="coerce")
+    dt_any = _parse_available_from_date(r.get("available_from"))
     fields["available_from"] = None if pd.isna(dt_any) else dt_any.date().isoformat()
 
     ev["fields"] = fields
