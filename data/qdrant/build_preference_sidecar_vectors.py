@@ -14,7 +14,7 @@ SOURCE_PATH = os.environ.get(
 )
 OUTPUT_PATH = os.environ.get(
     "RENT_PREF_VECTOR_PATH",
-    os.path.join(ROOT_DIR, "artifacts", "features", "pref_vectors.parquet"),
+    os.path.join(ROOT_DIR, "artifacts", "qdrant_local", "collection", "rent_listings", "pref_vectors.parquet"),
 )
 EMBED_MODEL = os.environ.get("RENT_EMBED_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
 BATCH_SIZE = int(os.environ.get("RENT_EMBED_BATCH", "256"))
