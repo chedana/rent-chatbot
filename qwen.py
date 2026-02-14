@@ -1,4 +1,5 @@
 import json
+import hashlib
 from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
@@ -278,6 +279,146 @@ def _normalize_risk_order(risks: List[Any]) -> List[str]:
     return dedup[:3]
 
 
+def _infer_unknown_risks_from_row(row: Dict[str, Any], max_items: int = 2) -> List[str]:
+    listing_key = _safe_text(row.get("listing_id")) or _safe_text(row.get("url")) or _safe_text(row.get("title"))
+    rules = [
+        ("bedrooms", "bedrooms", 4, "HIGH: Bedroom count is not confirmed. Core layout fit must be verified with agent."),
+        ("bathrooms", "bathrooms", 4, "HIGH: Bathroom count is not confirmed. Core layout fit must be verified with agent."),
+        ("availability_date", "available_from", 3, "HIGH: Move-in date is not confirmed. Start date risk may block planning."),
+        ("lease_term_options", "min_tenancy", 3, "HIGH: Lease term details are unclear. Contract fit is not verifiable."),
+        ("security_deposit_rule", "deposit", 3, "HIGH: Deposit rules are unclear. Refund/deduction risk remains unknown."),
+        ("utilities_included", "council_tax", 2, "MEDIUM: Utility or council tax scope is unclear. Monthly total cost may change."),
+        ("furnished_or_appliance_details", "furnish_type", 2, "MEDIUM: Furnishing details are unclear. Move-in readiness is uncertain."),
+        ("size", "size_sqm", 1, "LOW: Unit size is not explicit. Space fit to query is uncertain."),
+        ("property_type", "property_type", 1, "LOW: Property-type details need confirmation. Layout expectations may differ."),
+    ]
+    unknown_vals = {"", "ask agent", "unknown", "n/a", "na", "not provided", "not known"}
+    candidates: List[Tuple[int, str]] = []
+    for key, field, priority, msg in rules:
+        if key == "size":
+            raw_sqm = _safe_text(row.get("size_sqm")).strip().lower()
+            raw_sqft = _safe_text(row.get("size_sqft")).strip().lower()
+            if raw_sqm in unknown_vals and raw_sqft in unknown_vals:
+                candidates.append((priority, msg))
+            continue
+        raw = _safe_text(row.get(field)).strip().lower()
+        if raw in unknown_vals:
+            candidates.append((priority, msg))
+
+    if not candidates:
+        return []
+
+    # Important items first; for same priority, rotate by listing hash for slight variety.
+    candidates.sort(key=lambda x: x[0], reverse=True)
+    groups: Dict[int, List[str]] = {}
+    for p, m in candidates:
+        groups.setdefault(int(p), []).append(m)
+    salt = listing_key or "listing"
+    seed = int(hashlib.md5(salt.encode("utf-8")).hexdigest(), 16)
+    msgs: List[str] = []
+    for p in sorted(groups.keys(), reverse=True):
+        bucket = groups[p]
+        if len(bucket) > 1:
+            off = seed % len(bucket)
+            bucket = bucket[off:] + bucket[:off]
+        msgs.extend(bucket)
+
+    out: List[str] = []
+    seen = set()
+    for msg in msgs:
+        k = msg.lower()
+        if k in seen:
+            continue
+        seen.add(k)
+        out.append(msg)
+        if len(out) >= max_items:
+            break
+    return out
+
+
+def _is_unknown_value(v: Any) -> bool:
+    s = _safe_text(v).strip().lower()
+    return s in {"", "ask agent", "unknown", "n/a", "na", "not provided", "not known"}
+
+
+def _build_combined_quality_risk(row: Dict[str, Any], threshold: float = 0.60) -> Optional[str]:
+    missing_core: List[str] = []
+    if _is_unknown_value(row.get("bedrooms")):
+        missing_core.append("bedroom count")
+    if _is_unknown_value(row.get("bathrooms")):
+        missing_core.append("bathroom count")
+    if _is_unknown_value(row.get("available_from")):
+        missing_core.append("move-in date")
+    if _is_unknown_value(row.get("min_tenancy")):
+        missing_core.append("lease term")
+
+    sim = _extract_max_soft_similarity(row)
+    soft_weak = sim is not None and sim < float(threshold)
+    if not missing_core and not soft_weak:
+        return None
+
+    if missing_core and soft_weak:
+        return (
+            f"HIGH: Key fit fields need confirmation ({', '.join(missing_core)}), and soft-preference match is weak "
+            f"(similarity {sim:.2f} < {threshold:.2f}). Confirm suitability with agent before final shortlist."
+        )
+    if missing_core:
+        return (
+            f"HIGH: Key fit fields need confirmation ({', '.join(missing_core)}). "
+            "Core suitability is uncertain until agent confirmation."
+        )
+    return (
+        f"MEDIUM: Soft-preference match is weak (similarity {sim:.2f} < {threshold:.2f}). "
+        "Confirm priority preferences with agent."
+    )
+
+
+def _extract_max_soft_similarity(row: Dict[str, Any]) -> Optional[float]:
+    raw = row.get("preference_evidence")
+    items: List[Dict[str, Any]] = []
+    if isinstance(raw, list):
+        items = [x for x in raw if isinstance(x, dict)]
+    elif isinstance(raw, str):
+        s = raw.strip()
+        if s:
+            try:
+                obj = json.loads(s)
+                if isinstance(obj, list):
+                    items = [x for x in obj if isinstance(x, dict)]
+            except Exception:
+                items = []
+    sims: List[float] = []
+    for x in items:
+        sv = _to_float(x.get("sim"))
+        if sv is not None:
+            sims.append(float(sv))
+    if sims:
+        return max(sims)
+    ps = _to_float(row.get("preference_score"))
+    if ps is not None:
+        return float(ps)
+    return None
+
+
+def _infer_soft_preference_risk(row: Dict[str, Any], threshold: float = 0.60) -> Optional[str]:
+    detail = _safe_text(row.get("preference_detail")).lower()
+    source = _safe_text(row.get("preference_source")).lower()
+    hits = _safe_text(row.get("preference_hits")).strip()
+    if "no_intents" in detail or source == "no_intents":
+        return None
+    sim = _extract_max_soft_similarity(row)
+    if sim is None:
+        if hits:
+            return "MEDIUM: Soft-preference evidence is incomplete. Match quality needs agent confirmation."
+        return None
+    if sim < float(threshold):
+        return (
+            f"MEDIUM: Soft-preference match is weak (similarity {sim:.2f} < {threshold:.2f}). "
+            "Confirm priority preferences with agent."
+        )
+    return None
+
+
 def render_stage_d_for_user(stage_d_text: str, df: Optional[pd.DataFrame] = None, max_items: int = 8) -> str:
     s = _safe_text(stage_d_text).strip()
     if not s:
@@ -317,6 +458,12 @@ def render_stage_d_for_user(stage_d_text: str, df: Optional[pd.DataFrame] = None
         row = rank_to_row.get(rank)
         if row:
             lines.extend(_fmt_listing_line_from_df(rank, row))
+            combined_quality_risk = _build_combined_quality_risk(row, threshold=0.60)
+            if combined_quality_risk:
+                risks = _normalize_risk_order([combined_quality_risk] + risks)
+            if len(risks) < 2:
+                unknown_extra = _infer_unknown_risks_from_row(row, max_items=max(0, 2 - len(risks)))
+                risks = _normalize_risk_order(risks + unknown_extra)
         else:
             title = _safe_text(item.get("title")) or "(no title)"
             lines.append(f"{rank}. {title}")

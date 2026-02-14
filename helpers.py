@@ -867,6 +867,22 @@ def normalize_constraints(c: dict) -> dict:
         c["min_size_sqm"] = float(c["min_size_sqft"]) * 0.092903
     c.pop("min_size_sqft", None)
 
+    # Keep original surface text but dedupe by normalized form, so variants
+    # like "king's cross" and "kings cross" collapse to one constraint.
+    locs = c.get("location_keywords") or []
+    seen_loc = set()
+    norm_locs: List[str] = []
+    for x in locs:
+        raw = str(x).strip()
+        if not raw:
+            continue
+        k = _normalize_location_keyword(raw)
+        if not k or k in seen_loc:
+            continue
+        seen_loc.add(k)
+        norm_locs.append(raw)
+    c["location_keywords"] = norm_locs
+
     return c
 
 def merge_constraints(old: Optional[dict], new: dict) -> dict:
@@ -924,7 +940,9 @@ def merge_constraints(old: Optional[dict], new: dict) -> dict:
             s = str(x).strip()
             if not s:
                 continue
-            k = s.lower()
+            k = _normalize_location_keyword(s)
+            if not k:
+                continue
             if k in seen:
                 continue
             seen.add(k)
@@ -1054,6 +1072,24 @@ def _safe_text(v: Any) -> str:
     s = str(v).strip()
     if s.lower() in ("", "nan", "none", "ask agent"):
         return ""
+    return s
+
+
+def _normalize_location_keyword(v: Any) -> str:
+    s = _safe_text(v).lower()
+    if not s:
+        return ""
+    s = (
+        s.replace("’", "'")
+        .replace("‘", "'")
+        .replace("`", "'")
+        .replace("-", " ")
+        .replace("_", " ")
+    )
+    # king's -> kings
+    s = s.replace("'", "")
+    s = re.sub(r"[^a-z0-9\s]", " ", s)
+    s = re.sub(r"\s+", " ", s).strip()
     return s
 
 

@@ -29,6 +29,7 @@ from internal_helpers import (
 from helpers import (
     _canon_for_structured_compare,
     _norm_furnish_value,
+    _normalize_location_keyword,
     _normalize_for_structured_policy,
     _safe_text,
     _to_float,
@@ -89,7 +90,14 @@ def split_query_signals(
     semantic_parse_source: str = "llm",
 ) -> Dict[str, Any]:
     c = c or {}
-    location_intent = [str(x).strip() for x in (c.get("location_keywords") or []) if str(x).strip()]
+    location_intent = []
+    for x in (c.get("location_keywords") or []):
+        raw = str(x).strip()
+        if not raw:
+            continue
+        norm = _normalize_location_keyword(raw)
+        if norm:
+            location_intent.append(norm)
 
     model_terms = precomputed_semantic_terms or {
         "transit_terms": [],
@@ -727,7 +735,11 @@ def rank_stage_c(
     transit_terms = signals.get("topic_preferences", {}).get("transit_terms", [])
     school_terms = signals.get("topic_preferences", {}).get("school_terms", [])
     pref_terms = signals.get("general_semantic", [])
-    location_terms = [x.lower() for x in signals.get("location_intent", [])]
+    location_terms = []
+    for x in signals.get("location_intent", []):
+        t = _normalize_location_keyword(x)
+        if t:
+            location_terms.append(t)
 
     out["transit_score"] = 0.0
     out["school_score"] = 0.0
@@ -765,7 +777,9 @@ def rank_stage_c(
         schools_text = " ; ".join(schools_items)
 
         pref_text = " ".join([desc, feats]).strip()
-        loc_text = " ".join([title, address, desc, feats, stations_text, schools_text]).lower()
+        loc_text = _normalize_location_keyword(
+            " ".join([title, address, desc, feats, stations_text, schools_text])
+        )
 
         candidates = _collect_value_candidates(r)
         transit_score, transit_hits, transit_group_detail, transit_evidence = _score_intent_group(
