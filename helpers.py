@@ -203,6 +203,14 @@ def _infer_property_type_from_query(text: Any) -> Optional[str]:
     for pattern, mapped in PROPERTY_TYPE_QUERY_PATTERNS:
         if pattern.search(src):
             return mapped
+    # Fallback: tolerate misconfigured pattern tables and catch core intent words.
+    if re.search(r"\b(flat|flats|apartment|apartments|apt|apts)\b", src):
+        return "flat"
+    if re.search(
+        r"\b(house|detached|semi[- ]?detached|town\s*house|terraced|mews|cottage|bungalow)\b",
+        src,
+    ):
+        return "house"
     return None
 
 
@@ -410,16 +418,33 @@ def _extract_layout_options_candidates(text: Any) -> List[Dict[str, Any]]:
         )
 
     inferred_ptype = _infer_property_type_from_query(src)
-    if inferred_ptype is not None:
-        options.append(
-            {
-                "bedrooms": None,
-                "bathrooms": None,
-                "property_type": inferred_ptype,
-                "layout_tag": None,
-                "max_rent_pcm": None,
-            }
+    has_explicit_nonstudio_ptype = bool(
+        re.search(
+            r"\b(flat|flats|apartment|apartments|apt|apts|house|detached|semi[- ]?detached|town\s*house|terraced|mews|cottage|bungalow)\b",
+            src,
         )
+    )
+    if inferred_ptype is not None:
+        # If layout options already exist, treat explicit property type as a shared
+        # constraint on those options (instead of creating a new OR branch).
+        if options and has_explicit_nonstudio_ptype:
+            for it in options:
+                if not isinstance(it, dict):
+                    continue
+                if _safe_text(it.get("layout_tag")).lower() == "studio":
+                    continue
+                if not _safe_text(it.get("property_type")):
+                    it["property_type"] = inferred_ptype
+        elif not options:
+            options.append(
+                {
+                    "bedrooms": None,
+                    "bathrooms": None,
+                    "property_type": inferred_ptype,
+                    "layout_tag": None,
+                    "max_rent_pcm": None,
+                }
+            )
 
     normalized = _normalize_layout_options(options)
     return normalized
