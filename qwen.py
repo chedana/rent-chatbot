@@ -255,6 +255,29 @@ def _fmt_listing_line_from_df(rank: int, row: Dict[str, Any]) -> List[str]:
     return out
 
 
+def _normalize_risk_order(risks: List[Any]) -> List[str]:
+    items = [_safe_text(x) for x in (risks or []) if _safe_text(x)]
+    if not items:
+        return []
+
+    def _is_deposit_risk(s: str) -> bool:
+        t = s.lower()
+        return "deposit" in t or "upfront" in t
+
+    deposit_items = [x for x in items if _is_deposit_risk(x)]
+    non_deposit_items = [x for x in items if not _is_deposit_risk(x)]
+    ordered = non_deposit_items + deposit_items
+    dedup: List[str] = []
+    seen = set()
+    for x in ordered:
+        k = x.strip().lower()
+        if not k or k in seen:
+            continue
+        seen.add(k)
+        dedup.append(x)
+    return dedup[:3]
+
+
 def render_stage_d_for_user(stage_d_text: str, df: Optional[pd.DataFrame] = None, max_items: int = 8) -> str:
     s = _safe_text(stage_d_text).strip()
     if not s:
@@ -287,7 +310,8 @@ def render_stage_d_for_user(stage_d_text: str, df: Optional[pd.DataFrame] = None
         rank = int(rank_raw) if isinstance(rank_raw, (int, float)) else shown + 1
         reason = _safe_text(item.get("summary_reason"))
         dep_risk = _safe_text(item.get("deposit_risk_level"))
-        risks = item.get("risk_flags") if isinstance(item.get("risk_flags"), list) else []
+        risks_raw = item.get("risk_flags") if isinstance(item.get("risk_flags"), list) else []
+        risks = _normalize_risk_order(risks_raw)
         highlights = item.get("highlights") if isinstance(item.get("highlights"), list) else []
 
         row = rank_to_row.get(rank)
