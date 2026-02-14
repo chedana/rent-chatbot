@@ -229,7 +229,33 @@ def llm_grounded_explain(
     return out, payload, txt
 
 
-def render_stage_d_for_user(stage_d_text: str, max_items: int = 8) -> str:
+def _fmt_listing_line_from_df(rank: int, row: Dict[str, Any]) -> List[str]:
+    title = _safe_text(row.get("title")) or "(no title)"
+    price = _to_float(row.get("price_pcm"))
+    beds = _to_float(row.get("bedrooms"))
+    baths = _to_float(row.get("bathrooms"))
+    address = _safe_text(row.get("address"))
+    url = _safe_text(row.get("url"))
+
+    line2: List[str] = []
+    if price is not None:
+        line2.append(f"£{int(round(price))}/pcm")
+    if beds is not None:
+        line2.append(f"{int(round(beds))} bed")
+    if baths is not None:
+        line2.append(f"{int(round(baths))} bath")
+    if address:
+        line2.append(address)
+
+    out = [f"{rank}. {title}"]
+    if line2:
+        out.append("   " + " | ".join(line2))
+    if url:
+        out.append("   " + url)
+    return out
+
+
+def render_stage_d_for_user(stage_d_text: str, df: Optional[pd.DataFrame] = None, max_items: int = 8) -> str:
     s = _safe_text(stage_d_text).strip()
     if not s:
         return ""
@@ -243,34 +269,36 @@ def render_stage_d_for_user(stage_d_text: str, max_items: int = 8) -> str:
 
     lines: List[str] = []
     top_k = obj.get("top_k")
-    if isinstance(top_k, int) and top_k > 0:
-        lines.append(f"Recommended Listings (Top {top_k})")
-    else:
-        lines.append("Recommended Listings")
+    header = f"Recommended Listings (Top {top_k})" if isinstance(top_k, int) and top_k > 0 else "Recommended Listings"
+    lines.append(header)
     lines.append("")
 
     shown = 0
+    rank_to_row: Dict[int, Dict[str, Any]] = {}
+    if df is not None and len(df) > 0:
+        for i, row in df.reset_index(drop=True).iterrows():
+            rank_to_row[int(i + 1)] = row.to_dict()
     for item in recs:
         if not isinstance(item, dict):
             continue
         if shown >= max_items:
             break
-        rank = item.get("rank")
-        lid = _safe_text(item.get("listing_id"))
-        align = _safe_text(item.get("query_alignment"))
+        rank_raw = item.get("rank")
+        rank = int(rank_raw) if isinstance(rank_raw, (int, float)) else shown + 1
         reason = _safe_text(item.get("summary_reason"))
         dep_risk = _safe_text(item.get("deposit_risk_level"))
         risks = item.get("risk_flags") if isinstance(item.get("risk_flags"), list) else []
         highlights = item.get("highlights") if isinstance(item.get("highlights"), list) else []
 
-        head = f"#{rank}" if rank is not None else f"#{shown + 1}"
-        if lid:
-            head += f" {lid}"
-        lines.append(head)
-        if align:
-            lines.append(f"Fit: {align}")
+        row = rank_to_row.get(rank)
+        if row:
+            lines.extend(_fmt_listing_line_from_df(rank, row))
+        else:
+            title = _safe_text(item.get("title")) or "(no title)"
+            lines.append(f"{rank}. {title}")
+
         if reason:
-            lines.append(f"Why it fits: {reason}")
+            lines.append(reason)
         if highlights:
             lines.append("Highlights:")
             for h in highlights[:3]:
@@ -282,14 +310,15 @@ def render_stage_d_for_user(stage_d_text: str, max_items: int = 8) -> str:
                     lines.append(f"- {claim} (evidence: \"{ev}\")")
                 elif claim:
                     lines.append(f"- {claim}")
-        if dep_risk:
-            lines.append(f"Deposit risk: {dep_risk}")
         if risks:
             lines.append("Risks:")
             for rf in risks[:3]:
                 txt = _safe_text(rf)
                 if txt:
                     lines.append(f"- {txt}")
+        elif dep_risk:
+            lines.append("Risks:")
+            lines.append(f"- {dep_risk}: Deposit-related information needs confirmation.")
         lines.append("")
         shown += 1
     return "\n".join(lines).strip()

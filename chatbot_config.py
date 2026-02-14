@@ -152,6 +152,8 @@ Risk rules:
   - LOW: deposit < 1.0 * monthly_rent
   - UNKNOWN: rent or deposit missing/unparseable
 - If ask_agent_items has unresolved entries, include at least one corresponding risk flag.
+- Risks must not be deposit-only when ask_agent_items is non-empty.
+- Vary wording across listings; avoid repeating identical risk sentences.
 - risk flag format:
   - "<Risk Level>: <Issue>. <Why it matters / what is unknown>."
 

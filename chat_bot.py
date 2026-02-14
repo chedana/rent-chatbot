@@ -1753,9 +1753,12 @@ def run_chat():
             continue
 
         # print results
-        lines = [f"Top {min(k, len(df))} results:"]
+        top_lines = [f"Top {min(k, len(df))} results:"]
         for i, r in df.iterrows():
-            lines.append(format_listing_row(r.to_dict(), i + 1, view_mode=state.get("view_mode", "summary")))
+            top_lines.append(format_listing_row(r.to_dict(), i + 1, view_mode=state.get("view_mode", "summary")))
+        lines: List[str] = []
+        if state.get("view_mode", "summary") == "debug" or not ENABLE_STAGE_D_EXPLAIN:
+            lines.extend(top_lines)
         if ENABLE_STAGE_D_EXPLAIN:
             try:
                 grounded_out, stage_d_payload, stage_d_raw_output = llm_grounded_explain(
@@ -1771,7 +1774,9 @@ def run_chat():
                     if state.get("view_mode", "summary") == "debug":
                         lines.append(grounded_out)
                     else:
-                        lines.append(render_stage_d_for_user(grounded_out, max_items=min(8, len(df))))
+                        lines.append(render_stage_d_for_user(grounded_out, df=df, max_items=min(8, len(df))))
+                elif state.get("view_mode", "summary") != "debug":
+                    lines.extend(top_lines)
                 if state.get("view_mode", "summary") == "debug":
                     ev_txt = format_grounded_evidence(df=df, max_items=min(8, len(df)))
                     if ev_txt:
@@ -1780,10 +1785,13 @@ def run_chat():
                         lines.append(ev_txt)
             except Exception as e:
                 stage_d_error = str(e)
-                lines.append("")
-                lines.append(f"[warn] grounded explanation unavailable: {e}")
+                if state.get("view_mode", "summary") == "debug":
+                    lines.append("")
+                    lines.append(f"[warn] grounded explanation unavailable: {e}")
+                lines.extend(top_lines)
         else:
             stage_d_error = "disabled_by_config"
+            lines.extend(top_lines)
         append_ranking_log_entry(RANKING_LOG_PATH, 
             {
                 "timestamp": datetime.utcnow().isoformat() + "Z",
