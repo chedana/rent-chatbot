@@ -58,7 +58,7 @@
     },
     {
       "id": 3,
-      "query": "Also add Canary Wharf.",
+      "query": "Also add Waterloo.",
       "expected_update": {
         "update_scope": "patch",
         "location_update_mode": "append"
@@ -66,7 +66,7 @@
       "expected_state_after": {
         "location_keywords": [
           "Vauxhall",
-          "Canary Wharf"
+          "Waterloo"
         ],
         "layout_options": [
           {

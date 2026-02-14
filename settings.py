@@ -63,3 +63,24 @@ SEMANTIC_FIELD_WEIGHTS = {
 }
 INTENT_HIT_THRESHOLD = 0.45
 INTENT_EVIDENCE_TOP_N = 2
+
+# Stage C P0: deposit/freshness soft-scoring controls.
+W_DEPOSIT = float(os.environ.get("RENT_W_DEPOSIT", "0.10"))
+W_FRESHNESS = float(os.environ.get("RENT_W_FRESHNESS", "0.10"))
+DEPOSIT_MISSING_POLICY = os.environ.get("RENT_DEPOSIT_MISSING_POLICY", "light_penalty").strip().lower()
+if DEPOSIT_MISSING_POLICY not in {"neutral", "light_penalty"}:
+    DEPOSIT_MISSING_POLICY = "light_penalty"
+FRESHNESS_MISSING_POLICY = os.environ.get("RENT_FRESHNESS_MISSING_POLICY", "light_penalty").strip().lower()
+if FRESHNESS_MISSING_POLICY not in {"neutral", "light_penalty"}:
+    FRESHNESS_MISSING_POLICY = "light_penalty"
+DEPOSIT_SCORE_CAP = float(os.environ.get("RENT_DEPOSIT_SCORE_CAP", "3000"))
+FRESHNESS_HALF_LIFE_DAYS = float(os.environ.get("RENT_FRESHNESS_HALF_LIFE_DAYS", "14"))
+
+# Stage C P1 prep: sidecar vectors for preference rerank.
+PREF_VECTOR_ENABLED = os.environ.get("RENT_PREF_VECTOR_ENABLED", "1") != "0"
+PREF_VECTOR_PATH = os.environ.get(
+    "RENT_PREF_VECTOR_PATH",
+    os.path.join(ROOT_DIR, "artifacts", "features", "pref_vectors.parquet"),
+)
+PREF_VECTOR_FEATURE_WEIGHT = float(os.environ.get("RENT_PREF_VECTOR_FEATURE_WEIGHT", "0.80"))
+PREF_VECTOR_DESCRIPTION_WEIGHT = float(os.environ.get("RENT_PREF_VECTOR_DESCRIPTION_WEIGHT", "0.60"))

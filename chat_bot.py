@@ -1,5 +1,7 @@
 import re
 import json
+import math
+import os
 from datetime import datetime
 from urllib.parse import urlparse
 from typing import Dict, Any, List, Tuple, Optional
@@ -20,6 +22,7 @@ from internal_helpers import (
     HIGH_RISK_STRUCTURED_FIELDS,
     _choose_structured_value,
     _collect_value_candidates,
+    _embed_texts_cached,
     _score_intent_group,
 )
 from helpers import (
@@ -51,8 +54,16 @@ from settings import (
     ENABLE_STRUCTURED_CONFLICT_LOG,
     ENABLE_STAGE_D_EXPLAIN,
     ENABLE_STRUCTURED_TRAINING_LOG,
+    DEPOSIT_MISSING_POLICY,
+    DEPOSIT_SCORE_CAP,
+    FRESHNESS_HALF_LIFE_DAYS,
+    FRESHNESS_MISSING_POLICY,
     INTENT_EVIDENCE_TOP_N,
     INTENT_HIT_THRESHOLD,
+    PREF_VECTOR_DESCRIPTION_WEIGHT,
+    PREF_VECTOR_ENABLED,
+    PREF_VECTOR_FEATURE_WEIGHT,
+    PREF_VECTOR_PATH,
     QDRANT_COLLECTION,
     QDRANT_ENABLE_PREFILTER,
     QDRANT_LOCAL_PATH,
@@ -65,6 +76,8 @@ from settings import (
     UNKNOWN_PENALTY_CAP,
     UNKNOWN_PENALTY_WEIGHTS,
     VERBOSE_STATE_LOG,
+    W_DEPOSIT,
+    W_FRESHNESS,
 )
 
 def split_query_signals(
@@ -419,7 +432,244 @@ def compute_stagec_weights(signals: Dict[str, Any]) -> Dict[str, float]:
     else:
         base = {"transit": 0.00, "school": 0.00, "preference": 1.00}
         penalty = 0.20
-    return {**base, "penalty": penalty}
+    return {
+        **base,
+        "penalty": penalty,
+        "deposit": float(W_DEPOSIT),
+        "freshness": float(W_FRESHNESS),
+    }
+
+
+def _score_deposit(raw_deposit: Any) -> Tuple[float, str]:
+    raw = _safe_text(raw_deposit).strip()
+    if not raw:
+        if DEPOSIT_MISSING_POLICY == "neutral":
+            return 0.50, "missing->neutral(0.50)"
+        return 0.40, "missing->light_penalty(0.40)"
+    lowered = raw.lower()
+    if lowered in {"ask agent", "ask the agent", "unknown", "not provided", "not known", "n/a", "na"}:
+        if DEPOSIT_MISSING_POLICY == "neutral":
+            return 0.50, "ask_agent->neutral(0.50)"
+        return 0.40, "ask_agent->light_penalty(0.40)"
+    num_match = re.search(r"(\d+(?:\.\d+)?)", raw.replace(",", ""))
+    if not num_match:
+        if DEPOSIT_MISSING_POLICY == "neutral":
+            return 0.50, "unparseable->neutral(0.50)"
+        return 0.40, "unparseable->light_penalty(0.40)"
+    try:
+        v = max(0.0, float(num_match.group(1)))
+        cap = max(1.0, float(DEPOSIT_SCORE_CAP))
+        score = 1.0 - min(v, cap) / cap
+        return float(score), f"parsed={v:.0f};cap={cap:.0f};score={score:.4f}"
+    except Exception:
+        if DEPOSIT_MISSING_POLICY == "neutral":
+            return 0.50, "parse_error->neutral(0.50)"
+        return 0.40, "parse_error->light_penalty(0.40)"
+
+
+def _score_freshness(raw_added_date: Any) -> Tuple[float, str]:
+    raw = _safe_text(raw_added_date).strip()
+    if not raw:
+        if FRESHNESS_MISSING_POLICY == "neutral":
+            return 0.50, "missing->neutral(0.50)"
+        return 0.40, "missing->light_penalty(0.40)"
+    lowered = raw.lower()
+    today = datetime.utcnow().date()
+    if lowered in {"today", "added today"}:
+        age_days = 0
+    elif lowered in {"yesterday", "added yesterday"}:
+        age_days = 1
+    else:
+        cleaned = re.sub(r"\b(added|on|reduced)\b", " ", raw, flags=re.I)
+        dt = pd.to_datetime(cleaned, errors="coerce", dayfirst=True)
+        if pd.isna(dt):
+            if FRESHNESS_MISSING_POLICY == "neutral":
+                return 0.50, "unparseable->neutral(0.50)"
+            return 0.40, "unparseable->light_penalty(0.40)"
+        age_days = max(0, int((today - dt.date()).days))
+    half_life = max(1.0, float(FRESHNESS_HALF_LIFE_DAYS))
+    score = math.exp(-math.log(2.0) * (float(age_days) / half_life))
+    return float(score), f"age_days={age_days};half_life={half_life:.1f};score={score:.4f}"
+
+
+_PREF_VECTOR_STORE: Optional[Dict[str, Dict[str, Any]]] = None
+_PREF_VECTOR_STORE_META: str = ""
+
+
+def _json_list(v: Any) -> List[Any]:
+    if isinstance(v, list):
+        return v
+    s = _safe_text(v).strip()
+    if not s:
+        return []
+    try:
+        obj = json.loads(s)
+        return obj if isinstance(obj, list) else []
+    except Exception:
+        return []
+
+
+def _load_pref_vector_store() -> Dict[str, Dict[str, Any]]:
+    global _PREF_VECTOR_STORE, _PREF_VECTOR_STORE_META
+    if _PREF_VECTOR_STORE is not None:
+        return _PREF_VECTOR_STORE
+    store: Dict[str, Dict[str, Any]] = {}
+    if not PREF_VECTOR_ENABLED:
+        _PREF_VECTOR_STORE = store
+        _PREF_VECTOR_STORE_META = "disabled"
+        return store
+    if not PREF_VECTOR_PATH or not os.path.exists(PREF_VECTOR_PATH):
+        _PREF_VECTOR_STORE = store
+        _PREF_VECTOR_STORE_META = "missing_file"
+        return store
+    try:
+        df = pd.read_parquet(PREF_VECTOR_PATH)
+        for _, row in df.iterrows():
+            url_key = _safe_text(row.get("url"))
+            listing_key = _safe_text(row.get("listing_id"))
+            rec = {
+                "features_segments": _json_list(row.get("features_segments")),
+                "description_segments": _json_list(row.get("description_segments")),
+                "features_vecs": _json_list(row.get("features_vecs")),
+                "description_vecs": _json_list(row.get("description_vecs")),
+            }
+            if url_key:
+                store[f"url::{url_key}"] = rec
+            if listing_key:
+                store[f"listing_id::{listing_key}"] = rec
+        _PREF_VECTOR_STORE_META = f"loaded:{len(store)}"
+    except Exception as e:
+        _PREF_VECTOR_STORE_META = f"load_error:{e}"
+    _PREF_VECTOR_STORE = store
+    return store
+
+
+def _pref_vec_row_key(r: Dict[str, Any]) -> str:
+    url = _safe_text(r.get("url"))
+    if url:
+        return f"url::{url}"
+    listing_id = _safe_text(r.get("listing_id"))
+    if listing_id:
+        return f"listing_id::{listing_id}"
+    return ""
+
+
+def _score_preference_with_sidecar(
+    pref_terms: List[str],
+    row: Dict[str, Any],
+    embedder: SentenceTransformer,
+    sim_cache: Dict[str, np.ndarray],
+) -> Optional[Tuple[float, List[str], str, List[Dict[str, Any]]]]:
+    if not pref_terms:
+        return 0.0, [], "no_intents", []
+    store = _load_pref_vector_store()
+    key = _pref_vec_row_key(row)
+    rec = store.get(key)
+    if not rec:
+        return None
+
+    feat_vecs_raw = rec.get("features_vecs") or []
+    desc_vecs_raw = rec.get("description_vecs") or []
+    feat_seg = rec.get("features_segments") or []
+    desc_seg = rec.get("description_segments") or []
+
+    try:
+        feat_vecs = np.array(feat_vecs_raw, dtype="float32") if feat_vecs_raw else np.zeros((0, 0), dtype="float32")
+        desc_vecs = np.array(desc_vecs_raw, dtype="float32") if desc_vecs_raw else np.zeros((0, 0), dtype="float32")
+    except Exception:
+        return None
+
+    if feat_vecs.size == 0 and desc_vecs.size == 0:
+        return None
+
+    w_feat = max(0.0, float(PREF_VECTOR_FEATURE_WEIGHT))
+    w_desc = max(0.0, float(PREF_VECTOR_DESCRIPTION_WEIGHT))
+    if w_feat <= 0.0 and w_desc <= 0.0:
+        return None
+
+    cleaned = []
+    seen = set()
+    for i in pref_terms:
+        s = _safe_text(i).lower()
+        if not s or s in seen:
+            continue
+        seen.add(s)
+        cleaned.append(s)
+    if not cleaned:
+        return 0.0, [], "no_intents", []
+
+    q_vecs = _embed_texts_cached(embedder, cleaned, sim_cache)
+    intent_scores: List[float] = []
+    hit_terms: List[str] = []
+    details: List[str] = []
+    evidence: List[Dict[str, Any]] = []
+
+    for intent, qv in zip(cleaned, q_vecs):
+        feat_sc = 0.0
+        desc_sc = 0.0
+        feat_top: List[Tuple[float, int]] = []
+        desc_top: List[Tuple[float, int]] = []
+        k_top = 2
+
+        if feat_vecs.size > 0:
+            sims = np.dot(feat_vecs, qv)
+            sims = np.clip((sims + 1.0) / 2.0, 0.0, 1.0)
+            feat_top = sorted([(float(v), int(i)) for i, v in enumerate(sims)], key=lambda x: x[0], reverse=True)[:2]
+            if feat_top:
+                feat_sc = float(sum(v for v, _ in feat_top) / min(k_top, len(feat_top)))
+        if desc_vecs.size > 0:
+            sims = np.dot(desc_vecs, qv)
+            sims = np.clip((sims + 1.0) / 2.0, 0.0, 1.0)
+            desc_top = sorted([(float(v), int(i)) for i, v in enumerate(sims)], key=lambda x: x[0], reverse=True)[:2]
+            if desc_top:
+                desc_sc = float(sum(v for v, _ in desc_top) / min(k_top, len(desc_top)))
+
+        den = (w_feat if feat_vecs.size > 0 else 0.0) + (w_desc if desc_vecs.size > 0 else 0.0)
+        if den <= 0:
+            score = 0.0
+        else:
+            score = ((w_feat * feat_sc) + (w_desc * desc_sc)) / den
+        intent_scores.append(float(score))
+        if score >= INTENT_HIT_THRESHOLD:
+            hit_terms.append(intent)
+
+        detail_bits = [
+            f"intent='{intent}'",
+            f"score={score:.4f}",
+            f"features_top2_mean={feat_sc:.4f}",
+            f"description_top2_mean={desc_sc:.4f}",
+        ]
+        details.append("; ".join(detail_bits))
+
+        for sim, idx in feat_top:
+            text = _safe_text(feat_seg[idx]) if idx < len(feat_seg) else ""
+            evidence.append(
+                {
+                    "intent": intent,
+                    "intent_score": float(score),
+                    "field": "features",
+                    "text": text,
+                    "sim": float(sim),
+                    "weight": float(w_feat),
+                    "weighted": float(w_feat * sim),
+                }
+            )
+        for sim, idx in desc_top:
+            text = _safe_text(desc_seg[idx]) if idx < len(desc_seg) else ""
+            evidence.append(
+                {
+                    "intent": intent,
+                    "intent_score": float(score),
+                    "field": "description",
+                    "text": text,
+                    "sim": float(sim),
+                    "weight": float(w_desc),
+                    "weighted": float(w_desc * sim),
+                }
+            )
+
+    group_score = float(sum(intent_scores) / max(1, len(intent_scores)))
+    return group_score, hit_terms, " | ".join(details), evidence
 
 
 def rank_stage_c(
@@ -441,15 +691,20 @@ def rank_stage_c(
     out["transit_score"] = 0.0
     out["school_score"] = 0.0
     out["preference_score"] = 0.0
+    out["deposit_score"] = 0.0
+    out["freshness_score"] = 0.0
     out["penalty_score"] = 0.0
     out["location_hit_count"] = 0
     out["transit_hits"] = ""
     out["school_hits"] = ""
     out["preference_hits"] = ""
+    out["preference_source"] = ""
     out["penalty_reasons"] = ""
     out["transit_detail"] = ""
     out["school_detail"] = ""
     out["preference_detail"] = ""
+    out["deposit_detail"] = ""
+    out["freshness_detail"] = ""
     out["penalty_detail"] = ""
     out["transit_evidence"] = ""
     out["school_evidence"] = ""
@@ -468,9 +723,7 @@ def rank_stage_c(
         stations_text = " ; ".join(stations_items)
         schools_text = " ; ".join(schools_items)
 
-        transit_text = " ".join([stations_text, desc, feats, address]).strip()
-        school_text = " ".join([schools_text, desc, feats, address]).strip()
-        pref_text = " ".join([title, address, desc, feats]).strip()
+        pref_text = " ".join([desc, feats]).strip()
         loc_text = " ".join([title, address, desc, feats, stations_text, schools_text]).lower()
 
         candidates = _collect_value_candidates(r)
@@ -488,13 +741,24 @@ def rank_stage_c(
             embedder=embedder,
             sim_cache=sim_cache,
         )
-        pref_score, pref_hits, pref_group_detail, pref_evidence = _score_intent_group(
-            pref_terms,
-            candidates,
-            top_k=SEMANTIC_TOP_K,
-            embedder=embedder,
-            sim_cache=sim_cache,
-        )
+        if not pref_terms:
+            pref_score, pref_hits, pref_group_detail, pref_evidence = (0.0, [], "no_intents", [])
+            pref_source = "no_intents"
+        else:
+            pref_source = "sidecar_vectors"
+            sidecar_pref = _score_preference_with_sidecar(
+                pref_terms=pref_terms,
+                row=r,
+                embedder=embedder,
+                sim_cache=sim_cache,
+            )
+            if sidecar_pref is not None:
+                pref_score, pref_hits, pref_group_detail, pref_evidence = sidecar_pref
+            else:
+                pref_score, pref_hits, pref_group_detail, pref_evidence = (0.0, [], "fallback_disabled", [])
+                pref_source = "sidecar_missing_no_fallback"
+        deposit_score, deposit_detail = _score_deposit(r.get("deposit"))
+        freshness_score, freshness_detail = _score_freshness(r.get("added_date"))
         loc_hits = sum(1 for loc in location_terms if loc and loc in loc_text)
 
         penalties = []
@@ -574,11 +838,14 @@ def rank_stage_c(
         out.at[idx, "transit_score"] = float(transit_score)
         out.at[idx, "school_score"] = float(school_score)
         out.at[idx, "preference_score"] = float(pref_score)
+        out.at[idx, "deposit_score"] = float(deposit_score)
+        out.at[idx, "freshness_score"] = float(freshness_score)
         out.at[idx, "penalty_score"] = float(penalty_score)
         out.at[idx, "location_hit_count"] = int(loc_hits)
         out.at[idx, "transit_hits"] = ", ".join(transit_hits)
         out.at[idx, "school_hits"] = ", ".join(school_hits)
         out.at[idx, "preference_hits"] = ", ".join(pref_hits)
+        out.at[idx, "preference_source"] = pref_source
         out.at[idx, "penalty_reasons"] = ", ".join(penalties)
         out.at[idx, "transit_detail"] = (
             f"group_score={transit_score:.4f}; "
@@ -593,8 +860,11 @@ def rank_stage_c(
         out.at[idx, "preference_detail"] = (
             f"group_score={pref_score:.4f}; "
             f"hits=[{', '.join(pref_hits)}]; "
+            + f"source={pref_source}; "
             + pref_group_detail
         )
+        out.at[idx, "deposit_detail"] = str(deposit_detail)
+        out.at[idx, "freshness_detail"] = str(freshness_detail)
         out.at[idx, "penalty_detail"] = (
             f"sum(active_penalties)={penalty_score:.4f}; "
             f"triggers=[{', '.join(penalties)}]"
@@ -607,18 +877,24 @@ def rank_stage_c(
         weights["transit"] * out["transit_score"]
         + weights["school"] * out["school_score"]
         + weights["preference"] * out["preference_score"]
+        + weights["deposit"] * out["deposit_score"]
+        + weights["freshness"] * out["freshness_score"]
         - weights["penalty"] * out["penalty_score"]
     )
     out["score_formula"] = (
         f"final = {weights['transit']:.3f}*transit + "
         f"{weights['school']:.3f}*school + "
         f"{weights['preference']:.3f}*preference - "
-        f"{weights['penalty']:.3f}*penalty"
+        f"{weights['penalty']:.3f}*penalty + "
+        f"{weights['deposit']:.3f}*deposit + "
+        f"{weights['freshness']:.3f}*freshness"
     )
     out["w_transit"] = weights["transit"]
     out["w_school"] = weights["school"]
     out["w_preference"] = weights["preference"]
     out["w_penalty"] = weights["penalty"]
+    out["w_deposit"] = weights["deposit"]
+    out["w_freshness"] = weights["freshness"]
 
     out = out.sort_values(
         ["final_score", "location_hit_count", "qdrant_score"],
@@ -826,20 +1102,28 @@ def format_listing_row_debug(r: Dict[str, Any], i: int) -> str:
                 + f"components: transit={f(r.get('transit_score'))}, "
                 + f"school={f(r.get('school_score'))}, "
                 + f"preference={f(r.get('preference_score'))}, "
+                + f"deposit={f(r.get('deposit_score'))}, "
+                + f"freshness={f(r.get('freshness_score'))}, "
                 + f"penalty={f(r.get('penalty_score'))}"
             )
             try:
                 wt = float(r.get("w_transit", 0.0))
                 ws = float(r.get("w_school", 0.0))
                 wp = float(r.get("w_preference", 0.0))
+                wd = float(r.get("w_deposit", 0.0))
+                wf = float(r.get("w_freshness", 0.0))
                 wpen = float(r.get("w_penalty", 0.0))
                 st = float(r.get("transit_score", 0.0))
                 ss = float(r.get("school_score", 0.0))
                 sp = float(r.get("preference_score", 0.0))
+                sd = float(r.get("deposit_score", 0.0))
+                sf = float(r.get("freshness_score", 0.0))
                 spe = float(r.get("penalty_score", 0.0))
                 c_t = wt * st
                 c_s = ws * ss
                 c_p = wp * sp
+                c_d = wd * sd
+                c_f = wf * sf
                 c_pen = wpen * spe
                 bits.append(
                     "   "
@@ -847,23 +1131,28 @@ def format_listing_row_debug(r: Dict[str, Any], i: int) -> str:
                     + f"transit={wt:.3f}*{st:.4f}={c_t:.4f}, "
                     + f"school={ws:.3f}*{ss:.4f}={c_s:.4f}, "
                     + f"preference={wp:.3f}*{sp:.4f}={c_p:.4f}, "
+                    + f"deposit={wd:.3f}*{sd:.4f}={c_d:.4f}, "
+                    + f"freshness={wf:.3f}*{sf:.4f}={c_f:.4f}, "
                     + f"penalty={wpen:.3f}*{spe:.4f}={c_pen:.4f}"
                 )
                 bits.append(
                     "   "
                     + "final_calc: "
-                    + f"{c_t:.4f} + {c_s:.4f} + {c_p:.4f} - {c_pen:.4f} = "
-                    + f"{(c_t + c_s + c_p - c_pen):.4f}"
+                    + f"{c_t:.4f} + {c_s:.4f} + {c_p:.4f} + {c_d:.4f} + {c_f:.4f} - {c_pen:.4f} = "
+                    + f"{(c_t + c_s + c_p + c_d + c_f - c_pen):.4f}"
                 )
             except Exception:
                 pass
         transit_hits = str(r.get("transit_hits", "") or "").strip()
         school_hits = str(r.get("school_hits", "") or "").strip()
         pref_hits = str(r.get("preference_hits", "") or "").strip()
+        pref_source = str(r.get("preference_source", "") or "").strip()
         penalty_reasons = str(r.get("penalty_reasons", "") or "").strip()
         transit_detail = str(r.get("transit_detail", "") or "").strip()
         school_detail = str(r.get("school_detail", "") or "").strip()
         preference_detail = str(r.get("preference_detail", "") or "").strip()
+        deposit_detail = str(r.get("deposit_detail", "") or "").strip()
+        freshness_detail = str(r.get("freshness_detail", "") or "").strip()
         penalty_detail = str(r.get("penalty_detail", "") or "").strip()
         if transit_hits:
             bits.append("   " + f"transit_hits: {transit_hits}")
@@ -871,6 +1160,8 @@ def format_listing_row_debug(r: Dict[str, Any], i: int) -> str:
             bits.append("   " + f"school_hits: {school_hits}")
         if pref_hits:
             bits.append("   " + f"preference_hits: {pref_hits}")
+        if pref_source:
+            bits.append("   " + f"preference_source: {pref_source}")
         if penalty_reasons:
             bits.append("   " + f"penalty_reasons: {penalty_reasons}")
         if transit_detail:
@@ -879,6 +1170,10 @@ def format_listing_row_debug(r: Dict[str, Any], i: int) -> str:
             bits.append("   " + f"school_calc: {school_detail}")
         if preference_detail:
             bits.append("   " + f"preference_calc: {preference_detail}")
+        if deposit_detail:
+            bits.append("   " + f"deposit_calc: {deposit_detail}")
+        if freshness_detail:
+            bits.append("   " + f"freshness_calc: {freshness_detail}")
         if penalty_detail:
             bits.append("   " + f"penalty_calc: {penalty_detail}")
 
@@ -896,6 +1191,10 @@ def format_listing_row_summary(r: Dict[str, Any], i: int) -> str:
     beds = _to_float(r.get("bedrooms"))
     baths = _to_float(r.get("bathrooms"))
     final_score = _to_float(r.get("final_score"))
+    deposit_score = _to_float(r.get("deposit_score"))
+    freshness_score = _to_float(r.get("freshness_score"))
+    w_deposit = _to_float(r.get("w_deposit")) or 0.0
+    w_freshness = _to_float(r.get("w_freshness")) or 0.0
 
     transit_hits = [x.strip() for x in _safe_text(r.get("transit_hits")).split(",") if x.strip()]
     school_hits = [x.strip() for x in _safe_text(r.get("school_hits")).split(",") if x.strip()]
@@ -920,6 +1219,13 @@ def format_listing_row_summary(r: Dict[str, Any], i: int) -> str:
         parts.append(f"   Final score: {final_score:.4f}")
     if hit_terms:
         parts.append("   Because matched: " + ", ".join(hit_terms))
+    boost_bits: List[str] = []
+    if deposit_score is not None and deposit_score > 0.5 and w_deposit > 0:
+        boost_bits.append(f"deposit ({deposit_score:.2f})")
+    if freshness_score is not None and freshness_score > 0.5 and w_freshness > 0:
+        boost_bits.append(f"freshness ({freshness_score:.2f})")
+    if boost_bits:
+        parts.append("   Because boosted by " + " and ".join(boost_bits))
     if penalty_reasons:
         parts.append("   Because penalized: " + penalty_reasons[0])
     if url:
