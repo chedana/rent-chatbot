@@ -1220,15 +1220,29 @@ def format_listing_row_debug(r: Dict[str, Any], i: int) -> str:
                     pref_ev = []
         if pref_ev:
             bits.append("   preference_top_matches:")
+            grouped: Dict[str, List[Dict[str, Any]]] = {}
+            intent_order: List[str] = []
             for item in pref_ev:
                 it = _safe_text(item.get("intent"))
-                field = _safe_text(item.get("field"))
-                text = _safe_text(item.get("text"))
-                sim = _to_float(item.get("sim"))
-                if sim is None:
-                    bits.append(f"   - pref='{it}' | field={field} | text={text[:120]}")
-                else:
-                    bits.append(f"   - pref='{it}' | field={field} | sim={sim:.4f} | text={text[:120]}")
+                if it not in grouped:
+                    grouped[it] = []
+                    intent_order.append(it)
+                grouped[it].append(item)
+            for it in intent_order:
+                rows = grouped.get(it, [])
+                top_rows = sorted(
+                    rows,
+                    key=lambda x: (_to_float(x.get("sim")) if _to_float(x.get("sim")) is not None else -1.0),
+                    reverse=True,
+                )[:2]
+                for item in top_rows:
+                    field = _safe_text(item.get("field"))
+                    text = _safe_text(item.get("text"))
+                    sim = _to_float(item.get("sim"))
+                    if sim is None:
+                        bits.append(f"   - pref='{it}' | field={field} | text={text[:120]}")
+                    else:
+                        bits.append(f"   - pref='{it}' | field={field} | sim={sim:.4f} | text={text[:120]}")
 
     evidence = r.get("evidence")
     if isinstance(evidence, dict) and evidence:
