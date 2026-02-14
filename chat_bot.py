@@ -63,8 +63,6 @@ from settings import (
     PREF_VECTOR_DESCRIPTION_WEIGHT,
     PREF_VECTOR_ENABLED,
     PREF_VECTOR_FEATURE_WEIGHT,
-    PREF_MATCH_GAMMA,
-    PREF_TERM_AGG_POWER,
     PREF_VECTOR_PATH,
     QDRANT_COLLECTION,
     QDRANT_ENABLE_PREFILTER,
@@ -603,8 +601,8 @@ def _score_preference_with_sidecar(
 
     w_feat = max(0.0, float(PREF_VECTOR_FEATURE_WEIGHT))
     w_desc = max(0.0, float(PREF_VECTOR_DESCRIPTION_WEIGHT))
-    gamma = max(0.1, float(PREF_MATCH_GAMMA))
-    agg_power = max(0.1, float(PREF_TERM_AGG_POWER))
+    top1_w = 0.7
+    top2_w = 0.3
     if w_feat <= 0.0 and w_desc <= 0.0:
         return None
 
@@ -635,17 +633,19 @@ def _score_preference_with_sidecar(
         if feat_vecs.size > 0:
             sims = np.dot(feat_vecs, qv)
             sims = np.clip((sims + 1.0) / 2.0, 0.0, 1.0)
-            sims = np.power(sims, gamma)
             feat_top = sorted([(float(v), int(i)) for i, v in enumerate(sims)], key=lambda x: x[0], reverse=True)[:2]
             if feat_top:
-                feat_sc = float(sum(v for v, _ in feat_top) / min(k_top, len(feat_top)))
+                top1 = float(feat_top[0][0])
+                top2 = float(feat_top[1][0]) if len(feat_top) > 1 else top1
+                feat_sc = float(top1_w * top1 + top2_w * top2)
         if desc_vecs.size > 0:
             sims = np.dot(desc_vecs, qv)
             sims = np.clip((sims + 1.0) / 2.0, 0.0, 1.0)
-            sims = np.power(sims, gamma)
             desc_top = sorted([(float(v), int(i)) for i, v in enumerate(sims)], key=lambda x: x[0], reverse=True)[:2]
             if desc_top:
-                desc_sc = float(sum(v for v, _ in desc_top) / min(k_top, len(desc_top)))
+                top1 = float(desc_top[0][0])
+                top2 = float(desc_top[1][0]) if len(desc_top) > 1 else top1
+                desc_sc = float(top1_w * top1 + top2_w * top2)
 
         den = (w_feat if feat_vecs.size > 0 else 0.0) + (w_desc if desc_vecs.size > 0 else 0.0)
         if den <= 0:
@@ -669,9 +669,9 @@ def _score_preference_with_sidecar(
         detail_bits = [
             f"intent='{intent}'",
             f"score={score:.4f}",
-            f"features_top2_mean_gamma={feat_sc:.4f}",
-            f"description_top2_mean_gamma={desc_sc:.4f}",
-            f"gamma={gamma:.2f}",
+            f"features_field_score={feat_sc:.4f}",
+            f"description_field_score={desc_sc:.4f}",
+            f"field_agg=0.7*top1+0.3*top2",
             f"features_top2_fields=[{feat_top_show}]",
             f"description_top2_fields=[{desc_top_show}]",
         ]
@@ -704,13 +704,8 @@ def _score_preference_with_sidecar(
                 }
             )
 
-    weights = [float(max(0.0, sc) ** agg_power) for sc in intent_scores]
-    den = float(sum(weights))
-    if den > 0:
-        group_score = float(sum(sc * w for sc, w in zip(intent_scores, weights)) / den)
-    else:
-        group_score = 0.0
-    details.append(f"group_agg=weighted_mean(score, score^agg_power); agg_power={agg_power:.2f}")
+    group_score = float(sum(intent_scores) / max(1, len(intent_scores)))
+    details.append("group_agg=mean(intent_scores)")
     return group_score, hit_terms, " | ".join(details), evidence
 
 
