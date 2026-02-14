@@ -650,11 +650,23 @@ def _score_preference_with_sidecar(
         if score >= INTENT_HIT_THRESHOLD:
             hit_terms.append(intent)
 
+        feat_top_show = ", ".join(
+            f"features[{idx}]={sim:.4f}:\"{_safe_text(feat_seg[idx])[:120]}\""
+            for sim, idx in feat_top
+            if idx < len(feat_seg)
+        ) or "none"
+        desc_top_show = ", ".join(
+            f"description[{idx}]={sim:.4f}:\"{_safe_text(desc_seg[idx])[:120]}\""
+            for sim, idx in desc_top
+            if idx < len(desc_seg)
+        ) or "none"
         detail_bits = [
             f"intent='{intent}'",
             f"score={score:.4f}",
             f"features_top2_mean={feat_sc:.4f}",
             f"description_top2_mean={desc_sc:.4f}",
+            f"features_top2_fields=[{feat_top_show}]",
+            f"description_top2_fields=[{desc_top_show}]",
         ]
         details.append("; ".join(detail_bits))
 
