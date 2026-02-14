@@ -599,6 +599,10 @@ def repair_extracted_constraints(extracted: Dict[str, Any], user_text: str) -> D
     # Query text has highest confidence for these explicit phrases.
     if inferred_from_query:
         out["let_type"] = inferred_from_query
+    let_type_norm = _safe_text(out.get("let_type")).lower().replace("_", " ").replace("-", " ")
+    let_type_norm = re.sub(r"\s+", " ", let_type_norm).strip()
+    if let_type_norm not in {"short term", "long term"}:
+        out["let_type"] = None
 
     # Keep min_tenancy_months only when explicit month/year evidence exists in query text.
     # This prevents model drift like "short term" -> min_tenancy_months = 1.
@@ -796,7 +800,8 @@ def normalize_constraints(c: dict) -> dict:
     if furn not in {"furnished", "unfurnished", "part-furnished"}:
         furn = None
     c["furnish_type"] = furn
-    c["let_type"] = _norm_cat_text(c.get("let_type"))
+    let_type = _norm_cat_text(c.get("let_type"))
+    c["let_type"] = let_type if let_type in {"short term", "long term"} else None
     c["layout_options"] = _normalize_layout_options(c.get("layout_options") or [])
 
     if c.get("min_tenancy_months") is not None:
