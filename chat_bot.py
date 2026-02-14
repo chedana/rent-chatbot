@@ -16,6 +16,7 @@ from qwen import (
     llm_extract,
     llm_extract_all_signals,
     llm_grounded_explain,
+    render_stage_d_for_user,
 )
 from qdrant_search import load_stage_a_resources, stage_a_search
 from internal_helpers import (
@@ -1766,12 +1767,11 @@ def run_chat():
                 stage_d_output = grounded_out
                 if grounded_out:
                     lines.append("")
-                    lines.append("Grounded explanation:")
+                    lines.append("Recommendation summary:")
                     if state.get("view_mode", "summary") == "debug":
                         lines.append(grounded_out)
                     else:
-                        short_lines = [x for x in grounded_out.splitlines() if x.strip()][:5]
-                        lines.append("\n".join(short_lines))
+                        lines.append(render_stage_d_for_user(grounded_out, max_items=min(8, len(df))))
                 if state.get("view_mode", "summary") == "debug":
                     ev_txt = format_grounded_evidence(df=df, max_items=min(8, len(df)))
                     if ev_txt:

@@ -69,6 +69,82 @@ def llm_extract_all_signals(user_text: str, existing_constraints: Optional[dict]
     }
 
 
+def _parse_feature_items(raw: Any) -> List[str]:
+    if isinstance(raw, list):
+        return [str(x).strip() for x in raw if str(x).strip()]
+    s = _safe_text(raw).strip()
+    if not s:
+        return []
+    if s.startswith("[") and s.endswith("]"):
+        try:
+            obj = json.loads(s)
+            if isinstance(obj, list):
+                return [str(x).strip() for x in obj if str(x).strip()]
+        except Exception:
+            pass
+    if "|" in s:
+        return [x.strip() for x in s.split("|") if x.strip()]
+    return [s]
+
+
+def _extract_ask_agent_items(r: Dict[str, Any]) -> List[str]:
+    direct = r.get("ask_agent_items")
+    items: List[str] = []
+    if isinstance(direct, list):
+        items.extend([str(x).strip() for x in direct if str(x).strip()])
+    elif isinstance(direct, str):
+        s = direct.strip()
+        if s:
+            if s.startswith("[") and s.endswith("]"):
+                try:
+                    obj = json.loads(s)
+                    if isinstance(obj, list):
+                        items.extend([str(x).strip() for x in obj if str(x).strip()])
+                    elif isinstance(obj, dict):
+                        for k, v in obj.items():
+                            if str(v).strip():
+                                items.append(str(k).strip())
+                except Exception:
+                    items.extend([x.strip() for x in s.split("|") if x.strip()])
+            else:
+                items.extend([x.strip() for x in s.split("|") if x.strip()])
+    elif isinstance(direct, dict):
+        for k, v in direct.items():
+            if str(v).strip():
+                items.append(str(k).strip())
+
+    unresolved_keys = [
+        "deposit",
+        "available_from",
+        "min_tenancy",
+        "let_type",
+        "furnish_type",
+        "council_tax",
+        "property_type",
+        "size_sqft",
+        "size_sqm",
+        "bedrooms",
+        "bathrooms",
+    ]
+    for key in unresolved_keys:
+        val = _safe_text(r.get(key)).strip().lower()
+        if val in {"ask agent", "unknown", "n/a", "na", "not provided", "not known"}:
+            items.append(key)
+
+    seen = set()
+    deduped: List[str] = []
+    for x in items:
+        k = str(x).strip()
+        if not k:
+            continue
+        kl = k.lower()
+        if kl in seen:
+            continue
+        seen.add(kl)
+        deduped.append(k)
+    return deduped
+
+
 def build_grounded_candidates_payload(
     df: pd.DataFrame,
     c: Dict[str, Any],
@@ -80,44 +156,41 @@ def build_grounded_candidates_payload(
     if df is not None and len(df) > 0:
         for i, row in df.head(max_items).iterrows():
             r = row.to_dict()
-            ev = r.get("evidence") if isinstance(r.get("evidence"), dict) else {}
-            pref_ctx = ev.get("preference_context", {}) if isinstance(ev, dict) else {}
+            listing_id = _safe_text(r.get("listing_id"))
+            if not listing_id:
+                listing_id = _safe_text(r.get("url")) or f"row_{i+1}"
             rows.append(
                 {
                     "rank": int(i + 1),
+                    "listing_id": listing_id,
                     "title": _safe_text(r.get("title")),
-                    "address": _safe_text(r.get("address")),
                     "url": _safe_text(r.get("url")),
-                    "price_pcm": _to_float(r.get("price_pcm")),
-                    "bedrooms": _to_float(r.get("bedrooms")),
-                    "bathrooms": _to_float(r.get("bathrooms")),
-                    "scores": {
-                        "final_score": _to_float(r.get("final_score")),
-                        "transit_score": _to_float(r.get("transit_score")),
-                        "school_score": _to_float(r.get("school_score")),
-                        "preference_score": _to_float(r.get("preference_score")),
-                        "penalty_score": _to_float(r.get("penalty_score")),
-                    },
-                    "hits": {
-                        "transit_hits": _safe_text(r.get("transit_hits")),
-                        "school_hits": _safe_text(r.get("school_hits")),
-                        "preference_hits": _safe_text(r.get("preference_hits")),
-                        "penalty_reasons": _safe_text(r.get("penalty_reasons")),
-                    },
-                    "preference_context": pref_ctx,
-                    "fields": ev.get("fields", {}) if isinstance(ev, dict) else {},
+                    "monthly_rent": _to_float(r.get("price_pcm")),
+                    "deposit": _safe_text(r.get("deposit")),
+                    "features": _parse_feature_items(r.get("features")),
+                    "description": _safe_text(r.get("description")),
+                    "ask_agent_items": _extract_ask_agent_items(r),
                 }
             )
-    return {
-        "user_query": user_query,
-        "hard_constraints": signals.get("hard_constraints", {}) if isinstance(signals, dict) else {},
-        "semantic_preferences": {
-            "location_intent": signals.get("location_intent", []) if isinstance(signals, dict) else [],
-            "topic_preferences": signals.get("topic_preferences", {}) if isinstance(signals, dict) else {},
-            "general_semantic": signals.get("general_semantic", []) if isinstance(signals, dict) else [],
+    hard = signals.get("hard_constraints", {}) if isinstance(signals, dict) else {}
+    query_obj = {
+        "raw_query": user_query,
+        "constraints": {
+            "max_rent_pcm": hard.get("max_rent_pcm"),
+            "layout_options": hard.get("layout_options"),
+            "location_keywords": hard.get("location_keywords"),
+            "available_from": hard.get("available_from"),
+            "furnish_type": hard.get("furnish_type"),
+            "let_type": hard.get("let_type"),
+            "min_tenancy_months": hard.get("min_tenancy_months"),
+            "min_size_sqm": hard.get("min_size_sqm"),
+            "min_size_sqft": hard.get("min_size_sqft"),
         },
-        "candidates": rows,
-        "k": int(c.get("k", DEFAULT_K) or DEFAULT_K),
+    }
+    return {
+        "user_query": query_obj,
+        "top_k_candidates": rows,
+        "top_k": int(c.get("k", DEFAULT_K) or DEFAULT_K),
     }
 
 
@@ -140,7 +213,7 @@ def llm_grounded_explain(
             {
                 "role": "user",
                 "content": (
-                    "Generate grounded explanation from this JSON only:\n"
+                    "Generate Stage D recommendation summary from this JSON only:\n"
                     + json.dumps(payload, ensure_ascii=False)
                 ),
             },
@@ -148,7 +221,78 @@ def llm_grounded_explain(
         temperature=0.1,
     )
     out = txt.strip()
+    try:
+        parsed = _extract_json_obj(out)
+        out = json.dumps(parsed, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
     return out, payload, txt
+
+
+def render_stage_d_for_user(stage_d_text: str, max_items: int = 8) -> str:
+    s = _safe_text(stage_d_text).strip()
+    if not s:
+        return ""
+    try:
+        obj = _extract_json_obj(s)
+    except Exception:
+        return s
+    recs = obj.get("recommendations")
+    if not isinstance(recs, list) or not recs:
+        return s
+
+    lines: List[str] = []
+    top_k = obj.get("top_k")
+    if isinstance(top_k, int) and top_k > 0:
+        lines.append(f"Recommended Listings (Top {top_k})")
+    else:
+        lines.append("Recommended Listings")
+    lines.append("")
+
+    shown = 0
+    for item in recs:
+        if not isinstance(item, dict):
+            continue
+        if shown >= max_items:
+            break
+        rank = item.get("rank")
+        lid = _safe_text(item.get("listing_id"))
+        align = _safe_text(item.get("query_alignment"))
+        reason = _safe_text(item.get("summary_reason"))
+        dep_risk = _safe_text(item.get("deposit_risk_level"))
+        risks = item.get("risk_flags") if isinstance(item.get("risk_flags"), list) else []
+        highlights = item.get("highlights") if isinstance(item.get("highlights"), list) else []
+
+        head = f"#{rank}" if rank is not None else f"#{shown + 1}"
+        if lid:
+            head += f" {lid}"
+        lines.append(head)
+        if align:
+            lines.append(f"Fit: {align}")
+        if reason:
+            lines.append(f"Why it fits: {reason}")
+        if highlights:
+            lines.append("Highlights:")
+            for h in highlights[:3]:
+                if not isinstance(h, dict):
+                    continue
+                claim = _safe_text(h.get("claim"))
+                ev = _safe_text(h.get("evidence"))
+                if claim and ev:
+                    lines.append(f"- {claim} (evidence: \"{ev}\")")
+                elif claim:
+                    lines.append(f"- {claim}")
+        if dep_risk:
+            lines.append(f"Deposit risk: {dep_risk}")
+        if risks:
+            lines.append("Risks:")
+            for rf in risks[:3]:
+                txt = _safe_text(rf)
+                if txt:
+                    lines.append(f"- {txt}")
+        lines.append("")
+        shown += 1
+    return "\n".join(lines).strip()
 
 
 def format_grounded_evidence(df: pd.DataFrame, max_items: int = 8) -> str:

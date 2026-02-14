@@ -114,3 +114,74 @@ When results look wrong:
    - field aggregation (`top1/top2` weights)
    - `w_deposit`, `w_freshness`
    - `DEPOSIT_SCORE_TAU`, `FRESHNESS_HALF_LIFE_DAYS`
+
+## 11) Implementation Status (Completed)
+
+### A. Score pipeline
+- `final_score` includes:
+  - `transit_score`
+  - `school_score`
+  - `preference_score`
+  - `deposit_score`
+  - `freshness_score`
+  - `penalty_score` (subtractive)
+
+### B. Deposit score
+- Parses `£number`, `£0`, `Ask agent/unknown`.
+- Uses smooth decay:
+  - `deposit_score = exp(-deposit / tau)`
+- Config:
+  - `W_DEPOSIT` (default `0.05`)
+  - `DEPOSIT_SCORE_TAU` (default `3000`)
+  - `DEPOSIT_MISSING_POLICY`
+
+### C. Freshness score
+- Based on `added_date` age decay with half-life.
+- Missing/unparseable values follow policy.
+- Config:
+  - `W_FRESHNESS` (default `0.06`)
+  - `FRESHNESS_HALF_LIFE_DAYS` (default `14`)
+  - `FRESHNESS_MISSING_POLICY`
+
+### D. Preference pipeline (sidecar)
+- Preference terms come from LLM (`general_semantic`).
+- Sidecar-only matching (no legacy text fallback).
+- Sidecar encoding:
+  - `features`: one vector per bullet
+  - `description`: one vector per `<PARA>` segment
+- Per-field aggregation:
+  - `field_score = 0.7*top1 + 0.3*top2`
+- Multi-intent aggregation:
+  - `group_score = mean(intent_scores)`
+
+### E. Sidecar runtime behavior
+- Path from `RENT_PREF_VECTOR_PATH`.
+- Key matching by:
+  - primary: `url`
+  - fallback: `listing_id`
+- Miss behavior:
+  - `preference_source = sidecar_missing_no_fallback`
+  - `preference_score = 0`
+
+### F. Explainability output
+- Summary mode:
+  - `Because matched ...`
+  - `Because boosted by deposit/freshness ...` when triggered
+- Debug mode:
+  - component scores + weighted contributions + `final_calc`
+  - `preference_source`
+  - `preference_calc` with top2 lines and field scores
+  - `preference_top_matches`: top2 per preference signal
+
+### G. Rule consistency and parser fixes
+- `let_type` drift guardrail fixed (invalid values like `student` no longer become hard `let_type`).
+- Rule parser updated to support hyphen patterns like `1-bed` / `2-bedroom`.
+- `available_from = Now` supports hard-filter `now_pass`.
+
+### H. Artifacts and test assets
+- Stage C test cases:
+  - `/workspace/rent-chatbot/test/stageC/stageC_cases.json`
+- Stage C notes:
+  - `/workspace/rent-chatbot/docs/stagec_notes.md`
+- `run.sh` sidecar default:
+  - `/workspace/rent-chatbot/artifacts/features/pref_vectors.parquet`

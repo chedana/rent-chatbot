@@ -742,12 +742,29 @@ def _normalize_semantic_extract(obj: dict) -> dict:
         out: List[str] = []
         for s in (items or []):
             sl = s.lower()
-            # Remove hard-constraint-like fragments from semantic phrases.
+            # Remove hard/structured fragments from semantic phrases.
+            # These should be handled by structured constraints or dedicated score components.
             if re.search(r"\bunder\s+\d+\b", sl):
+                continue
+            if re.search(r"\b(?:budget|price|rent|pcm|pcw|per\s*month|per\s*week)\b", sl):
+                continue
+            if re.search(r"\bdeposit\b", sl):
                 continue
             if re.search(r"\b\d+\s*bed(room)?s?\b", sl):
                 continue
+            if re.search(r"\b\d+\s*[- ]?\s*bath(room)?s?\b", sl):
+                continue
             if re.search(r"\b(flat|apartment|studio|house)\b", sl):
+                continue
+            if re.search(r"\b(?:furnished|unfurnished|part[- ]?furnished)\b", sl):
+                continue
+            if re.search(r"\b(?:short\s*term|long\s*term|short\s*let|long\s*let)\b", sl):
+                continue
+            if re.search(r"\b(?:move[- ]?in|available\s*from|availability|today|tomorrow|now)\b", sl):
+                continue
+            if re.search(r"\b(?:tenancy|months?|yrs?|years?)\b", sl):
+                continue
+            if re.search(r"\b(?:sqm|sq\s*m|sqft|square\s*feet|square\s*met(?:er|re)s?)\b", sl):
                 continue
             out.append(s)
         return out
