@@ -65,8 +65,8 @@ INTENT_HIT_THRESHOLD = 0.45
 INTENT_EVIDENCE_TOP_N = 2
 
 # Stage C P0: deposit/freshness soft-scoring controls.
-W_DEPOSIT = float(os.environ.get("RENT_W_DEPOSIT", "0.10"))
-W_FRESHNESS = float(os.environ.get("RENT_W_FRESHNESS", "0.10"))
+W_DEPOSIT = float(os.environ.get("RENT_W_DEPOSIT", "0.05"))
+W_FRESHNESS = float(os.environ.get("RENT_W_FRESHNESS", "0.06"))
 DEPOSIT_MISSING_POLICY = os.environ.get("RENT_DEPOSIT_MISSING_POLICY", "light_penalty").strip().lower()
 if DEPOSIT_MISSING_POLICY not in {"neutral", "light_penalty"}:
     DEPOSIT_MISSING_POLICY = "light_penalty"
@@ -74,6 +74,7 @@ FRESHNESS_MISSING_POLICY = os.environ.get("RENT_FRESHNESS_MISSING_POLICY", "ligh
 if FRESHNESS_MISSING_POLICY not in {"neutral", "light_penalty"}:
     FRESHNESS_MISSING_POLICY = "light_penalty"
 DEPOSIT_SCORE_CAP = float(os.environ.get("RENT_DEPOSIT_SCORE_CAP", "3000"))
+DEPOSIT_SCORE_TAU = float(os.environ.get("RENT_DEPOSIT_SCORE_TAU", "3000"))
 FRESHNESS_HALF_LIFE_DAYS = float(os.environ.get("RENT_FRESHNESS_HALF_LIFE_DAYS", "14"))
 
 # Stage C P1 prep: sidecar vectors for preference rerank.

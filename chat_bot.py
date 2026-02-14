@@ -56,6 +56,7 @@ from settings import (
     ENABLE_STRUCTURED_TRAINING_LOG,
     DEPOSIT_MISSING_POLICY,
     DEPOSIT_SCORE_CAP,
+    DEPOSIT_SCORE_TAU,
     FRESHNESS_HALF_LIFE_DAYS,
     FRESHNESS_MISSING_POLICY,
     INTENT_EVIDENCE_TOP_N,
@@ -460,9 +461,11 @@ def _score_deposit(raw_deposit: Any) -> Tuple[float, str]:
         return 0.40, "unparseable->light_penalty(0.40)"
     try:
         v = max(0.0, float(num_match.group(1)))
+        tau = max(1.0, float(DEPOSIT_SCORE_TAU))
+        score = math.exp(-v / tau)
+        # Keep cap as a debug reference for backward compatibility.
         cap = max(1.0, float(DEPOSIT_SCORE_CAP))
-        score = 1.0 - min(v, cap) / cap
-        return float(score), f"parsed={v:.0f};cap={cap:.0f};score={score:.4f}"
+        return float(score), f"parsed={v:.0f};tau={tau:.0f};cap_ref={cap:.0f};score={score:.4f}"
     except Exception:
         if DEPOSIT_MISSING_POLICY == "neutral":
             return 0.50, "parse_error->neutral(0.50)"
