@@ -1,0 +1,106 @@
+{
+  "meta": {
+    "name": "stageC_cases",
+    "version": "1.0",
+    "notes": "Stage C soft-ranking regression set. Focus: preference sidecar, deposit/freshness effects, unknown penalties."
+  },
+  "cases": [
+    {
+      "id": "C01_preference_student_victoria",
+      "query": "Find a furnished 1-bed flat near Victoria station under \u00a32800 pcm, move-in by 2026-03-20, student friendly.",
+      "expectations": [
+        "preference_source should be sidecar_vectors for matched rows",
+        "preference_hits should include student friendly and near victoria station for strong matches",
+        "preference_top_matches should show 2 rows per preference signal in debug"
+      ]
+    },
+    {
+      "id": "C02_preference_station_only",
+      "query": "Looking for a 1 bed flat in Zone 1 near Victoria station, quiet street, under \u00a33000 pcm.",
+      "expectations": [
+        "near victoria station should drive description matches when available",
+        "listings without station-related evidence should have lower preference score"
+      ]
+    },
+    {
+      "id": "C03_deposit_smoothing_high_value",
+      "query": "Find a 1-bed furnished flat in SW1 under \u00a32800, low deposit preferred.",
+      "expectations": [
+        "deposit_score should be smooth (no hard zero cliff just because deposit > cap reference)",
+        "lower deposit rows should rank above similar rows with higher deposit, all else equal"
+      ]
+    },
+    {
+      "id": "C04_deposit_zero_vs_ask_agent",
+      "query": "Need a studio or 1-bed in Zone 1 under \u00a32300, low deposit preferred, move in soon.",
+      "expectations": [
+        "\u00a30 deposit should score higher than Ask agent/missing deposit",
+        "missing deposit should follow deposit missing policy and not be treated as best"
+      ]
+    },
+    {
+      "id": "C05_freshness_today_boost",
+      "query": "Find a furnished 1-bed flat in Pimlico under \u00a32700, newly listed preferred.",
+      "expectations": [
+        "added_date=today rows should receive higher freshness_score than older rows",
+        "freshness contribution should be visible in debug contrib"
+      ]
+    },
+    {
+      "id": "C06_freshness_missing_policy",
+      "query": "Need a 1-bed in Westminster under \u00a32800 near tube, flexible on move-in date.",
+      "expectations": [
+        "missing/unparseable added_date should use freshness missing policy",
+        "freshness missing should not fully dominate ranking"
+      ]
+    },
+    {
+      "id": "C07_available_now_hard_filter",
+      "query": "Find a furnished 1-bed flat under \u00a32800, available by 2026-03-20, near Victoria station.",
+      "expectations": [
+        "available_from=Now should pass move-in hard check (now_pass)",
+        "Now should not be counted as available_from unknown penalty"
+      ]
+    },
+    {
+      "id": "C08_unknown_hard_penalty_bedrooms",
+      "query": "Find exactly 1-bed furnished flat in Zone 1 under \u00a32600 near station.",
+      "expectations": [
+        "rows with unknown bedrooms should get unknown_hard(bedrooms) penalty when 1-bed constraint is active",
+        "penalty impact should be visible in final contribution"
+      ]
+    },
+    {
+      "id": "C09_let_type_student_friendly_guardrail",
+      "query": "Find a furnished 1-bed flat near Victoria station under \u00a32800 pcm, student friendly.",
+      "expectations": [
+        "student friendly should not force let_type=student hard constraint",
+        "let_type should stay null unless explicit short/long term evidence exists"
+      ]
+    },
+    {
+      "id": "C10_sidecar_miss_behavior",
+      "query": "Find a furnished 1-bed in Zone 1 with balcony and concierge.",
+      "expectations": [
+        "if sidecar key miss, preference_source should be sidecar_missing_no_fallback",
+        "preference_score should be 0 in sidecar-miss rows"
+      ]
+    },
+    {
+      "id": "C11_field_agg_top1_bias",
+      "query": "Need student friendly apartment near Victoria station and close to tube in SW1.",
+      "expectations": [
+        "preference_calc should include field_agg=0.7*top1+0.3*top2",
+        "features_field_score and description_field_score should reflect top1-biased aggregation"
+      ]
+    },
+    {
+      "id": "C12_deposit_freshness_not_overdominate",
+      "query": "Find a furnished 1-bed near Victoria station, student friendly, under \u00a32800.",
+      "expectations": [
+        "strong preference matches should not be fully overshadowed by deposit/freshness",
+        "verify ranking where semantically stronger row can compete even with weaker freshness/deposit"
+      ]
+    }
+  ]
+}

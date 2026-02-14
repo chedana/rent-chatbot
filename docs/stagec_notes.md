@@ -38,12 +38,16 @@ Notes:
 ### Deposit
 - parse `£number`, `£0`, and unknown tokens (`Ask agent`, etc.)
 - unknown/missing follows policy (`light_penalty` default)
-- currently uses capped mapping with configurable cap
+- uses smooth decay: `deposit_score = exp(-deposit / tau)`
+- `tau` configurable via `DEPOSIT_SCORE_TAU`
 
 ### Freshness
 - parse `added_date` and decay by age days
 - half-life configurable
 - missing/unparseable follows missing policy
+- current default weights:
+  - `w_deposit = 0.05`
+  - `w_freshness = 0.06`
 
 ## 5) Preference Matching Design
 
@@ -52,21 +56,14 @@ Notes:
 - `preference_source = sidecar_missing_no_fallback` when sidecar miss
 - no fallback to legacy text scoring
 
-### Similarity shaping (implemented)
-- non-linear transform on similarity:
-  - `sim' = sim^gamma`
-  - configured by `PREF_MATCH_GAMMA` (default `2.0`)
-- effect: suppress medium scores, keep high-confidence matches more dominant
-
 ### Aggregation (implemented)
 - per-intent field score:
-  - take top-2 on `features`
-  - take top-2 on `description`
+  - take top-2 on `features`, then `features_field_score = 0.7*top1 + 0.3*top2`
+  - take top-2 on `description`, then `description_field_score = 0.7*top1 + 0.3*top2`
   - weighted combine by field weights
 - multi-intent group score:
-  - weighted mean by confidence
-  - weight = `intent_score^agg_power`
-  - configured by `PREF_TERM_AGG_POWER` (default `2.0`)
+  - simple mean across intent scores:
+  - `group_score = mean(intent_scores)`
 
 ## 6) Debug/Explainability
 
@@ -74,8 +71,9 @@ In debug mode, each listing shows:
 - component scores and weighted contributions
 - `preference_calc` details:
   - per-intent score
-  - `features_top2_mean_gamma`
-  - `description_top2_mean_gamma`
+  - `features_field_score`
+  - `description_field_score`
+  - `field_agg=0.7*top1+0.3*top2`
   - top2 matched lines (with similarity + text)
 - `preference_top_matches`:
   - top2 per preference signal (`pref='...'`)
@@ -113,8 +111,6 @@ When results look wrong:
 2. Check per-intent top2 matched lines in debug
 3. Compare preference contribution vs deposit/freshness contribution
 4. Tune in this order:
-   - `PREF_MATCH_GAMMA`
-   - `PREF_TERM_AGG_POWER`
+   - field aggregation (`top1/top2` weights)
    - `w_deposit`, `w_freshness`
-   - deposit/freshness curve params
-
+   - `DEPOSIT_SCORE_TAU`, `FRESHNESS_HALF_LIFE_DAYS`
