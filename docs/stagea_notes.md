@@ -10,7 +10,7 @@ Stage A is the retrieval stage. It should:
 
 ## 2) Current Retrieval Flow
 1. Pre Stage A produces normalized constraints (`location_keywords`, `layout_options`, etc.).
-2. Stage A expands each location keyword to top-N alias candidates from dictionary (`limit=20`, score `>=0.80`), then applies Qdrant prefilter (`QDRANT_ENABLE_PREFILTER`).
+2. Stage A expands each location keyword to top-N alias candidates from dictionary (`limit=20`, score `>=0.80`), then aligns these aliases to token forms used by Qdrant payload (plain/slug/`_station`/`_london`) before applying prefilter (`QDRANT_ENABLE_PREFILTER`).
 3. Vector search runs on remaining candidates (`recall` top-N).
 
 Main code:
@@ -107,10 +107,12 @@ Distance metric:
 - Pre Stage A rewrites each user location term to top-1 alias for state display, but Stage A prefilter consumes top-N alias expansions (`limit=20`) per keyword.
 - If all expanded tokens still fail exact token match, prefilter count can be `0` and Stage A returns no candidates.
 - Subsequence improves abbreviation recall (e.g., `london bdg`), but short/ambiguous abbreviations may still need explicit abbreviation mapping for long-term precision.
+- Current expansion output is alias-first (mostly plain phrases), then converted to payload-like token shapes for matching. This can introduce extra broad tokens.
 - Mitigation path:
   - enrich station aliases/subphrases in index tokens,
   - keep compatibility fallback (`location_tokens`),
-  - tune expansion limit/threshold (`limit`, `min_score`) to balance recall vs precision.
+  - tune expansion limit/threshold (`limit`, `min_score`) to balance recall vs precision,
+  - future option: emit payload-native tokens directly from expansion (instead of alias -> slug conversion) to reduce mismatch and noise.
 
 ---
 
