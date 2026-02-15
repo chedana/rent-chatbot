@@ -33,6 +33,11 @@ from chatbot_config import (
 DEFAULT_K = int(os.environ.get("RENT_K", "5"))
 _LOCATION_MATCH_INDEX_CACHE: Optional[Dict[str, Any]] = None
 
+
+def _truthy_env(name: str) -> bool:
+    v = str(os.environ.get(name) or "").strip().lower()
+    return v in {"1", "true", "yes", "on"}
+
 def _parse_user_date_uk_first(value: Any) -> Optional[str]:
     s = _safe_text(value)
     if not s:
@@ -1519,6 +1524,23 @@ def expand_location_keyword_candidates(raw: str, limit: int = 8, min_score: floa
                     scored[plain] = local_score
 
     ranked = sorted(scored.items(), key=lambda x: (-x[1], len(x[0]), x[0]))
+    if _truthy_env("RENT_LOCATION_DEBUG_PRINT"):
+        debug_top = [
+            {"alias": alias, "score": round(float(score), 4)}
+            for alias, score in ranked[: max(1, limit)]
+        ]
+        print(
+            "[DEBUG] location_candidate_dict "
+            + json.dumps(
+                {
+                    "query": str(raw or ""),
+                    "min_score": float(min_score),
+                    "limit": int(limit),
+                    "top": debug_top,
+                },
+                ensure_ascii=False,
+            )
+        )
     out = [alias for alias, _ in ranked if alias]
     if limit > 0:
         out = out[:limit]
