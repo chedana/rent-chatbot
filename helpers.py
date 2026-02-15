@@ -1447,10 +1447,10 @@ def _window_best_similarity(q: str, cand: str) -> float:
     return best
 
 
-def _correct_location_keyword(raw: str) -> str:
+def _normalize_location_query_term(raw: str) -> Tuple[str, str, str]:
     q_plain = _normalize_location_keyword(raw)
     if not q_plain:
-        return _safe_text(raw).strip()
+        return "", "", ""
     # Drop accidental trailing digits in long non-postcode tokens, e.g.:
     # "wtaerloo0" -> "wtaerloo".
     if (
@@ -1459,29 +1459,33 @@ def _correct_location_keyword(raw: str) -> str:
     ):
         q_plain = re.sub(r"\d+$", "", q_plain).strip()
         if not q_plain:
-            return _safe_text(raw).strip()
-    q_slug = _slug_key(q_plain)
-    q_compact = _compact_key(q_plain)
+            return "", "", ""
+    return q_plain, _slug_key(q_plain), _compact_key(q_plain)
+
+
+def expand_location_keyword_candidates(raw: str, limit: int = 8, min_score: float = 0.80) -> List[str]:
+    q_plain, q_slug, q_compact = _normalize_location_query_term(raw)
+    if not q_plain:
+        return []
     idx = _get_location_match_index()
     entries = idx.get("entries") or []
     if len(entries) < 20:
-        return _safe_text(raw).strip()
+        return []
 
     lookup_plain = idx.get("lookup_plain") or {}
     lookup_slug = idx.get("lookup_slug") or {}
     lookup_compact = idx.get("lookup_compact") or {}
+    scored: Dict[str, float] = {}
 
     # exact
     if q_plain in lookup_plain:
-        return lookup_plain[q_plain]
+        scored[_safe_text(lookup_plain[q_plain]).strip()] = 1.0
     if q_slug in lookup_slug:
-        return lookup_slug[q_slug]
+        scored[_safe_text(lookup_slug[q_slug]).strip()] = max(scored.get(_safe_text(lookup_slug[q_slug]).strip(), 0.0), 1.0)
     if q_compact in lookup_compact:
-        return lookup_compact[q_compact]
+        scored[_safe_text(lookup_compact[q_compact]).strip()] = max(scored.get(_safe_text(lookup_compact[q_compact]).strip(), 0.0), 1.0)
 
-    # contains + distance score (top-1 winner, no hard-coded canonical merge)
-    best_score = 0.0
-    best_alias = ""
+    # contains + distance score
     for ent in entries:
         aliases = ent.get("aliases") or []
         for plain, slug, compact in aliases:
@@ -1509,14 +1513,22 @@ def _correct_location_keyword(raw: str) -> str:
                         score = 0.68 + 0.20 * sim + 0.12 * len_ratio
                         if score > local_score:
                             local_score = score
-            if local_score > best_score or (abs(local_score - best_score) < 1e-9 and best_alias and len(plain) < len(best_alias)):
-                best_score = local_score
-                best_alias = plain
+            if local_score >= min_score:
+                prev = scored.get(plain, 0.0)
+                if local_score > prev:
+                    scored[plain] = local_score
 
-    if not best_alias:
-        return _safe_text(raw).strip()
-    if best_score >= 0.80:
-        return best_alias
+    ranked = sorted(scored.items(), key=lambda x: (-x[1], len(x[0]), x[0]))
+    out = [alias for alias, _ in ranked if alias]
+    if limit > 0:
+        out = out[:limit]
+    return out
+
+
+def _correct_location_keyword(raw: str) -> str:
+    cands = expand_location_keyword_candidates(raw, limit=1, min_score=0.80)
+    if cands:
+        return cands[0]
     return _safe_text(raw).strip()
 
 

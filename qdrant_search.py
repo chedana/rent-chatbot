@@ -11,7 +11,7 @@ except Exception:
     QdrantClient = None
     models = None
 
-from helpers import _safe_text
+from helpers import _safe_text, expand_location_keyword_candidates
 from log import log_message
 from settings import (
     QDRANT_COLLECTION,
@@ -64,6 +64,7 @@ def qdrant_search(
 
     trace_info: Dict[str, Any] = {
         "location_keywords": [],
+        "location_keyword_expansions": {},
         "location_tokens": [],
         "prefilter_count": None,
     }
@@ -113,29 +114,40 @@ def qdrant_search(
         loc_keywords = [str(x).strip() for x in (c.get("location_keywords") or []) if str(x).strip()]
         trace_info["location_keywords"] = loc_keywords
         for term in loc_keywords:
-            raw = _safe_text(term).lower()
-            if not raw:
-                continue
-            raw = re.sub(r"\s+", " ", raw).strip()
-            slug = re.sub(r"[^a-z0-9]+", "_", raw)
-            slug = re.sub(r"_+", "_", slug).strip("_")
-            for m in re.findall(r"\b[a-z]{1,2}\d[a-z0-9]?\s?\d[a-z]{2}\b", raw):
-                postcode_values.append(m.replace(" ", ""))
-            if raw:
-                loc_values.append(raw)
-                if " " in raw:
-                    loc_values.append(raw.replace(" ", ""))
-                station_values.append(raw)
-            if slug:
-                loc_values.append(slug)
-                loc_values.append(f"{slug}_london")
-                if not slug.endswith("_station"):
-                    loc_values.append(f"{slug}_station")
-                station_values.append(slug)
-                if not slug.endswith("_station"):
-                    station_values.append(f"{slug}_station")
-                region_values.append(slug)
-                region_values.append(f"{slug}_london")
+            expanded = expand_location_keyword_candidates(term, limit=8, min_score=0.80)
+            expanded_terms = [term] + [x for x in expanded if _safe_text(x)]
+            # Preserve order while removing duplicates.
+            seen_local = set()
+            uniq_terms: List[str] = []
+            for x in expanded_terms:
+                k = _safe_text(x).lower().strip()
+                if not k or k in seen_local:
+                    continue
+                seen_local.add(k)
+                uniq_terms.append(k)
+            trace_info["location_keyword_expansions"][_safe_text(term)] = uniq_terms
+
+            for raw in uniq_terms:
+                raw = re.sub(r"\s+", " ", raw).strip()
+                slug = re.sub(r"[^a-z0-9]+", "_", raw)
+                slug = re.sub(r"_+", "_", slug).strip("_")
+                for m in re.findall(r"\b[a-z]{1,2}\d[a-z0-9]?\s?\d[a-z]{2}\b", raw):
+                    postcode_values.append(m.replace(" ", ""))
+                if raw:
+                    loc_values.append(raw)
+                    if " " in raw:
+                        loc_values.append(raw.replace(" ", ""))
+                    station_values.append(raw)
+                if slug:
+                    loc_values.append(slug)
+                    loc_values.append(f"{slug}_london")
+                    if not slug.endswith("_station"):
+                        loc_values.append(f"{slug}_station")
+                    station_values.append(slug)
+                    if not slug.endswith("_station"):
+                        station_values.append(f"{slug}_station")
+                    region_values.append(slug)
+                    region_values.append(f"{slug}_london")
 
         loc_values = list(dict.fromkeys([x for x in loc_values if x]))
         station_values = list(dict.fromkeys([x for x in station_values if x]))
@@ -196,6 +208,8 @@ def qdrant_search(
                 "DEBUG",
                 "stageA location keywords="
                 + json.dumps(trace_info.get("location_keywords", []), ensure_ascii=False)
+                + " expanded="
+                + json.dumps(trace_info.get("location_keyword_expansions", {}), ensure_ascii=False)
                 + " any_tokens="
                 + json.dumps(trace_info.get("location_tokens", []), ensure_ascii=False),
             )

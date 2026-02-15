@@ -55,14 +55,13 @@ Matching strategy:
 Decision gate:
 - auto-rewrite only when:
   - `best_score >= 0.80`
-  - `(best_score - second_score) >= 0.06`
-
-This gate prevents ambiguous rewrites.
+- rewrite target is the top-1 **alias token** from dictionary entries (not canonical merge).
+- no hardcoded station family merge (e.g., no special `king cross` canonicalization).
 
 ---
 
 ## 5) Scoring Formula (Location Candidate Rewrite)
-Per candidate canonical location, local score is max of:
+Per candidate alias token, local score is max of:
 
 1. Contains score:
 - if `q_compact in cand_compact` or reverse:
@@ -73,11 +72,12 @@ Per candidate canonical location, local score is max of:
 - pass only if `sim >= min_sim` where:
   - `min_sim = 1 - adaptive_max_ed / len(q_compact)`
 - if passed:
-  - `score_dist = 0.70 + 0.25 * sim`
+  - `len_ratio = min(len(q_compact), len(cand_compact)) / max(len(q_compact), len(cand_compact))`
+  - `score_dist = 0.68 + 0.20 * sim + 0.12 * len_ratio`
 
 Global rewrite decision:
-- choose top-1 (`best`) and top-2 (`second`) candidate scores.
-- rewrite to top-1 canonical only if gate in section 4 passes.
+- choose top-1 (`best`) candidate score across aliases.
+- rewrite to top-1 alias only if gate in section 4 passes.
 
 ---
 
@@ -96,11 +96,12 @@ Distance metric:
 
 ## 7) Known Boundaries
 - Stage A prefilter uses token equality (`MatchAny`), not full substring search in Qdrant payload.
-- If canonical/token forms are misaligned (e.g., short query vs long station token), prefilter may still miss.
+- Pre Stage A currently rewrites each user location term to a single top-1 alias. Stage A does not consume top-N fuzzy candidates.
+- If rewritten token and indexed token forms are misaligned (e.g., short alias vs other long station alias), prefilter may still miss.
 - Mitigation path:
   - enrich station aliases/subphrases in index tokens,
   - keep compatibility fallback (`location_tokens`),
-  - add more canonical aliases from payload.
+  - optional future change: expand each query keyword to top-N alias candidates before `MatchAny`.
 
 ---
 
