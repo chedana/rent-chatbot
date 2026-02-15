@@ -28,6 +28,20 @@ from chatbot_config import (
 )
 
 DEFAULT_K = int(os.environ.get("RENT_K", "5"))
+_LOCATION_VOCAB_CACHE: Optional[Dict[str, str]] = None
+_LOCATION_SEED_TERMS: List[str] = [
+    "Kings Cross",
+    "Canary Wharf",
+    "Shoreditch",
+    "Camden",
+    "Islington",
+    "Hackney",
+    "Waterloo",
+    "Paddington",
+    "London Bridge",
+    "Stratford",
+    "Euston",
+]
 
 def _parse_user_date_uk_first(value: Any) -> Optional[str]:
     s = _safe_text(value)
@@ -867,8 +881,7 @@ def normalize_constraints(c: dict) -> dict:
         c["min_size_sqm"] = float(c["min_size_sqft"]) * 0.092903
     c.pop("min_size_sqft", None)
 
-    # Keep original surface text but dedupe by normalized form, so variants
-    # like "king's cross" and "kings cross" collapse to one constraint.
+    # Pre Stage A conservative location typo correction + normalized dedupe.
     locs = c.get("location_keywords") or []
     seen_loc = set()
     norm_locs: List[str] = []
@@ -876,11 +889,12 @@ def normalize_constraints(c: dict) -> dict:
         raw = str(x).strip()
         if not raw:
             continue
-        k = _normalize_location_keyword(raw)
+        corrected = _correct_location_keyword_conservative(raw)
+        k = _normalize_location_keyword(corrected)
         if not k or k in seen_loc:
             continue
         seen_loc.add(k)
-        norm_locs.append(raw)
+        norm_locs.append(corrected)
     c["location_keywords"] = norm_locs
 
     return c
@@ -1091,6 +1105,152 @@ def _normalize_location_keyword(v: Any) -> str:
     s = re.sub(r"[^a-z0-9\s]", " ", s)
     s = re.sub(r"\s+", " ", s).strip()
     return s
+
+
+def _edit_distance_le1(a: str, b: str) -> bool:
+    if a == b:
+        return True
+    la, lb = len(a), len(b)
+    if abs(la - lb) > 1:
+        return False
+    if la == lb:
+        diff = 0
+        for i in range(la):
+            if a[i] != b[i]:
+                diff += 1
+                if diff > 1:
+                    return False
+        return True
+    if la > lb:
+        a, b = b, a
+        la, lb = lb, la
+    i = j = 0
+    used_skip = False
+    while i < la and j < lb:
+        if a[i] == b[j]:
+            i += 1
+            j += 1
+            continue
+        if used_skip:
+            return False
+        used_skip = True
+        j += 1
+    return True
+
+
+def _iter_location_vocab_sources() -> List[str]:
+    base = os.path.dirname(__file__)
+    return [
+        os.path.join(base, "data", "web_data", "properties_clean.jsonl"),
+        os.path.join(base, "data", "web_data", "properties_final.jsonl"),
+    ]
+
+
+def _strip_station_suffix(s: str) -> str:
+    t = _safe_text(s)
+    if not t:
+        return ""
+    # e.g. "King's Cross St. Pancras (0.3 mi)" -> "King's Cross St. Pancras"
+    t = re.sub(r"\s*\([^)]*\)\s*$", "", t).strip()
+    return t
+
+
+def _add_vocab_phrase(vocab: Dict[str, str], phrase: str) -> None:
+    raw = _safe_text(phrase).strip()
+    if not raw:
+        return
+    k = _normalize_location_keyword(raw)
+    if not k:
+        return
+    # Avoid noisy tokens that are too short to be safe correction targets.
+    if len(k) < 4:
+        return
+    prev = vocab.get(k)
+    if prev is None or len(raw) < len(prev):
+        vocab[k] = raw
+    # Add 2-3 token sub-phrases for long names (e.g. "kings cross st pancras"
+    # -> "kings cross") to improve conservative typo correction coverage.
+    toks = k.split()
+    if len(toks) >= 3:
+        for n in (2, 3):
+            if len(toks) < n:
+                continue
+            for i in range(len(toks) - n + 1):
+                sub = " ".join(toks[i:i + n]).strip()
+                if len(sub) < 6:
+                    continue
+                if sub not in vocab:
+                    vocab[sub] = sub
+
+
+def _build_location_vocab() -> Dict[str, str]:
+    vocab: Dict[str, str] = {}
+    for s in _LOCATION_SEED_TERMS:
+        _add_vocab_phrase(vocab, s)
+    for path in _iter_location_vocab_sources():
+        if not os.path.exists(path):
+            continue
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                for line in f:
+                    s = line.strip()
+                    if not s:
+                        continue
+                    try:
+                        rec = json.loads(s)
+                    except Exception:
+                        continue
+                    if not isinstance(rec, dict):
+                        continue
+                    for key in ("borough", "postcode", "location"):
+                        _add_vocab_phrase(vocab, rec.get(key))
+                    for key in ("title", "address"):
+                        txt = _safe_text(rec.get(key))
+                        if not txt:
+                            continue
+                        _add_vocab_phrase(vocab, txt)
+                        for seg in re.split(r"[,;/|]", txt):
+                            _add_vocab_phrase(vocab, seg)
+                    for st in parse_jsonish_items(rec.get("stations")):
+                        _add_vocab_phrase(vocab, _strip_station_suffix(st))
+                    for sc in parse_jsonish_items(rec.get("schools")):
+                        _add_vocab_phrase(vocab, sc)
+        except Exception:
+            continue
+    return vocab
+
+
+def _get_location_vocab() -> Dict[str, str]:
+    global _LOCATION_VOCAB_CACHE
+    if _LOCATION_VOCAB_CACHE is None:
+        _LOCATION_VOCAB_CACHE = _build_location_vocab()
+    return _LOCATION_VOCAB_CACHE
+
+
+def _correct_location_keyword_conservative(raw: str) -> str:
+    t = _normalize_location_keyword(raw)
+    if not t:
+        return _safe_text(raw).strip()
+    vocab = _get_location_vocab()
+    if not vocab:
+        return _safe_text(raw).strip()
+    if t in vocab:
+        return vocab[t]
+    # Conservative mode:
+    # - at least 6 chars
+    # - same 3-char prefix
+    # - edit distance <= 1
+    # - unique candidate only
+    if len(t) < 6:
+        return _safe_text(raw).strip()
+    prefix = t[:3]
+    cands = [
+        k for k in vocab.keys()
+        if k.startswith(prefix) and abs(len(k) - len(t)) <= 1 and _edit_distance_le1(t, k)
+    ]
+    if len(cands) == 1:
+        return vocab[cands[0]]
+    return _safe_text(raw).strip()
 
 
 def _to_float(v: Any) -> Optional[float]:

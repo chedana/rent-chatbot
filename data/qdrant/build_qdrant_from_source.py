@@ -151,15 +151,21 @@ def _parse_jsonlike(v: Any) -> Any:
 
 def _extract_location_tokens(row: pd.Series) -> Dict[str, Any]:
     tokens: List[str] = []
+    postcode_tokens: List[str] = []
+    station_tokens: List[str] = []
+    region_tokens: List[str] = []
     region_slugs: List[str] = []
     station_slugs: List[str] = []
     station_names_norm: List[str] = []
 
     address_norm = _norm_cat(row.get("address"))
     if address_norm:
-        tokens.append(address_norm)
+        # Keep postcode from address, but avoid using full address text as
+        # location prefilter token to reduce noisy matches.
         for m in re.findall(r"\b[a-z]{1,2}\d[a-z0-9]?\s?\d[a-z]{2}\b", address_norm):
-            tokens.append(m.replace(" ", ""))
+            pc = m.replace(" ", "")
+            postcode_tokens.append(pc)
+            tokens.append(pc)
 
     dqm = row.get("discovery_queries_by_method")
     dqm_obj = _parse_jsonlike(dqm)
@@ -168,11 +174,13 @@ def _extract_location_tokens(row: pd.Series) -> Dict[str, Any]:
             sx = _slugify(x)
             if sx:
                 region_slugs.append(sx)
+                region_tokens.append(sx)
                 tokens.append(sx)
         for x in dqm_obj.get("station") or []:
             sx = _slugify(x)
             if sx:
                 station_slugs.append(sx)
+                station_tokens.append(sx)
                 tokens.append(sx)
 
     stations_obj = _parse_jsonlike(row.get("stations"))
@@ -182,18 +190,29 @@ def _extract_location_tokens(row: pd.Series) -> Dict[str, Any]:
                 nm = _norm_cat(item.get("name"))
                 if nm:
                     station_names_norm.append(nm)
-                    tokens.append(_slugify(nm))
+                    nm_slug = _slugify(nm)
+                    if nm_slug:
+                        station_tokens.append(nm_slug)
+                        tokens.append(nm_slug)
+                    station_tokens.append(nm)
                     tokens.append(nm)
             else:
                 nm = _norm_cat(item)
                 if nm:
                     station_names_norm.append(nm)
-                    tokens.append(_slugify(nm))
+                    nm_slug = _slugify(nm)
+                    if nm_slug:
+                        station_tokens.append(nm_slug)
+                        tokens.append(nm_slug)
+                    station_tokens.append(nm)
                     tokens.append(nm)
 
     uniq = lambda xs: list(dict.fromkeys([x for x in xs if x]))
     return {
         "location_tokens": uniq(tokens),
+        "location_postcode_tokens": uniq(postcode_tokens),
+        "location_station_tokens": uniq(station_tokens),
+        "location_region_tokens": uniq(region_tokens),
         "location_region_slugs": uniq(region_slugs),
         "location_station_slugs": uniq(station_slugs),
         "station_names_norm": uniq(station_names_norm),
