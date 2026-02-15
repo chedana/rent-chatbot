@@ -135,6 +135,16 @@ def _slugify(v: Any) -> str:
     return s
 
 
+def _normalize_region_base(v: Any) -> str:
+    s = _norm_cat(v)
+    if not s:
+        return ""
+    toks = [t for t in s.split() if t]
+    if len(toks) >= 2 and toks[-1] == "london":
+        toks = toks[:-1]
+    return " ".join(toks).strip()
+
+
 def _parse_jsonlike(v: Any) -> Any:
     if isinstance(v, (list, dict)):
         return v
@@ -171,7 +181,7 @@ def _extract_location_tokens(row: pd.Series) -> Dict[str, Any]:
     dqm_obj = _parse_jsonlike(dqm)
     if isinstance(dqm_obj, dict):
         for x in dqm_obj.get("region") or []:
-            sx = _slugify(x)
+            sx = _slugify(_normalize_region_base(x))
             if sx:
                 region_slugs.append(sx)
                 region_tokens.append(sx)
