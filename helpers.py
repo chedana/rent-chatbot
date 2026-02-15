@@ -1199,6 +1199,16 @@ def _build_location_match_index() -> Dict[str, Any]:
                     if len(sub) >= 6:
                         _add_location_alias(ent, sub)
 
+    def _canonical_station_name(raw: str) -> str:
+        n = _normalize_location_keyword(raw)
+        if not n:
+            return _safe_text(raw).strip()
+        # Merge Kings Cross station-name variants into one canonical bucket.
+        # Keep all observed aliases for matching; only canonical id is unified.
+        if ("king" in n and "cross" in n):
+            return "king_s_cross_st_pancras_station"
+        return _safe_text(raw).strip()
+
     def _extract_payload_obj(obj: Any) -> Optional[Dict[str, Any]]:
         # qdrant local pickle shape can vary; recursively find payload-like dict.
         seen = set()
@@ -1273,7 +1283,7 @@ def _build_location_match_index() -> Dict[str, Any]:
             for x in (rec.get(key) or []):
                 sx = _safe_text(x).strip()
                 if sx:
-                    _add_phrase(sx, sx)
+                    _add_phrase(_canonical_station_name(sx), sx)
         for x in (rec.get("location_postcode_tokens") or []):
             sx = _safe_text(x).strip()
             if sx:
@@ -1288,7 +1298,7 @@ def _build_location_match_index() -> Dict[str, Any]:
             for x in dqm.get("station") or []:
                 sx = _safe_text(x).strip()
                 if sx:
-                    _add_phrase(sx, sx)
+                    _add_phrase(_canonical_station_name(sx), sx)
 
         stations = _parse_jsonlike(rec.get("stations"))
         if isinstance(stations, list):
@@ -1299,12 +1309,12 @@ def _build_location_match_index() -> Dict[str, Any]:
                     name = _safe_text(item).strip()
                 name = _strip_station_suffix(name)
                 if name:
-                    _add_phrase(name, name)
+                    _add_phrase(_canonical_station_name(name), name)
         else:
             for s_item in parse_jsonish_items(rec.get("stations")):
                 name = _strip_station_suffix(s_item)
                 if name:
-                    _add_phrase(name, name)
+                    _add_phrase(_canonical_station_name(name), name)
 
         addr = _safe_text(rec.get("address")).strip()
         if addr:
@@ -1479,8 +1489,8 @@ def _correct_location_keyword(raw: str) -> str:
         return lookup_compact[q_compact]
 
     # contains + distance score (best/second-best decision)
-    best: Tuple[float, str] = (0.0, "")
-    second: Tuple[float, str] = (0.0, "")
+    # Merge semantically equivalent canonicals by compact key first.
+    grouped: Dict[str, Tuple[float, str]] = {}
     for ent in entries:
         canonical = _safe_text(ent.get("canonical")).strip()
         aliases = ent.get("aliases") or []
@@ -1503,19 +1513,29 @@ def _correct_location_keyword(raw: str) -> str:
                 if len(q_compact) > 0:
                     min_sim = 1.0 - (float(need) / float(max(len(q_compact), 1)))
                     if sim >= min_sim:
-                        # Slightly below contains; prefer exact/contains first.
-                        score = 0.70 + 0.25 * sim
+                        # Distance score with length proximity bonus:
+                        # prefer candidates with similar compact length.
+                        len_ratio = float(min(len(q_compact), len(compact))) / float(max(len(q_compact), len(compact), 1))
+                        score = 0.68 + 0.20 * sim + 0.12 * len_ratio
                         if score > local_best:
                             local_best = score
-        if local_best > best[0]:
-            second = best
-            best = (local_best, canonical)
-        elif local_best > second[0]:
-            second = (local_best, canonical)
+        if local_best <= 0:
+            continue
+        gk = _compact_key(canonical) or _slug_key(canonical) or _normalize_location_keyword(canonical) or canonical
+        prev = grouped.get(gk)
+        if prev is None:
+            grouped[gk] = (local_best, canonical)
+        else:
+            prev_score, prev_c = prev
+            # Prefer higher score; tie-break to shorter canonical label.
+            if local_best > prev_score or (abs(local_best - prev_score) < 1e-9 and len(canonical) < len(prev_c)):
+                grouped[gk] = (local_best, canonical)
 
-    best_score, best_canon = best
-    second_score, _ = second
-    if best_canon and best_score >= 0.80 and (best_score - second_score) >= 0.06:
+    ranked = sorted(grouped.values(), key=lambda x: x[0], reverse=True)
+    if not ranked:
+        return _safe_text(raw).strip()
+    best_score, best_canon = ranked[0]
+    if best_canon and best_score >= 0.80:
         return best_canon
     return _safe_text(raw).strip()
 
