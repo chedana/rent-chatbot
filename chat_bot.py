@@ -1771,7 +1771,7 @@ def run_chat():
         for i, r in df.iterrows():
             top_lines.append(format_listing_row(r.to_dict(), i + 1, view_mode=state.get("view_mode", "summary")))
         lines: List[str] = []
-        if state.get("view_mode", "summary") == "debug" or not ENABLE_STAGE_D_EXPLAIN:
+        if state.get("view_mode", "summary") == "debug":
             lines.extend(top_lines)
         if ENABLE_STAGE_D_EXPLAIN:
             try:

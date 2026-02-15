@@ -387,7 +387,7 @@ def _extract_layout_options_candidates(text: Any) -> List[Dict[str, Any]]:
             mask[i] = False
     remain = "".join(ch if mask[i] else " " for i, ch in enumerate(src))
 
-    for m in re.finditer(r"\b(\d+(?:\.\d+)?)\s*[- ]?\s*(?:bed(?:room)?s?|bd|br)\b", remain, flags=re.I):
+    for m in re.finditer(r"\b(\d+(?:\.\d+)?)\s*[- ]?\s*(?:bed(?:room)?s?|bd|br|b)\b", remain, flags=re.I):
         try:
             bed = int(float(m.group(1)))
             options.append(
