@@ -10,7 +10,7 @@ QDRANT_COLLECTION = os.environ.get("RENT_QDRANT_COLLECTION", "rent_listings")
 QDRANT_ENABLE_PREFILTER = os.environ.get("RENT_QDRANT_ENABLE_PREFILTER", "1") != "0"
 
 VERBOSE_STATE_LOG = os.environ.get("RENT_VERBOSE_STATE_LOG", "0") == "1"
-STAGEA_TRACE = os.environ.get("RENT_STAGEA_TRACE", "1") != "0"
+STAGEA_TRACE = os.environ.get("RENT_STAGEA_TRACE", "0") != "0"
 
 EMBED_MODEL = os.environ.get("RENT_EMBED_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
 BATCH = int(os.environ.get("RENT_EMBED_BATCH", "256"))
