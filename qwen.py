@@ -1,5 +1,6 @@
 import json
 import hashlib
+import os
 from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
@@ -21,8 +22,13 @@ from helpers import (
     _safe_text,
     _to_float,
 )
+from log import log_message
 
 qwen_client = OpenAI(base_url=QWEN_BASE_URL, api_key=QWEN_API_KEY)
+
+
+def _structured_debug_enabled() -> bool:
+    return str(os.environ.get("RENT_STRUCTURED_DEBUG_PRINT", "0")).strip().lower() in {"1", "true", "yes", "on"}
 
 
 def qwen_chat(messages, temperature=0.0) -> str:
@@ -46,6 +52,8 @@ def llm_extract(user_text: str, existing_constraints: Optional[dict]) -> dict:
         ],
         temperature=0.0,
     )
+    if _structured_debug_enabled():
+        log_message("INFO", "llm_extract_raw " + txt)
     obj = _extract_json_obj(txt)
     return _normalize_constraint_extract(obj)
 
@@ -61,6 +69,8 @@ def llm_extract_all_signals(user_text: str, existing_constraints: Optional[dict]
         ],
         temperature=0.0,
     )
+    if _structured_debug_enabled():
+        log_message("INFO", "llm_extract_all_raw " + txt)
     obj = _extract_json_obj(txt)
     constraints = _normalize_constraint_extract(obj.get("constraints") or {})
     semantic_terms = _normalize_semantic_extract(obj.get("semantic_terms") or {})
