@@ -114,7 +114,7 @@ def qdrant_search(
         loc_keywords = [str(x).strip() for x in (c.get("location_keywords") or []) if str(x).strip()]
         trace_info["location_keywords"] = loc_keywords
         for term in loc_keywords:
-            expanded = expand_location_keyword_candidates(term, limit=8, min_score=0.80)
+            expanded = expand_location_keyword_candidates(term, limit=20, min_score=0.80)
             expanded_terms = [term] + [x for x in expanded if _safe_text(x)]
             # Preserve order while removing duplicates.
             seen_local = set()
