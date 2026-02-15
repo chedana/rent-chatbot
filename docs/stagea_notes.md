@@ -10,7 +10,7 @@ Stage A is the retrieval stage. It should:
 
 ## 2) Current Retrieval Flow
 1. Pre Stage A produces normalized constraints (`location_keywords`, `layout_options`, etc.).
-2. Stage A optionally applies Qdrant prefilter (`QDRANT_ENABLE_PREFILTER`).
+2. Stage A expands each location keyword to top-N alias candidates from dictionary (`limit=20`, score `>=0.80`), then applies Qdrant prefilter (`QDRANT_ENABLE_PREFILTER`).
 3. Vector search runs on remaining candidates (`recall` top-N).
 
 Main code:
@@ -51,6 +51,7 @@ Matching strategy:
 1. `exact` on `plain/slug/compact`
 2. `contains` on `compact`
 3. `distance` (Damerau-Levenshtein) with adaptive threshold + sliding-window similarity
+4. `subsequence` similarity on `compact` for abbreviation-like queries (e.g., `bdg` -> `bridge`)
 
 Decision gate:
 - auto-rewrite only when:
@@ -75,8 +76,15 @@ Per candidate alias token, local score is max of:
   - `len_ratio = min(len(q_compact), len(cand_compact)) / max(len(q_compact), len(cand_compact))`
   - `score_dist = 0.68 + 0.20 * sim + 0.12 * len_ratio`
 
+3. Subsequence score (abbreviation-friendly):
+- enabled when query compact length is in `[3, 8]`
+- require `q_compact` to be an ordered subsequence of `cand_compact`
+- `score_subseq = 0.70 + 0.20 * density + 0.10 * coverage`
+  - `density = len(q_compact) / matched_span_len`
+  - `coverage = len(q_compact) / len(cand_compact)`
+
 Global rewrite decision:
-- choose top-1 (`best`) candidate score across aliases.
+- choose top-1 (`best`) candidate score across aliases (`max(contains, distance, subsequence)`).
 - rewrite to top-1 alias only if gate in section 4 passes.
 
 ---
@@ -96,12 +104,13 @@ Distance metric:
 
 ## 7) Known Boundaries
 - Stage A prefilter uses token equality (`MatchAny`), not full substring search in Qdrant payload.
-- Pre Stage A currently rewrites each user location term to a single top-1 alias. Stage A does not consume top-N fuzzy candidates.
-- If rewritten token and indexed token forms are misaligned (e.g., short alias vs other long station alias), prefilter may still miss.
+- Pre Stage A rewrites each user location term to top-1 alias for state display, but Stage A prefilter consumes top-N alias expansions (`limit=20`) per keyword.
+- If all expanded tokens still fail exact token match, prefilter count can be `0` and Stage A returns no candidates.
+- Subsequence improves abbreviation recall (e.g., `london bdg`), but short/ambiguous abbreviations may still need explicit abbreviation mapping for long-term precision.
 - Mitigation path:
   - enrich station aliases/subphrases in index tokens,
   - keep compatibility fallback (`location_tokens`),
-  - optional future change: expand each query keyword to top-N alias candidates before `MatchAny`.
+  - tune expansion limit/threshold (`limit`, `min_score`) to balance recall vs precision.
 
 ---
 
@@ -109,6 +118,7 @@ Distance metric:
 When Stage A returns 0 candidates unexpectedly:
 1. Check Pre Stage A output `location_keywords` after normalization.
 2. Check Stage A trace:
+   - `location_keyword_expansions`
    - grouped location tokens (`postcode/station/region`)
    - prefilter count
 3. Verify indexed payload fields exist after rebuild.

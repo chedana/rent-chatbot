@@ -32,6 +32,19 @@ from chatbot_config import (
 
 DEFAULT_K = int(os.environ.get("RENT_K", "5"))
 _LOCATION_MATCH_INDEX_CACHE: Optional[Dict[str, Any]] = None
+_LOCATION_ABBREV_MAP: Dict[str, str] = {
+    "bdg": "bridge",
+    "brdg": "bridge",
+    "brg": "bridge",
+    "st": "street",
+    "rd": "road",
+    "sq": "square",
+    "ave": "avenue",
+    "av": "avenue",
+    "ctr": "centre",
+    "ct": "court",
+    "pk": "park",
+}
 
 
 def _truthy_env(name: str) -> bool:
@@ -1099,6 +1112,11 @@ def _normalize_location_keyword(v: Any) -> str:
     s = s.replace("'", "")
     s = re.sub(r"[^a-z0-9\s]", " ", s)
     s = re.sub(r"\s+", " ", s).strip()
+    if s:
+        toks = []
+        for tok in s.split():
+            toks.append(_LOCATION_ABBREV_MAP.get(tok, tok))
+        s = " ".join(toks)
     return s
 
 
@@ -1452,6 +1470,32 @@ def _window_best_similarity(q: str, cand: str) -> float:
     return best
 
 
+def _subsequence_similarity(q: str, cand: str) -> float:
+    # Abbreviation-friendly similarity: reward ordered character coverage.
+    # Example: "bdg" ~= "bridge".
+    if not q or not cand:
+        return 0.0
+    if len(q) > len(cand):
+        return 0.0
+    qi = 0
+    first = -1
+    last = -1
+    for i, ch in enumerate(cand):
+        if qi < len(q) and ch == q[qi]:
+            if first < 0:
+                first = i
+            last = i
+            qi += 1
+            if qi == len(q):
+                break
+    if qi != len(q):
+        return 0.0
+    span = max(1, last - first + 1)
+    density = float(len(q)) / float(span)
+    coverage = float(len(q)) / float(max(len(cand), 1))
+    return 0.70 + 0.20 * density + 0.10 * coverage
+
+
 def _normalize_location_query_term(raw: str) -> Tuple[str, str, str]:
     q_plain = _normalize_location_keyword(raw)
     if not q_plain:
@@ -1518,6 +1562,11 @@ def expand_location_keyword_candidates(raw: str, limit: int = 8, min_score: floa
                         score = 0.68 + 0.20 * sim + 0.12 * len_ratio
                         if score > local_score:
                             local_score = score
+            # subsequence score for abbreviation-like queries
+            if q_compact and compact and 3 <= len(q_compact) <= 8:
+                score = _subsequence_similarity(q_compact, compact)
+                if score > local_score:
+                    local_score = score
             if local_score >= min_score:
                 prev = scored.get(plain, 0.0)
                 if local_score > prev:
@@ -1529,18 +1578,19 @@ def expand_location_keyword_candidates(raw: str, limit: int = 8, min_score: floa
             {"alias": alias, "score": round(float(score), 4)}
             for alias, score in ranked[: max(1, limit)]
         ]
-        print(
-            "[DEBUG] location_candidate_dict "
-            + json.dumps(
-                {
-                    "query": str(raw or ""),
-                    "min_score": float(min_score),
-                    "limit": int(limit),
-                    "top": debug_top,
-                },
-                ensure_ascii=False,
-            )
-        )
+        payload = {
+            "query": str(raw or ""),
+            "min_score": float(min_score),
+            "limit": int(limit),
+            "top": debug_top,
+        }
+        msg = "location_candidate_dict " + json.dumps(payload, ensure_ascii=False)
+        try:
+            from log import log_message
+
+            log_message("INFO", msg)
+        except Exception:
+            print("[INFO] " + msg)
     out = [alias for alias, _ in ranked if alias]
     if limit > 0:
         out = out[:limit]
