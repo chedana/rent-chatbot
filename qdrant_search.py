@@ -1,4 +1,5 @@
 import json
+import os
 import re
 from typing import Any, Dict, List, Optional
 
@@ -153,6 +154,13 @@ def qdrant_search(
                     region_values.append(slug)
                     region_values.append(f"{slug}_london")
             trace_info["location_station_added"][_safe_text(term)] = list(dict.fromkeys(station_added_for_term))
+            if _safe_text(os.environ.get("RENT_LOCATION_DEBUG_PRINT")).strip().lower() in {"1", "true", "yes", "on"}:
+                preview_station = trace_info["location_station_added"][_safe_text(term)]
+                station_preview = preview_station[:6]
+                flow = f"location_flow_stageA {term} -> {uniq_terms[:6]}"
+                if station_preview:
+                    flow += f" -> {station_preview}"
+                log_message("INFO", flow)
 
         loc_values = list(dict.fromkeys([x for x in loc_values if x]))
         station_values = list(dict.fromkeys([x for x in station_values if x]))

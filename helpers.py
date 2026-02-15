@@ -32,40 +32,11 @@ from chatbot_config import (
 
 DEFAULT_K = int(os.environ.get("RENT_K", "5"))
 _LOCATION_MATCH_INDEX_CACHE: Optional[Dict[str, Any]] = None
-_LOCATION_ABBREV_MAP: Dict[str, str] = {
-    "bdg": "bridge",
-    "brdg": "bridge",
-    "brg": "bridge",
-    "st": "street",
-    "rd": "road",
-    "sq": "square",
-    "ave": "avenue",
-    "av": "avenue",
-    "ctr": "centre",
-    "ct": "court",
-    "pk": "park",
-}
-_LOCATION_ABBREV_DEBUG_PRINTED = False
 
 
 def _truthy_env(name: str) -> bool:
     v = str(os.environ.get(name) or "").strip().lower()
     return v in {"1", "true", "yes", "on"}
-
-
-def _maybe_print_location_abbrev_dic() -> None:
-    global _LOCATION_ABBREV_DEBUG_PRINTED
-    if _LOCATION_ABBREV_DEBUG_PRINTED or not _truthy_env("RENT_LOCATION_DEBUG_PRINT"):
-        return
-    items = [f"{k}->{v}" for k, v in sorted(_LOCATION_ABBREV_MAP.items(), key=lambda x: x[0])]
-    msg = "preA_location_abbrev_dic " + str(items)
-    try:
-        from log import log_message
-
-        log_message("INFO", msg)
-    except Exception:
-        print("[INFO] " + msg)
-    _LOCATION_ABBREV_DEBUG_PRINTED = True
 
 def _parse_user_date_uk_first(value: Any) -> Optional[str]:
     s = _safe_text(value)
@@ -914,6 +885,13 @@ def normalize_constraints(c: dict) -> dict:
         if not raw:
             continue
         corrected = _correct_location_keyword(raw)
+        if _truthy_env("RENT_LOCATION_DEBUG_PRINT"):
+            try:
+                from log import log_message
+
+                log_message("INFO", f"location_flow_preA {raw} -> {corrected}")
+            except Exception:
+                print(f"[INFO] location_flow_preA {raw} -> {corrected}")
         k = _normalize_location_keyword(corrected)
         if not k or k in seen_loc:
             continue
@@ -1128,11 +1106,6 @@ def _normalize_location_keyword(v: Any) -> str:
     s = s.replace("'", "")
     s = re.sub(r"[^a-z0-9\s]", " ", s)
     s = re.sub(r"\s+", " ", s).strip()
-    if s:
-        toks = []
-        for tok in s.split():
-            toks.append(_LOCATION_ABBREV_MAP.get(tok, tok))
-        s = " ".join(toks)
     return s
 
 
@@ -1529,7 +1502,6 @@ def _normalize_location_query_term(raw: str) -> Tuple[str, str, str]:
 
 
 def expand_location_keyword_candidates(raw: str, limit: int = 8, min_score: float = 0.80) -> List[str]:
-    _maybe_print_location_abbrev_dic()
     q_plain, q_slug, q_compact = _normalize_location_query_term(raw)
     if not q_plain:
         return []
