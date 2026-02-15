@@ -65,6 +65,7 @@ def qdrant_search(
     trace_info: Dict[str, Any] = {
         "location_keywords": [],
         "location_keyword_expansions": {},
+        "location_station_added": {},
         "location_tokens": [],
         "prefilter_count": None,
     }
@@ -126,6 +127,7 @@ def qdrant_search(
                 seen_local.add(k)
                 uniq_terms.append(k)
             trace_info["location_keyword_expansions"][_safe_text(term)] = uniq_terms
+            station_added_for_term: List[str] = []
 
             for raw in uniq_terms:
                 raw = re.sub(r"\s+", " ", raw).strip()
@@ -145,9 +147,12 @@ def qdrant_search(
                         loc_values.append(f"{slug}_station")
                     station_values.append(slug)
                     if not slug.endswith("_station"):
-                        station_values.append(f"{slug}_station")
+                        station_token = f"{slug}_station"
+                        station_values.append(station_token)
+                        station_added_for_term.append(station_token)
                     region_values.append(slug)
                     region_values.append(f"{slug}_london")
+            trace_info["location_station_added"][_safe_text(term)] = list(dict.fromkeys(station_added_for_term))
 
         loc_values = list(dict.fromkeys([x for x in loc_values if x]))
         station_values = list(dict.fromkeys([x for x in station_values if x]))
@@ -210,6 +215,8 @@ def qdrant_search(
                 + json.dumps(trace_info.get("location_keywords", []), ensure_ascii=False)
                 + " expanded="
                 + json.dumps(trace_info.get("location_keyword_expansions", {}), ensure_ascii=False)
+                + " station_added="
+                + json.dumps(trace_info.get("location_station_added", {}), ensure_ascii=False)
                 + " any_tokens="
                 + json.dumps(trace_info.get("location_tokens", []), ensure_ascii=False),
             )
