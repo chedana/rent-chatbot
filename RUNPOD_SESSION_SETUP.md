@@ -72,3 +72,55 @@ python3 -m vllm.entrypoints.openai.api_server \
   --host 0.0.0.0 \
   --port 8000
 ```
+
+## 9) Data Artifacts (What to rebuild, when)
+
+### A. Qdrant storage: `storage.sqlite`
+
+- Path:
+  - `/workspace/rent-chatbot/artifacts/qdrant_local/collection/rent_listings/storage.sqlite`
+- What it is:
+  - Local Qdrant collection payload/vector storage file.
+  - Contains the indexed listing payload used by Stage A retrieval (including location prefilter fields such as `location_postcode_tokens`, `location_station_tokens`, `location_region_tokens`).
+- When to rebuild:
+  - Any change to index payload schema or tokenization logic.
+  - Any change to source dataset used for retrieval.
+- Rebuild command:
+
+```bash
+cd /workspace/rent-chatbot
+export RENT_QDRANT_PATH=/workspace/rent-chatbot/artifacts/qdrant_local
+export RENT_QDRANT_COLLECTION=rent_listings
+export RENT_QDRANT_SOURCE_PATH=/workspace/rent-chatbot/data/web_data/properties_clean.jsonl
+export RENT_QDRANT_RESET=1
+python3 /workspace/rent-chatbot/data/qdrant/build_qdrant_from_source.py
+```
+
+### B. Stage C sidecar: `pref_vectors.parquet`
+
+- Path (default):
+  - `/workspace/rent-chatbot/artifacts/features/pref_vectors.parquet`
+- What it is:
+  - Stage C preference sidecar vectors (features/description segment embeddings).
+  - Used for soft preference matching in rerank stage.
+- Runtime binding:
+  - `RENT_PREF_VECTOR_PATH` must point to this file.
+- When to rebuild:
+  - Source listing text changed.
+  - Embedding model changed.
+  - Segment split strategy changed.
+- Build command:
+
+```bash
+cd /workspace/rent-chatbot
+export RENT_PREF_VECTOR_SOURCE_PATH=/workspace/rent-chatbot/data/web_data/properties_clean.jsonl
+export RENT_PREF_VECTOR_PATH=/workspace/rent-chatbot/artifacts/features/pref_vectors.parquet
+python3 /workspace/rent-chatbot/data/qdrant/build_preference_sidecar_vectors.py
+```
+
+### C. Dependency note
+
+- `storage.sqlite` and `pref_vectors.parquet` are independent artifacts:
+  - Stage A uses Qdrant (`storage.sqlite`).
+  - Stage C preference scoring uses sidecar vectors (`pref_vectors.parquet`).
+- If you changed both retrieval payload logic and preference vector logic, rebuild both.
