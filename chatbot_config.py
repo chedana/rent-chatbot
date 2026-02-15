@@ -25,6 +25,9 @@ Schema:
 }
 Rules:
 - location_keywords are place names/areas/postcodes (e.g., "Canary Wharf", "E14", "Shoreditch").
+- For location_keywords, do verbatim extraction from user text spans only.
+- Do NOT correct spelling, expand abbreviations, canonicalize, or rewrite location text.
+- Example: user says "regant pk" -> output "regant pk" (not "regent park").
 - available_from should be an ISO date string "YYYY-MM-DD" when possible.
 - available_from means user's latest move-in date.
 - Do not output available_from_op.
@@ -99,6 +102,8 @@ Schema:
 Rules:
 - constraints: extract hard constraints only.
 - semantic_terms: extract phrase-level semantic intents.
+- For constraints.location_keywords, do verbatim extraction from user text spans only.
+- Do NOT correct spelling, expand abbreviations, canonicalize, or rewrite location text.
 - For any explicit layout request (single or multiple), put them into constraints.layout_options.
 - Keep named entities as full phrases (e.g., "Seven Mills Primary School", "Heron Quays Station").
 - Do NOT put hard constraints into semantic_terms (budget, bedroom count, property type, strict location filters).

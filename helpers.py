@@ -535,6 +535,7 @@ def _infer_clear_location_from_query(text: Any) -> bool:
     ]
     return any(re.search(p, src) for p in patterns)
 
+
 def _infer_max_rent_pcm_from_query(text: Any) -> Optional[float]:
     src = _safe_text(text)
     if not src:
