@@ -72,6 +72,10 @@ Per candidate alias token, local score is max of:
 - `sim = window_best_similarity(q_compact, cand_compact)`
 - pass only if `sim >= min_sim` where:
   - `min_sim = 1 - adaptive_max_ed / len(q_compact)`
+- `window_best_similarity` window policy:
+  - for each window length in `{len(q)-1, len(q), len(q)+1}` (min 3),
+  - evaluate only edge windows: first 3 starts and last 3 starts,
+  - do not scan arbitrary middle windows.
 - if passed:
   - `len_ratio = min(len(q_compact), len(cand_compact)) / max(len(q_compact), len(cand_compact))`
   - `score_dist = 0.68 + 0.20 * sim + 0.12 * len_ratio`
@@ -108,6 +112,9 @@ Distance metric:
 - If all expanded tokens still fail exact token match, prefilter count can be `0` and Stage A returns no candidates.
 - Subsequence improves abbreviation recall (e.g., `london bdg`), but short/ambiguous abbreviations may still need explicit abbreviation mapping for long-term precision.
 - Current expansion output is alias-first (mostly plain phrases), then converted to payload-like token shapes for matching. This can introduce extra broad tokens.
+- Regression note:
+  - historical false-positive: `st james` drifting to `kings cross thameslink` via middle-window distance match,
+  - mitigation applied: edge-window-only distance policy (prefix/suffix windows only).
 - Mitigation path:
   - enrich station aliases/subphrases in index tokens,
   - keep compatibility fallback (`location_tokens`),
