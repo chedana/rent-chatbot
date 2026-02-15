@@ -1588,6 +1588,23 @@ def run_chat():
             rule_constraints=rule_extracted,
             policy=STRUCTURED_POLICY,
         )
+        if str(os.environ.get("RENT_STRUCTURED_DEBUG_PRINT", "0")).strip().lower() in {"1", "true", "yes", "on"}:
+            llm_loc = (llm_extracted or {}).get("location_keywords") or []
+            rule_loc = (rule_extracted or {}).get("location_keywords") or []
+            final_loc = (extracted or {}).get("location_keywords") or []
+            log_message(
+                "INFO",
+                "structured_debug location_keywords "
+                + json.dumps(
+                    {
+                        "llm": llm_loc,
+                        "rule": rule_loc,
+                        "final": final_loc,
+                        "policy": STRUCTURED_POLICY,
+                    },
+                    ensure_ascii=False,
+                ),
+            )
         append_structured_conflict_log(
             user_text=user_in,
             semantic_parse_source=semantic_parse_source,
