@@ -1199,16 +1199,6 @@ def _build_location_match_index() -> Dict[str, Any]:
                     if len(sub) >= 6:
                         _add_location_alias(ent, sub)
 
-    def _canonical_station_name(raw: str) -> str:
-        n = _normalize_location_keyword(raw)
-        if not n:
-            return _safe_text(raw).strip()
-        # Merge Kings Cross station-name variants into one canonical bucket.
-        # Keep all observed aliases for matching; only canonical id is unified.
-        if ("king" in n and "cross" in n):
-            return "king_s_cross_st_pancras_station"
-        return _safe_text(raw).strip()
-
     def _extract_payload_obj(obj: Any) -> Optional[Dict[str, Any]]:
         # qdrant local pickle shape can vary; recursively find payload-like dict.
         seen = set()
@@ -1283,7 +1273,7 @@ def _build_location_match_index() -> Dict[str, Any]:
             for x in (rec.get(key) or []):
                 sx = _safe_text(x).strip()
                 if sx:
-                    _add_phrase(_canonical_station_name(sx), sx)
+                    _add_phrase(sx, sx)
         for x in (rec.get("location_postcode_tokens") or []):
             sx = _safe_text(x).strip()
             if sx:
@@ -1298,7 +1288,7 @@ def _build_location_match_index() -> Dict[str, Any]:
             for x in dqm.get("station") or []:
                 sx = _safe_text(x).strip()
                 if sx:
-                    _add_phrase(_canonical_station_name(sx), sx)
+                    _add_phrase(sx, sx)
 
         stations = _parse_jsonlike(rec.get("stations"))
         if isinstance(stations, list):
@@ -1309,12 +1299,12 @@ def _build_location_match_index() -> Dict[str, Any]:
                     name = _safe_text(item).strip()
                 name = _strip_station_suffix(name)
                 if name:
-                    _add_phrase(_canonical_station_name(name), name)
+                    _add_phrase(name, name)
         else:
             for s_item in parse_jsonish_items(rec.get("stations")):
                 name = _strip_station_suffix(s_item)
                 if name:
-                    _add_phrase(_canonical_station_name(name), name)
+                    _add_phrase(name, name)
 
         addr = _safe_text(rec.get("address")).strip()
         if addr:
@@ -1365,9 +1355,10 @@ def _build_location_match_index() -> Dict[str, Any]:
         clean_aliases = []
         for plain, slug, compact in aliases:
             clean_aliases.append((plain, slug, compact))
-            lookup_plain.setdefault(plain, canonical)
-            lookup_slug.setdefault(slug, canonical)
-            lookup_compact.setdefault(compact, canonical)
+            # Exact-key lookups should return an alias token directly.
+            lookup_plain.setdefault(plain, plain)
+            lookup_slug.setdefault(slug, plain)
+            lookup_compact.setdefault(compact, plain)
         entries.append({"canonical": canonical, "aliases": clean_aliases})
     return {
         "entries": entries,
@@ -1488,14 +1479,13 @@ def _correct_location_keyword(raw: str) -> str:
     if q_compact in lookup_compact:
         return lookup_compact[q_compact]
 
-    # contains + distance score (best/second-best decision)
-    # Merge semantically equivalent canonicals by compact key first.
-    grouped: Dict[str, Tuple[float, str]] = {}
+    # contains + distance score (top-1 winner, no hard-coded canonical merge)
+    best_score = 0.0
+    best_alias = ""
     for ent in entries:
-        canonical = _safe_text(ent.get("canonical")).strip()
         aliases = ent.get("aliases") or []
-        local_best = 0.0
         for plain, slug, compact in aliases:
+            local_score = 0.0
             # contains on compact form
             if q_compact and compact:
                 if q_compact in compact or compact in q_compact:
@@ -1503,8 +1493,8 @@ def _correct_location_keyword(raw: str) -> str:
                     longer = float(max(len(q_compact), len(compact)))
                     ratio = shorter / max(1.0, longer)
                     score = 0.88 + 0.10 * ratio
-                    if score > local_best:
-                        local_best = score
+                    if score > local_score:
+                        local_score = score
             # adaptive distance on compact/window
             if q_compact and compact:
                 sim = _window_best_similarity(q_compact, compact)
@@ -1517,26 +1507,16 @@ def _correct_location_keyword(raw: str) -> str:
                         # prefer candidates with similar compact length.
                         len_ratio = float(min(len(q_compact), len(compact))) / float(max(len(q_compact), len(compact), 1))
                         score = 0.68 + 0.20 * sim + 0.12 * len_ratio
-                        if score > local_best:
-                            local_best = score
-        if local_best <= 0:
-            continue
-        gk = _compact_key(canonical) or _slug_key(canonical) or _normalize_location_keyword(canonical) or canonical
-        prev = grouped.get(gk)
-        if prev is None:
-            grouped[gk] = (local_best, canonical)
-        else:
-            prev_score, prev_c = prev
-            # Prefer higher score; tie-break to shorter canonical label.
-            if local_best > prev_score or (abs(local_best - prev_score) < 1e-9 and len(canonical) < len(prev_c)):
-                grouped[gk] = (local_best, canonical)
+                        if score > local_score:
+                            local_score = score
+            if local_score > best_score or (abs(local_score - best_score) < 1e-9 and best_alias and len(plain) < len(best_alias)):
+                best_score = local_score
+                best_alias = plain
 
-    ranked = sorted(grouped.values(), key=lambda x: x[0], reverse=True)
-    if not ranked:
+    if not best_alias:
         return _safe_text(raw).strip()
-    best_score, best_canon = ranked[0]
-    if best_canon and best_score >= 0.80:
-        return best_canon
+    if best_score >= 0.80:
+        return best_alias
     return _safe_text(raw).strip()
 
 
