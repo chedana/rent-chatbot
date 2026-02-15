@@ -14,8 +14,8 @@ export RENT_QDRANT_PATH="${RENT_QDRANT_PATH:-/workspace/rent-chatbot/artifacts/q
 export RENT_QDRANT_COLLECTION="${RENT_QDRANT_COLLECTION:-rent_listings}"
 export RENT_QDRANT_ENABLE_PREFILTER="${RENT_QDRANT_ENABLE_PREFILTER:-1}"
 export RENT_PREF_VECTOR_PATH="${RENT_PREF_VECTOR_PATH:-/workspace/rent-chatbot/artifacts/features/pref_vectors.parquet}"
-export RENT_STAGEA_TRACE="${RENT_STAGEA_TRACE:-0}"
-export RENT_LOCATION_DEBUG_PRINT="${RENT_LOCATION_DEBUG_PRINT:-0}"
+export RENT_STAGEA_TRACE="0"
+export RENT_LOCATION_DEBUG_PRINT="0"
 
 # Retrieval / structured policy
 export RENT_RECALL="${RENT_RECALL:-1000}"

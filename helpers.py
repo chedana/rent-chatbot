@@ -1271,11 +1271,6 @@ def _build_location_match_index() -> Dict[str, Any]:
     def _add_from_payload(rec: Dict[str, Any]) -> None:
         if not isinstance(rec, dict):
             return
-        for key in ("location", "borough", "postcode"):
-            v = _safe_text(rec.get(key)).strip()
-            if v:
-                _add_phrase(v, v)
-
         for key in ("location_region_tokens", "location_region_slugs"):
             for x in (rec.get(key) or []):
                 sx = _safe_text(x).strip()
@@ -1286,10 +1281,6 @@ def _build_location_match_index() -> Dict[str, Any]:
                 sx = _safe_text(x).strip()
                 if sx:
                     _add_phrase(sx, sx)
-        for x in (rec.get("location_postcode_tokens") or []):
-            sx = _safe_text(x).strip()
-            if sx:
-                _add_phrase(sx, sx)
 
         dqm = _parse_jsonlike(rec.get("discovery_queries_by_method"))
         if isinstance(dqm, dict):
@@ -1317,19 +1308,6 @@ def _build_location_match_index() -> Dict[str, Any]:
                 name = _strip_station_suffix(s_item)
                 if name:
                     _add_phrase(name, name)
-
-        addr = _safe_text(rec.get("address")).strip()
-        if addr:
-            for seg in re.split(r"[,;/|]", addr):
-                seg_n = _normalize_location_keyword(seg)
-                if not seg_n:
-                    continue
-                seg_n = re.sub(r"^\d+[a-z]?\s+", "", seg_n).strip()
-                if not seg_n:
-                    continue
-                if re.search(r"\b(?:bedroom|flat|apartment|house|rent)\b", seg_n):
-                    continue
-                _add_phrase(seg_n, seg_n)
 
     for path in _iter_location_vocab_sources():
         if not os.path.exists(path):
