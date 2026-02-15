@@ -1493,8 +1493,6 @@ def expand_location_keyword_candidates(raw: str, limit: int = 8, min_score: floa
     q_plain, q_slug, q_compact = _normalize_location_query_term(raw)
     if not q_plain:
         return []
-    q_tokens = [t for t in q_plain.split() if t]
-    q_anchor_tokens = {t for t in q_tokens if len(t) >= 4}
     idx = _get_location_match_index()
     entries = idx.get("entries") or []
     if len(entries) < 20:
@@ -1547,13 +1545,6 @@ def expand_location_keyword_candidates(raw: str, limit: int = 8, min_score: floa
                 if score > local_score:
                     local_score = score
             if local_score >= min_score:
-                # Guardrail for multi-token queries: require at least one
-                # non-trivial shared token to avoid subsequence false-positives
-                # (e.g. "st james" drifting to "*thames*").
-                if len(q_tokens) >= 2 and q_anchor_tokens:
-                    cand_tokens = {t for t in _normalize_location_keyword(plain).split() if t}
-                    if not (q_anchor_tokens & cand_tokens):
-                        continue
                 prev = scored.get(plain, 0.0)
                 if local_score > prev:
                     scored[plain] = local_score
