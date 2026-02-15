@@ -2,6 +2,7 @@ import os
 import re
 import json
 import io
+import copy
 import pickle
 import sqlite3
 from datetime import datetime
@@ -1686,7 +1687,8 @@ def _canon_for_structured_compare(v: Any) -> Any:
 
 
 def _normalize_for_structured_policy(obj: Optional[Dict[str, Any]]) -> Dict[str, Any]:
-    out = _normalize_constraint_extract(obj or {})
+    # Work on a deep copy so policy normalization never mutates raw LLM output.
+    out = _normalize_constraint_extract(copy.deepcopy(obj or {}))
     out = normalize_budget_to_pcm(out)
     out = normalize_constraints(out)
     return out

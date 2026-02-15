@@ -2,6 +2,7 @@ import re
 import json
 import math
 import os
+import copy
 from datetime import datetime
 from urllib.parse import urlparse
 from typing import Dict, Any, List, Tuple, Optional
@@ -1581,6 +1582,7 @@ def run_chat():
             semantic_parse_source = "fallback_split_calls"
             llm_extracted = llm_extract(user_in, state["constraints"])
             semantic_terms = {}
+        llm_extracted_raw = copy.deepcopy(llm_extracted or {})
         rule_extracted = repair_extracted_constraints(llm_extracted, user_in)
         extracted, structured_audit = apply_structured_policy(
             user_text=user_in,
@@ -1589,7 +1591,7 @@ def run_chat():
             policy=STRUCTURED_POLICY,
         )
         if str(os.environ.get("RENT_STRUCTURED_DEBUG_PRINT", "0")).strip().lower() in {"1", "true", "yes", "on"}:
-            llm_loc = (llm_extracted or {}).get("location_keywords") or []
+            llm_loc = (llm_extracted_raw or {}).get("location_keywords") or []
             rule_loc = (rule_extracted or {}).get("location_keywords") or []
             final_loc = (extracted or {}).get("location_keywords") or []
             log_message(
