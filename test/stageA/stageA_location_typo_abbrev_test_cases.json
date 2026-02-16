@@ -1,0 +1,5147 @@
+{
+  "suite": "stageA_location_typo_abbrev_test_cases",
+  "description": "Location typo and abbreviation test data for StageA prefilter correction and extraction.",
+  "generated_at_utc": "2026-02-16T17:27:44Z",
+  "constraints": {
+    "variants_per_name": "2-5",
+    "match_function": "helpers.expand_location_keyword_candidates(raw, limit=3, min_score=0.80)",
+    "target_scope": [
+      "mental_region",
+      "station"
+    ]
+  },
+  "summary": {
+    "location_count": 99,
+    "total_variants": 410,
+    "unmatched_variants": 0,
+    "mental_region_count": 35,
+    "station_count": 64
+  },
+  "locations": [
+    {
+      "category": "mental_region",
+      "canonical_name": "aldgate",
+      "gt_folder": "aldgate_london",
+      "variants": [
+        {
+          "input": "aldate",
+          "expected_corrected": "aldgate",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "aldgate",
+            "aldgate east",
+            "aldgate london"
+          ]
+        },
+        {
+          "input": "algdate",
+          "expected_corrected": "aldgate",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "aldgate",
+            "aldgate east",
+            "aldgate london"
+          ]
+        },
+        {
+          "input": "aldgt",
+          "expected_corrected": "aldgate",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "aldgate",
+            "aldgate east",
+            "aldgate london"
+          ]
+        },
+        {
+          "input": "aldga",
+          "expected_corrected": "aldgate",
+          "reason": "prefix_first_token",
+          "top3_preview": [
+            "aldgate",
+            "aldgate east",
+            "aldgate london"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 4,
+        "accepted": 4,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "mental_region",
+      "canonical_name": "barbican",
+      "gt_folder": "barbican_london",
+      "variants": [
+        {
+          "input": "barbcan",
+          "expected_corrected": "barbican",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "barbican",
+            "barbican london",
+            "barbican station"
+          ]
+        },
+        {
+          "input": "babrican",
+          "expected_corrected": "barbican",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "barbican",
+            "barbican london",
+            "barbican station"
+          ]
+        },
+        {
+          "input": "brbcn",
+          "expected_corrected": "barbican",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "barbican",
+            "barbican london",
+            "barbican station"
+          ]
+        },
+        {
+          "input": "barbi",
+          "expected_corrected": "barbican",
+          "reason": "prefix_first_token",
+          "top3_preview": [
+            "barbican",
+            "barbican london",
+            "barbican station"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 4,
+        "accepted": 4,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "mental_region",
+      "canonical_name": "bayswater",
+      "gt_folder": "bayswater_london",
+      "variants": [
+        {
+          "input": "baysater",
+          "expected_corrected": "bayswater",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "bayswater",
+            "bayswater london",
+            "bayswater station"
+          ]
+        },
+        {
+          "input": "basywater",
+          "expected_corrected": "bayswater",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "bayswater",
+            "bayswater london",
+            "bayswater station"
+          ]
+        },
+        {
+          "input": "byswtr",
+          "expected_corrected": "bayswater",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "bayswater",
+            "bayswater london",
+            "bayswater station"
+          ]
+        },
+        {
+          "input": "baysw",
+          "expected_corrected": "bayswater",
+          "reason": "prefix_first_token",
+          "top3_preview": [
+            "bayswater",
+            "bayswater london",
+            "bayswater station"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 4,
+        "accepted": 4,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "mental_region",
+      "canonical_name": "belgravia",
+      "gt_folder": "belgravia_london",
+      "variants": [
+        {
+          "input": "belgavia",
+          "expected_corrected": "belgravia",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "belgravia",
+            "belgravia london"
+          ]
+        },
+        {
+          "input": "beglravia",
+          "expected_corrected": "belgravia",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "belgravia",
+            "belgravia london"
+          ]
+        },
+        {
+          "input": "blgrv",
+          "expected_corrected": "belgravia",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "belgravia",
+            "belgravia london"
+          ]
+        },
+        {
+          "input": "belgr",
+          "expected_corrected": "belgravia",
+          "reason": "prefix_first_token",
+          "top3_preview": [
+            "belgravia",
+            "belgravia london",
+            "bethnal green"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 4,
+        "accepted": 4,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "mental_region",
+      "canonical_name": "bermondsey",
+      "gt_folder": "bermondsey_london",
+      "variants": [
+        {
+          "input": "bermodsey",
+          "expected_corrected": "bermondsey",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "bermondsey",
+            "south bermondsey",
+            "bermondsey london"
+          ]
+        },
+        {
+          "input": "bemrondsey",
+          "expected_corrected": "bermondsey",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "bermondsey",
+            "south bermondsey",
+            "bermondsey london"
+          ]
+        },
+        {
+          "input": "brmndsy",
+          "expected_corrected": "bermondsey",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "bermondsey",
+            "south bermondsey",
+            "bermondsey london"
+          ]
+        },
+        {
+          "input": "bermo",
+          "expected_corrected": "bermondsey",
+          "reason": "prefix_first_token",
+          "top3_preview": [
+            "bermondsey",
+            "south bermondsey",
+            "bermondsey london"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 4,
+        "accepted": 4,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "mental_region",
+      "canonical_name": "blackfriars",
+      "gt_folder": "blackfriars_london",
+      "variants": [
+        {
+          "input": "blackriars",
+          "expected_corrected": "blackfriars",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "blackfriars",
+            "blackfriars london",
+            "blackfriars station"
+          ]
+        },
+        {
+          "input": "blcakfriars",
+          "expected_corrected": "blackfriars",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "blackfriars",
+            "blackfriars london",
+            "blackfriars station"
+          ]
+        },
+        {
+          "input": "blckfrrs",
+          "expected_corrected": "blackfriars",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "blackfriars",
+            "blackfriars london",
+            "blackfriars station"
+          ]
+        },
+        {
+          "input": "black",
+          "expected_corrected": "blackfriars",
+          "reason": "prefix_first_token",
+          "top3_preview": [
+            "blackfriars",
+            "blackfriars london",
+            "blackfriars station"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 4,
+        "accepted": 4,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "mental_region",
+      "canonical_name": "bloomsbury",
+      "gt_folder": "bloomsbury_london",
+      "variants": [
+        {
+          "input": "bloombury",
+          "expected_corrected": "bloomsbury",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "bloomsbury",
+            "bloomsbury london"
+          ]
+        },
+        {
+          "input": "blmsbry",
+          "expected_corrected": "bloomsbury",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "bloomsbury",
+            "bloomsbury london"
+          ]
+        },
+        {
+          "input": "bloom",
+          "expected_corrected": "bloomsbury",
+          "reason": "prefix_first_token",
+          "top3_preview": [
+            "bloomsbury",
+            "bloomsbury london"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 3,
+        "accepted": 3,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "mental_region",
+      "canonical_name": "borough",
+      "gt_folder": "borough_london",
+      "variants": [
+        {
+          "input": "borugh",
+          "expected_corrected": "borough",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "borough",
+            "borough london",
+            "borough station"
+          ]
+        },
+        {
+          "input": "boorugh",
+          "expected_corrected": "borough",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "borough",
+            "borough london",
+            "borough station"
+          ]
+        },
+        {
+          "input": "brgh",
+          "expected_corrected": "borough",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "borough",
+            "borough london",
+            "borough station"
+          ]
+        },
+        {
+          "input": "borou",
+          "expected_corrected": "borough",
+          "reason": "prefix_first_token",
+          "top3_preview": [
+            "borough",
+            "borough london",
+            "borough station"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 4,
+        "accepted": 4,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "mental_region",
+      "canonical_name": "chelsea",
+      "gt_folder": "chelsea_london",
+      "variants": [
+        {
+          "input": "chesea",
+          "expected_corrected": "chelsea",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "chelsea",
+            "chelsea london",
+            "arch station"
+          ]
+        },
+        {
+          "input": "chlesea",
+          "expected_corrected": "chelsea",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "chelsea",
+            "chelsea london"
+          ]
+        },
+        {
+          "input": "chls",
+          "expected_corrected": "chelsea",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "chelsea",
+            "chelsea london",
+            "cholsey station"
+          ]
+        },
+        {
+          "input": "chels",
+          "expected_corrected": "chelsea",
+          "reason": "prefix_first_token",
+          "top3_preview": [
+            "chelsea",
+            "chelsea london",
+            "cholsey station"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 4,
+        "accepted": 4,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "mental_region",
+      "canonical_name": "chinatown",
+      "gt_folder": "chinatown_london",
+      "variants": [
+        {
+          "input": "chintown",
+          "expected_corrected": "chinatown",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "chinatown",
+            "chinatown london"
+          ]
+        },
+        {
+          "input": "chniatown",
+          "expected_corrected": "chinatown",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "chinatown",
+            "chinatown london"
+          ]
+        },
+        {
+          "input": "chntwn",
+          "expected_corrected": "chinatown",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "chinatown",
+            "chinatown london"
+          ]
+        },
+        {
+          "input": "china",
+          "expected_corrected": "chinatown",
+          "reason": "prefix_first_token",
+          "top3_preview": [
+            "chinatown",
+            "chinatown london",
+            "greenwich peninsula"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 4,
+        "accepted": 4,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "mental_region",
+      "canonical_name": "clerkenwell",
+      "gt_folder": "clerkenwell_london",
+      "variants": [
+        {
+          "input": "clerknwell",
+          "expected_corrected": "clerkenwell",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "clerkenwell",
+            "clerkenwell london"
+          ]
+        },
+        {
+          "input": "clrekenwell",
+          "expected_corrected": "clerkenwell",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "clerkenwell",
+            "clerkenwell london"
+          ]
+        },
+        {
+          "input": "clrknwll",
+          "expected_corrected": "clerkenwell",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "clerkenwell",
+            "clerkenwell london"
+          ]
+        },
+        {
+          "input": "clerk",
+          "expected_corrected": "clerkenwell",
+          "reason": "prefix_first_token",
+          "top3_preview": [
+            "clerkenwell",
+            "clerkenwell london"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 4,
+        "accepted": 4,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "mental_region",
+      "canonical_name": "covent garden",
+      "gt_folder": "covent_garden_london",
+      "variants": [
+        {
+          "input": "cov gdn",
+          "expected_corrected": "covent garden",
+          "reason": "manual_abbrev_or_typo",
+          "top3_preview": [
+            "covent garden",
+            "covent garden london",
+            "covent garden station"
+          ]
+        },
+        {
+          "input": "covnt garden",
+          "expected_corrected": "covent garden",
+          "reason": "manual_abbrev_or_typo",
+          "top3_preview": [
+            "covent garden",
+            "covent garden london",
+            "covent garden station"
+          ]
+        },
+        {
+          "input": "covent grdn",
+          "expected_corrected": "covent garden",
+          "reason": "manual_abbrev_or_typo",
+          "top3_preview": [
+            "covent garden",
+            "covent garden london",
+            "covent garden station"
+          ]
+        },
+        {
+          "input": "cov gar",
+          "expected_corrected": "covent garden",
+          "reason": "shorten_words",
+          "top3_preview": [
+            "covent garden",
+            "covent garden london",
+            "covent garden station"
+          ]
+        },
+        {
+          "input": "covnt garen",
+          "expected_corrected": "covent garden",
+          "reason": "delete_char_multi",
+          "top3_preview": [
+            "covent garden"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 9,
+        "accepted": 5,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "mental_region",
+      "canonical_name": "elephant castle",
+      "gt_folder": "elephant_castle_london",
+      "variants": [
+        {
+          "input": "elephant n castle",
+          "expected_corrected": "elephant castle",
+          "reason": "manual_abbrev_or_typo",
+          "top3_preview": [
+            "elephant castle",
+            "elephant castle london",
+            "elephant castle station"
+          ]
+        },
+        {
+          "input": "elephnt castle",
+          "expected_corrected": "elephant castle",
+          "reason": "manual_abbrev_or_typo",
+          "top3_preview": [
+            "elephant castle",
+            "elephant castle london",
+            "elephant castle station"
+          ]
+        },
+        {
+          "input": "ele cas",
+          "expected_corrected": "elephant castle",
+          "reason": "shorten_words",
+          "top3_preview": [
+            "elephant castle",
+            "elephant castle london",
+            "elephant castle station"
+          ]
+        },
+        {
+          "input": "elepant casle",
+          "expected_corrected": "elephant castle",
+          "reason": "delete_char_multi",
+          "top3_preview": [
+            "elephant castle",
+            "elephant castle london",
+            "elephant castle station"
+          ]
+        },
+        {
+          "input": "elepant",
+          "expected_corrected": "elephant castle",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "elephant castle",
+            "elephant castle london",
+            "elephant castle station"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 9,
+        "accepted": 5,
+        "rejected": 1
+      }
+    },
+    {
+      "category": "mental_region",
+      "canonical_name": "euston",
+      "gt_folder": "euston_london",
+      "variants": [
+        {
+          "input": "euson",
+          "expected_corrected": "euston",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "euston",
+            "euston london",
+            "euston square"
+          ]
+        },
+        {
+          "input": "eutson",
+          "expected_corrected": "euston",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "euston",
+            "euston london",
+            "euston square"
+          ]
+        },
+        {
+          "input": "estn",
+          "expected_corrected": "euston",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "euston",
+            "south west",
+            "rye station"
+          ]
+        },
+        {
+          "input": "eusto",
+          "expected_corrected": "euston",
+          "reason": "prefix_first_token",
+          "top3_preview": [
+            "euston",
+            "euston london",
+            "euston square"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 4,
+        "accepted": 4,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "mental_region",
+      "canonical_name": "fitzrovia",
+      "gt_folder": "fitzrovia_london",
+      "variants": [
+        {
+          "input": "fitzovia",
+          "expected_corrected": "fitzrovia",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "fitzrovia",
+            "fitzrovia london"
+          ]
+        },
+        {
+          "input": "fiztrovia",
+          "expected_corrected": "fitzrovia",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "fitzrovia",
+            "fitzrovia london"
+          ]
+        },
+        {
+          "input": "ftzrv",
+          "expected_corrected": "fitzrovia",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "fitzrovia",
+            "fitzrovia london"
+          ]
+        },
+        {
+          "input": "fitzr",
+          "expected_corrected": "fitzrovia",
+          "reason": "prefix_first_token",
+          "top3_preview": [
+            "fitzrovia",
+            "fitzrovia london"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 4,
+        "accepted": 4,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "mental_region",
+      "canonical_name": "holborn",
+      "gt_folder": "holborn_london",
+      "variants": [
+        {
+          "input": "holorn",
+          "expected_corrected": "holborn",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "holborn",
+            "soho london",
+            "holborn london"
+          ]
+        },
+        {
+          "input": "hoblorn",
+          "expected_corrected": "holborn",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "holborn",
+            "holborn london",
+            "holborn station"
+          ]
+        },
+        {
+          "input": "hlbrn",
+          "expected_corrected": "holborn",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "holborn",
+            "holborn london",
+            "holborn station"
+          ]
+        },
+        {
+          "input": "holbo",
+          "expected_corrected": "holborn",
+          "reason": "prefix_first_token",
+          "top3_preview": [
+            "holborn",
+            "holborn london",
+            "holborn station"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 4,
+        "accepted": 4,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "mental_region",
+      "canonical_name": "kennington",
+      "gt_folder": "kennington_south_east_london",
+      "variants": [
+        {
+          "input": "kennigton",
+          "expected_corrected": "kennington south",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "kennington south",
+            "kennington station",
+            "west kensington"
+          ]
+        },
+        {
+          "input": "knnngtn",
+          "expected_corrected": "kennington south",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "kennington south",
+            "kennington station",
+            "kennington south east"
+          ]
+        },
+        {
+          "input": "kenni",
+          "expected_corrected": "kennington south",
+          "reason": "prefix_first_token",
+          "top3_preview": [
+            "kennington south",
+            "kennington station",
+            "kennington south east"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 3,
+        "accepted": 3,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "mental_region",
+      "canonical_name": "knightsbridge",
+      "gt_folder": "knightsbridge_london",
+      "variants": [
+        {
+          "input": "knightbridge",
+          "expected_corrected": "knightsbridge",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "knightsbridge",
+            "knightsbridge london",
+            "knightsbridge station"
+          ]
+        },
+        {
+          "input": "kngihtsbridge",
+          "expected_corrected": "knightsbridge",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "knightsbridge",
+            "knightsbridge london",
+            "knightsbridge station"
+          ]
+        },
+        {
+          "input": "knigh",
+          "expected_corrected": "knightsbridge",
+          "reason": "prefix_first_token",
+          "top3_preview": [
+            "knightsbridge",
+            "knightsbridge london",
+            "knightsbridge station"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 4,
+        "accepted": 3,
+        "rejected": 1
+      }
+    },
+    {
+      "category": "mental_region",
+      "canonical_name": "marylebone",
+      "gt_folder": "marylebone_london",
+      "variants": [
+        {
+          "input": "marylbone",
+          "expected_corrected": "marylebone",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "marylebone",
+            "marylebone london",
+            "marylebone station"
+          ]
+        },
+        {
+          "input": "mayrlebone",
+          "expected_corrected": "marylebone",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "marylebone",
+            "marylebone london",
+            "marylebone station"
+          ]
+        },
+        {
+          "input": "mrylbn",
+          "expected_corrected": "marylebone",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "marylebone",
+            "chancery lane",
+            "marylebone london"
+          ]
+        },
+        {
+          "input": "maryl",
+          "expected_corrected": "marylebone",
+          "reason": "prefix_first_token",
+          "top3_preview": [
+            "marylebone",
+            "marylebone london",
+            "marylebone station"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 4,
+        "accepted": 4,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "mental_region",
+      "canonical_name": "mayfair",
+      "gt_folder": "mayfair_london",
+      "variants": [
+        {
+          "input": "mayair",
+          "expected_corrected": "mayfair",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "mayfair",
+            "mayfair london"
+          ]
+        },
+        {
+          "input": "mafyair",
+          "expected_corrected": "mayfair",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "mayfair",
+            "mayfair london"
+          ]
+        },
+        {
+          "input": "myfr",
+          "expected_corrected": "mayfair",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "mayfair",
+            "mayfair london"
+          ]
+        },
+        {
+          "input": "mayfa",
+          "expected_corrected": "mayfair",
+          "reason": "prefix_first_token",
+          "top3_preview": [
+            "mayfair",
+            "mayfair london"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 4,
+        "accepted": 4,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "mental_region",
+      "canonical_name": "moorgate",
+      "gt_folder": "moorgate_london",
+      "variants": [
+        {
+          "input": "moorate",
+          "expected_corrected": "moorgate",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "moorgate",
+            "moorgate london",
+            "moorgate station"
+          ]
+        },
+        {
+          "input": "morogate",
+          "expected_corrected": "moorgate",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "moorgate",
+            "moorgate london",
+            "moorgate station"
+          ]
+        },
+        {
+          "input": "mrgt",
+          "expected_corrected": "moorgate",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "moorgate",
+            "moorgate london",
+            "moorgate station"
+          ]
+        },
+        {
+          "input": "moorg",
+          "expected_corrected": "moorgate",
+          "reason": "prefix_first_token",
+          "top3_preview": [
+            "moorgate",
+            "moorgate london",
+            "moorgate station"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 4,
+        "accepted": 4,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "mental_region",
+      "canonical_name": "paddington",
+      "gt_folder": "paddington_london",
+      "variants": [
+        {
+          "input": "paddigton",
+          "expected_corrected": "paddington",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "paddington",
+            "paddington london",
+            "paddington station"
+          ]
+        },
+        {
+          "input": "pddngtn",
+          "expected_corrected": "paddington",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "paddington",
+            "paddington london",
+            "paddington station"
+          ]
+        },
+        {
+          "input": "paddi",
+          "expected_corrected": "paddington",
+          "reason": "prefix_first_token",
+          "top3_preview": [
+            "paddington",
+            "paddington london",
+            "paddington station"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 3,
+        "accepted": 3,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "mental_region",
+      "canonical_name": "pimlico",
+      "gt_folder": "pimlico_london",
+      "variants": [
+        {
+          "input": "pimico",
+          "expected_corrected": "pimlico",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "pimlico",
+            "pimlico london",
+            "pimlico station"
+          ]
+        },
+        {
+          "input": "pilmico",
+          "expected_corrected": "pimlico",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "pimlico",
+            "pimlico london",
+            "pimlico station"
+          ]
+        },
+        {
+          "input": "pmlc",
+          "expected_corrected": "pimlico",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "pimlico",
+            "pimlico london",
+            "pimlico station"
+          ]
+        },
+        {
+          "input": "pimli",
+          "expected_corrected": "pimlico",
+          "reason": "prefix_first_token",
+          "top3_preview": [
+            "pimlico",
+            "pimlico london",
+            "pimlico station"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 4,
+        "accepted": 4,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "mental_region",
+      "canonical_name": "regent s park",
+      "gt_folder": "regent_s_park_london",
+      "variants": [
+        {
+          "input": "regent park",
+          "expected_corrected": "regents park",
+          "reason": "manual_abbrev_or_typo",
+          "top3_preview": [
+            "regents park",
+            "regent s park",
+            "regent s park london"
+          ]
+        },
+        {
+          "input": "regnts park",
+          "expected_corrected": "regents park",
+          "reason": "manual_abbrev_or_typo",
+          "top3_preview": [
+            "regents park",
+            "regent s park",
+            "regent s park london"
+          ]
+        },
+        {
+          "input": "regnt s park",
+          "expected_corrected": "regents park",
+          "reason": "delete_char_multi",
+          "top3_preview": [
+            "regents park",
+            "regent s park",
+            "regent s park london"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 9,
+        "accepted": 3,
+        "rejected": 6
+      }
+    },
+    {
+      "category": "mental_region",
+      "canonical_name": "shoreditch",
+      "gt_folder": "shoreditch_london",
+      "variants": [
+        {
+          "input": "shoreitch",
+          "expected_corrected": "shoreditch",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "shoreditch",
+            "shoreditch high",
+            "shoreditch london"
+          ]
+        },
+        {
+          "input": "shroeditch",
+          "expected_corrected": "shoreditch",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "shoreditch",
+            "shoreditch high",
+            "shoreditch london"
+          ]
+        },
+        {
+          "input": "shrdtch",
+          "expected_corrected": "shoreditch",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "shoreditch",
+            "shoreditch high",
+            "shoreditch london"
+          ]
+        },
+        {
+          "input": "shore",
+          "expected_corrected": "shoreditch",
+          "reason": "prefix_first_token",
+          "top3_preview": [
+            "shoreditch",
+            "shoreditch high",
+            "shoreditch london"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 4,
+        "accepted": 4,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "mental_region",
+      "canonical_name": "soho",
+      "gt_folder": "soho_london",
+      "variants": [],
+      "stats": {
+        "candidate_pool_size": 0,
+        "accepted": 0,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "mental_region",
+      "canonical_name": "south bank",
+      "gt_folder": "south_bank_london",
+      "variants": [
+        {
+          "input": "sou bank",
+          "expected_corrected": "south bank",
+          "reason": "shorten_words",
+          "top3_preview": [
+            "south bank",
+            "south bank london"
+          ]
+        },
+        {
+          "input": "soth",
+          "expected_corrected": "south bank",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "south bank",
+            "south east",
+            "south west"
+          ]
+        },
+        {
+          "input": "sotuh",
+          "expected_corrected": "south bank",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "south bank",
+            "south east",
+            "south west"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 4,
+        "accepted": 3,
+        "rejected": 1
+      }
+    },
+    {
+      "category": "mental_region",
+      "canonical_name": "south kensington",
+      "gt_folder": "south_kensington_south_west_london",
+      "variants": [
+        {
+          "input": "south ken",
+          "expected_corrected": "south kensington",
+          "reason": "manual_abbrev_or_typo",
+          "top3_preview": [
+            "south kensington",
+            "south kensington south",
+            "south kensington station"
+          ]
+        },
+        {
+          "input": "sou ken",
+          "expected_corrected": "south kensington",
+          "reason": "shorten_words",
+          "top3_preview": [
+            "south kensington",
+            "south kensington south",
+            "south kensington station"
+          ]
+        },
+        {
+          "input": "south kensigton",
+          "expected_corrected": "south kensington",
+          "reason": "delete_char_multi",
+          "top3_preview": [
+            "south kensington",
+            "south kensington south",
+            "south kensington station"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 8,
+        "accepted": 3,
+        "rejected": 5
+      }
+    },
+    {
+      "category": "mental_region",
+      "canonical_name": "spitalfields",
+      "gt_folder": "spitalfields_london",
+      "variants": [
+        {
+          "input": "spitalields",
+          "expected_corrected": "spitalfields",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "spitalfields",
+            "spitalfields london"
+          ]
+        },
+        {
+          "input": "sptialfields",
+          "expected_corrected": "spitalfields",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "spitalfields",
+            "spitalfields london"
+          ]
+        },
+        {
+          "input": "sptlflds",
+          "expected_corrected": "spitalfields",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "spitalfields",
+            "spitalfields london"
+          ]
+        },
+        {
+          "input": "spita",
+          "expected_corrected": "spitalfields",
+          "reason": "prefix_first_token",
+          "top3_preview": [
+            "spitalfields",
+            "spitalfields london"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 4,
+        "accepted": 4,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "mental_region",
+      "canonical_name": "st james s",
+      "gt_folder": "st_james_s_south_west_london",
+      "variants": [
+        {
+          "input": "st jamess",
+          "expected_corrected": "st jamess",
+          "reason": "manual_abbrev_or_typo",
+          "top3_preview": [
+            "st jamess",
+            "st james s",
+            "st james"
+          ]
+        },
+        {
+          "input": "st james",
+          "expected_corrected": "st james",
+          "reason": "manual_abbrev_or_typo",
+          "top3_preview": [
+            "st james",
+            "st jamess",
+            "st james s"
+          ]
+        },
+        {
+          "input": "st jms",
+          "expected_corrected": "st james",
+          "reason": "manual_abbrev_or_typo",
+          "top3_preview": [
+            "st james",
+            "st jamess",
+            "st james s"
+          ]
+        },
+        {
+          "input": "st jam s",
+          "expected_corrected": "st james",
+          "reason": "shorten_words",
+          "top3_preview": [
+            "st james",
+            "st jamess",
+            "st james s"
+          ]
+        },
+        {
+          "input": "jaems",
+          "expected_corrected": "st jamess",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "st jamess",
+            "st james s",
+            "jamess park"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 7,
+        "accepted": 5,
+        "rejected": 1
+      }
+    },
+    {
+      "category": "mental_region",
+      "canonical_name": "temple",
+      "gt_folder": "temple_london",
+      "variants": [
+        {
+          "input": "temle",
+          "expected_corrected": "temple",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "temple",
+            "temple london",
+            "temple station"
+          ]
+        },
+        {
+          "input": "tepmle",
+          "expected_corrected": "temple",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "temple",
+            "temple london",
+            "temple station"
+          ]
+        },
+        {
+          "input": "tmpl",
+          "expected_corrected": "temple",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "temple",
+            "temple london",
+            "temple station"
+          ]
+        },
+        {
+          "input": "templ",
+          "expected_corrected": "temple",
+          "reason": "prefix_first_token",
+          "top3_preview": [
+            "temple",
+            "temple london",
+            "temple station"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 4,
+        "accepted": 4,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "mental_region",
+      "canonical_name": "vauxhall",
+      "gt_folder": "vauxhall_london",
+      "variants": [
+        {
+          "input": "vauxall",
+          "expected_corrected": "vauxhall",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "vauxhall",
+            "vauxhall london",
+            "vauxhall station"
+          ]
+        },
+        {
+          "input": "vaxuhall",
+          "expected_corrected": "vauxhall",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "vauxhall",
+            "vauxhall london",
+            "vauxhall station"
+          ]
+        },
+        {
+          "input": "vxhll",
+          "expected_corrected": "vauxhall",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "vauxhall",
+            "vauxhall london",
+            "vauxhall station"
+          ]
+        },
+        {
+          "input": "vauxh",
+          "expected_corrected": "vauxhall",
+          "reason": "prefix_first_token",
+          "top3_preview": [
+            "vauxhall",
+            "vauxhall london",
+            "vauxhall station"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 4,
+        "accepted": 4,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "mental_region",
+      "canonical_name": "victoria",
+      "gt_folder": "victoria_london",
+      "variants": [
+        {
+          "input": "vic",
+          "expected_corrected": "victoria",
+          "reason": "manual_abbrev_or_typo",
+          "top3_preview": [
+            "victoria",
+            "victoria london",
+            "victoria station"
+          ]
+        },
+        {
+          "input": "victora",
+          "expected_corrected": "victoria",
+          "reason": "manual_abbrev_or_typo",
+          "top3_preview": [
+            "victoria",
+            "victoria london",
+            "victoria station"
+          ]
+        },
+        {
+          "input": "vict stn",
+          "expected_corrected": "victoria station",
+          "reason": "manual_abbrev_or_typo",
+          "top3_preview": [
+            "victoria station"
+          ]
+        },
+        {
+          "input": "victria",
+          "expected_corrected": "victoria",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "victoria",
+            "victoria london",
+            "victoria station"
+          ]
+        },
+        {
+          "input": "vitcoria",
+          "expected_corrected": "victoria",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "victoria",
+            "victoria london",
+            "victoria station"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 7,
+        "accepted": 5,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "mental_region",
+      "canonical_name": "waterloo",
+      "gt_folder": "waterloo_london",
+      "variants": [
+        {
+          "input": "wloo",
+          "expected_corrected": "waterloo",
+          "reason": "manual_abbrev_or_typo",
+          "top3_preview": [
+            "waterloo",
+            "johns wood",
+            "john s wood"
+          ]
+        },
+        {
+          "input": "wtaerloo",
+          "expected_corrected": "waterloo",
+          "reason": "manual_abbrev_or_typo",
+          "top3_preview": [
+            "waterloo",
+            "waterloo east",
+            "waterloo london"
+          ]
+        },
+        {
+          "input": "waterlo",
+          "expected_corrected": "waterloo",
+          "reason": "manual_abbrev_or_typo",
+          "top3_preview": [
+            "waterloo",
+            "waterloo east",
+            "waterloo london"
+          ]
+        },
+        {
+          "input": "wateloo",
+          "expected_corrected": "waterloo",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "waterloo",
+            "waterloo east",
+            "waterloo london"
+          ]
+        },
+        {
+          "input": "waetrloo",
+          "expected_corrected": "waterloo",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "waterloo",
+            "waterloo east",
+            "waterloo london"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 7,
+        "accepted": 5,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "mental_region",
+      "canonical_name": "westminster",
+      "gt_folder": "westminster_london",
+      "variants": [
+        {
+          "input": "westmnster",
+          "expected_corrected": "westminster",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "westminster",
+            "westminster london",
+            "westminster station"
+          ]
+        },
+        {
+          "input": "wetsminster",
+          "expected_corrected": "westminster",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "westminster",
+            "westminster london",
+            "westminster station"
+          ]
+        },
+        {
+          "input": "wstmnstr",
+          "expected_corrected": "westminster",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "westminster",
+            "westminster london",
+            "westminster station"
+          ]
+        },
+        {
+          "input": "westm",
+          "expected_corrected": "westminster",
+          "reason": "prefix_first_token",
+          "top3_preview": [
+            "westminster",
+            "westminster london",
+            "westminster station"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 4,
+        "accepted": 4,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "aldgate east",
+      "gt_folder": "aldgate_east_station",
+      "variants": [
+        {
+          "input": "ald east",
+          "expected_corrected": "aldgate east",
+          "reason": "shorten_words",
+          "top3_preview": [
+            "aldgate east",
+            "aldgate london",
+            "garden station"
+          ]
+        },
+        {
+          "input": "aldate east",
+          "expected_corrected": "aldgate east",
+          "reason": "delete_char_multi",
+          "top3_preview": [
+            "aldgate east",
+            "aldgate east station"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 7,
+        "accepted": 2,
+        "rejected": 5
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "aldgate",
+      "gt_folder": "aldgate_station",
+      "variants": [
+        {
+          "input": "aldate",
+          "expected_corrected": "aldgate",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "aldgate",
+            "aldgate east",
+            "aldgate london"
+          ]
+        },
+        {
+          "input": "algdate",
+          "expected_corrected": "aldgate",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "aldgate",
+            "aldgate east",
+            "aldgate london"
+          ]
+        },
+        {
+          "input": "aldgt",
+          "expected_corrected": "aldgate",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "aldgate",
+            "aldgate east",
+            "aldgate london"
+          ]
+        },
+        {
+          "input": "aldga",
+          "expected_corrected": "aldgate",
+          "reason": "prefix_first_token",
+          "top3_preview": [
+            "aldgate",
+            "aldgate east",
+            "aldgate london"
+          ]
+        },
+        {
+          "input": "aldgate stn",
+          "expected_corrected": "aldgate",
+          "reason": "station_suffix",
+          "top3_preview": [
+            "aldgate",
+            "aldgate station",
+            "aldgate london"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 5,
+        "accepted": 5,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "angel",
+      "gt_folder": "angel_station",
+      "variants": [
+        {
+          "input": "anel",
+          "expected_corrected": "angel station",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "angel station",
+            "bank london",
+            "lane station"
+          ]
+        },
+        {
+          "input": "anegl",
+          "expected_corrected": "angel station",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "angel station"
+          ]
+        },
+        {
+          "input": "angl",
+          "expected_corrected": "angel station",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "angel station",
+            "bank london",
+            "pangbourne station"
+          ]
+        },
+        {
+          "input": "angel stn",
+          "expected_corrected": "angel station",
+          "reason": "station_suffix",
+          "top3_preview": [
+            "angel station"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 4,
+        "accepted": 4,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "baker street",
+      "gt_folder": "baker_street_station",
+      "variants": [
+        {
+          "input": "bak str",
+          "expected_corrected": "baker street",
+          "reason": "shorten_words",
+          "top3_preview": [
+            "baker street",
+            "bank station",
+            "oak station"
+          ]
+        },
+        {
+          "input": "baker stret",
+          "expected_corrected": "baker street",
+          "reason": "delete_char_multi",
+          "top3_preview": [
+            "baker street",
+            "baker street station"
+          ]
+        },
+        {
+          "input": "baer",
+          "expected_corrected": "baker street",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "baker street",
+            "road bakerloo",
+            "barbican"
+          ]
+        },
+        {
+          "input": "baekr",
+          "expected_corrected": "baker street",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "baker street",
+            "bakerloo station",
+            "baker street station"
+          ]
+        },
+        {
+          "input": "baker stn",
+          "expected_corrected": "baker street",
+          "reason": "station_suffix",
+          "top3_preview": [
+            "baker street",
+            "baker street station",
+            "bakerloo station"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 6,
+        "accepted": 5,
+        "rejected": 1
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "bank",
+      "gt_folder": "bank_station",
+      "variants": [
+        {
+          "input": "bank stn",
+          "expected_corrected": "bank station",
+          "reason": "station_suffix",
+          "top3_preview": [
+            "bank station",
+            "bank london",
+            "embankment station"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 1,
+        "accepted": 1,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "barbican",
+      "gt_folder": "barbican_station",
+      "variants": [
+        {
+          "input": "barbcan",
+          "expected_corrected": "barbican",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "barbican",
+            "barbican london",
+            "barbican station"
+          ]
+        },
+        {
+          "input": "babrican",
+          "expected_corrected": "barbican",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "barbican",
+            "barbican london",
+            "barbican station"
+          ]
+        },
+        {
+          "input": "brbcn",
+          "expected_corrected": "barbican",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "barbican",
+            "barbican london",
+            "barbican station"
+          ]
+        },
+        {
+          "input": "barbi",
+          "expected_corrected": "barbican",
+          "reason": "prefix_first_token",
+          "top3_preview": [
+            "barbican",
+            "barbican london",
+            "barbican station"
+          ]
+        },
+        {
+          "input": "barbican stn",
+          "expected_corrected": "barbican",
+          "reason": "station_suffix",
+          "top3_preview": [
+            "barbican",
+            "barbican station",
+            "barbican london"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 5,
+        "accepted": 5,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "bayswater",
+      "gt_folder": "bayswater_station",
+      "variants": [
+        {
+          "input": "baysater",
+          "expected_corrected": "bayswater",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "bayswater",
+            "bayswater london",
+            "bayswater station"
+          ]
+        },
+        {
+          "input": "basywater",
+          "expected_corrected": "bayswater",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "bayswater",
+            "bayswater london",
+            "bayswater station"
+          ]
+        },
+        {
+          "input": "byswtr",
+          "expected_corrected": "bayswater",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "bayswater",
+            "bayswater london",
+            "bayswater station"
+          ]
+        },
+        {
+          "input": "baysw",
+          "expected_corrected": "bayswater",
+          "reason": "prefix_first_token",
+          "top3_preview": [
+            "bayswater",
+            "bayswater london",
+            "bayswater station"
+          ]
+        },
+        {
+          "input": "bayswater stn",
+          "expected_corrected": "bayswater",
+          "reason": "station_suffix",
+          "top3_preview": [
+            "bayswater",
+            "bayswater station",
+            "bayswater london"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 5,
+        "accepted": 5,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "blackfriars",
+      "gt_folder": "blackfriars_station",
+      "variants": [
+        {
+          "input": "blackriars",
+          "expected_corrected": "blackfriars",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "blackfriars",
+            "blackfriars london",
+            "blackfriars station"
+          ]
+        },
+        {
+          "input": "blcakfriars",
+          "expected_corrected": "blackfriars",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "blackfriars",
+            "blackfriars london",
+            "blackfriars station"
+          ]
+        },
+        {
+          "input": "blckfrrs",
+          "expected_corrected": "blackfriars",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "blackfriars",
+            "blackfriars london",
+            "blackfriars station"
+          ]
+        },
+        {
+          "input": "black",
+          "expected_corrected": "blackfriars",
+          "reason": "prefix_first_token",
+          "top3_preview": [
+            "blackfriars",
+            "blackfriars london",
+            "blackfriars station"
+          ]
+        },
+        {
+          "input": "blackfriars stn",
+          "expected_corrected": "blackfriars station",
+          "reason": "station_suffix",
+          "top3_preview": [
+            "blackfriars station",
+            "blackfriars",
+            "blackfriars london"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 5,
+        "accepted": 5,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "bond street",
+      "gt_folder": "bond_street_station",
+      "variants": [
+        {
+          "input": "bond str",
+          "expected_corrected": "bond street",
+          "reason": "shorten_words",
+          "top3_preview": [
+            "bond street",
+            "bond street station",
+            "old street station"
+          ]
+        },
+        {
+          "input": "bond stret",
+          "expected_corrected": "bond street",
+          "reason": "delete_char_multi",
+          "top3_preview": [
+            "bond street",
+            "bond street station"
+          ]
+        },
+        {
+          "input": "bond",
+          "expected_corrected": "bond street",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "bond street",
+            "bond street station",
+            "marylebone"
+          ]
+        },
+        {
+          "input": "bond stn",
+          "expected_corrected": "bond street",
+          "reason": "station_suffix",
+          "top3_preview": [
+            "bond street",
+            "bond street station",
+            "bermondsey station"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 4,
+        "accepted": 4,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "borough",
+      "gt_folder": "borough_station",
+      "variants": [
+        {
+          "input": "borugh",
+          "expected_corrected": "borough",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "borough",
+            "borough london",
+            "borough station"
+          ]
+        },
+        {
+          "input": "boorugh",
+          "expected_corrected": "borough",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "borough",
+            "borough london",
+            "borough station"
+          ]
+        },
+        {
+          "input": "brgh",
+          "expected_corrected": "borough",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "borough",
+            "borough london",
+            "borough station"
+          ]
+        },
+        {
+          "input": "borou",
+          "expected_corrected": "borough",
+          "reason": "prefix_first_token",
+          "top3_preview": [
+            "borough",
+            "borough london",
+            "borough station"
+          ]
+        },
+        {
+          "input": "borough stn",
+          "expected_corrected": "borough",
+          "reason": "station_suffix",
+          "top3_preview": [
+            "borough",
+            "borough station",
+            "borough london"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 5,
+        "accepted": 5,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "cannon street",
+      "gt_folder": "cannon_street_station",
+      "variants": [
+        {
+          "input": "can str",
+          "expected_corrected": "cannon street",
+          "reason": "shorten_words",
+          "top3_preview": [
+            "cannon street",
+            "castle london",
+            "castle station"
+          ]
+        },
+        {
+          "input": "canon stret",
+          "expected_corrected": "cannon street",
+          "reason": "delete_char_multi",
+          "top3_preview": [
+            "cannon street",
+            "cannon street station"
+          ]
+        },
+        {
+          "input": "cannon",
+          "expected_corrected": "cannon street",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "cannon street",
+            "cannon street station",
+            "canonbury station"
+          ]
+        },
+        {
+          "input": "cnnn",
+          "expected_corrected": "cannon street",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "cannon street",
+            "cannon street station",
+            "barbican london"
+          ]
+        },
+        {
+          "input": "canno",
+          "expected_corrected": "cannon street",
+          "reason": "prefix_first_token",
+          "top3_preview": [
+            "cannon street",
+            "cannon street station",
+            "canonbury station"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 7,
+        "accepted": 5,
+        "rejected": 1
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "chancery lane",
+      "gt_folder": "chancery_lane_station",
+      "variants": [
+        {
+          "input": "cha lane",
+          "expected_corrected": "chancery lane",
+          "reason": "shorten_words",
+          "top3_preview": [
+            "chancery lane",
+            "chancery lane station"
+          ]
+        },
+        {
+          "input": "chanery lane",
+          "expected_corrected": "chancery lane",
+          "reason": "delete_char_multi",
+          "top3_preview": [
+            "chancery lane",
+            "chancery lane station"
+          ]
+        },
+        {
+          "input": "chanery",
+          "expected_corrected": "chancery lane",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "chancery lane",
+            "chancery lane station"
+          ]
+        },
+        {
+          "input": "chnacery",
+          "expected_corrected": "chancery lane",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "chancery lane",
+            "chancery lane station"
+          ]
+        },
+        {
+          "input": "chncry",
+          "expected_corrected": "chancery lane",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "chancery lane",
+            "chancery lane station"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 7,
+        "accepted": 5,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "charing cross",
+      "gt_folder": "charing_cross_station",
+      "variants": [
+        {
+          "input": "cha cro",
+          "expected_corrected": "charing cross",
+          "reason": "shorten_words",
+          "top3_preview": [
+            "charing cross",
+            "charing cross station"
+          ]
+        },
+        {
+          "input": "chaing cross",
+          "expected_corrected": "charing cross",
+          "reason": "delete_char_multi",
+          "top3_preview": [
+            "charing cross",
+            "charing cross station"
+          ]
+        },
+        {
+          "input": "chaing",
+          "expected_corrected": "charing cross",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "charing cross",
+            "charing cross station",
+            "chinatown"
+          ]
+        },
+        {
+          "input": "chraing",
+          "expected_corrected": "charing cross",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "charing cross",
+            "charing cross station"
+          ]
+        },
+        {
+          "input": "chrng",
+          "expected_corrected": "charing cross",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "charing cross",
+            "charing cross station"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 7,
+        "accepted": 5,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "city thameslink",
+      "gt_folder": "city_thameslink_station",
+      "variants": [
+        {
+          "input": "city tha",
+          "expected_corrected": "city thameslink",
+          "reason": "shorten_words",
+          "top3_preview": [
+            "city thameslink",
+            "city thameslink station",
+            "city station"
+          ]
+        },
+        {
+          "input": "city thamelink",
+          "expected_corrected": "city thameslink",
+          "reason": "delete_char_multi",
+          "top3_preview": [
+            "city thameslink",
+            "city thameslink station"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 4,
+        "accepted": 2,
+        "rejected": 2
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "covent garden",
+      "gt_folder": "covent_garden_station",
+      "variants": [
+        {
+          "input": "cov gdn",
+          "expected_corrected": "covent garden",
+          "reason": "manual_abbrev_or_typo",
+          "top3_preview": [
+            "covent garden",
+            "covent garden london",
+            "covent garden station"
+          ]
+        },
+        {
+          "input": "covnt garden",
+          "expected_corrected": "covent garden",
+          "reason": "manual_abbrev_or_typo",
+          "top3_preview": [
+            "covent garden",
+            "covent garden london",
+            "covent garden station"
+          ]
+        },
+        {
+          "input": "covent grdn",
+          "expected_corrected": "covent garden",
+          "reason": "manual_abbrev_or_typo",
+          "top3_preview": [
+            "covent garden",
+            "covent garden london",
+            "covent garden station"
+          ]
+        },
+        {
+          "input": "cov gar",
+          "expected_corrected": "covent garden",
+          "reason": "shorten_words",
+          "top3_preview": [
+            "covent garden",
+            "covent garden london",
+            "covent garden station"
+          ]
+        },
+        {
+          "input": "covnt garen",
+          "expected_corrected": "covent garden",
+          "reason": "delete_char_multi",
+          "top3_preview": [
+            "covent garden"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 10,
+        "accepted": 5,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "edgware road",
+      "gt_folder": "edgware_road_station",
+      "variants": [
+        {
+          "input": "edgare road",
+          "expected_corrected": "edgware road",
+          "reason": "delete_char_multi",
+          "top3_preview": [
+            "edgware road",
+            "edgware road circle",
+            "edgware road station"
+          ]
+        },
+        {
+          "input": "edgare",
+          "expected_corrected": "edgware road",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "edgware road",
+            "edgware road circle",
+            "edgware road station"
+          ]
+        },
+        {
+          "input": "edwgare",
+          "expected_corrected": "edgware road",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "edgware road",
+            "edgware road circle",
+            "edgware road station"
+          ]
+        },
+        {
+          "input": "edgwr",
+          "expected_corrected": "edgware road",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "edgware road",
+            "edgware road circle",
+            "edgware road station"
+          ]
+        },
+        {
+          "input": "edgwa",
+          "expected_corrected": "edgware road",
+          "reason": "prefix_first_token",
+          "top3_preview": [
+            "edgware road",
+            "edgware road circle",
+            "edgware road station"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 7,
+        "accepted": 5,
+        "rejected": 1
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "elephant castle",
+      "gt_folder": "elephant_castle_station",
+      "variants": [
+        {
+          "input": "elephant n castle",
+          "expected_corrected": "elephant castle",
+          "reason": "manual_abbrev_or_typo",
+          "top3_preview": [
+            "elephant castle",
+            "elephant castle london",
+            "elephant castle station"
+          ]
+        },
+        {
+          "input": "elephnt castle",
+          "expected_corrected": "elephant castle",
+          "reason": "manual_abbrev_or_typo",
+          "top3_preview": [
+            "elephant castle",
+            "elephant castle london",
+            "elephant castle station"
+          ]
+        },
+        {
+          "input": "ele cas",
+          "expected_corrected": "elephant castle",
+          "reason": "shorten_words",
+          "top3_preview": [
+            "elephant castle",
+            "elephant castle london",
+            "elephant castle station"
+          ]
+        },
+        {
+          "input": "elepant casle",
+          "expected_corrected": "elephant castle",
+          "reason": "delete_char_multi",
+          "top3_preview": [
+            "elephant castle",
+            "elephant castle london",
+            "elephant castle station"
+          ]
+        },
+        {
+          "input": "elepant",
+          "expected_corrected": "elephant castle",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "elephant castle",
+            "elephant castle london",
+            "elephant castle station"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 10,
+        "accepted": 5,
+        "rejected": 1
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "embankment",
+      "gt_folder": "embankment_station",
+      "variants": [
+        {
+          "input": "embanment",
+          "expected_corrected": "embankment station",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "embankment station"
+          ]
+        },
+        {
+          "input": "emabnkment",
+          "expected_corrected": "embankment station",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "embankment station"
+          ]
+        },
+        {
+          "input": "embnkmnt",
+          "expected_corrected": "embankment station",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "embankment station"
+          ]
+        },
+        {
+          "input": "emban",
+          "expected_corrected": "embankment station",
+          "reason": "prefix_first_token",
+          "top3_preview": [
+            "embankment station"
+          ]
+        },
+        {
+          "input": "embankment stn",
+          "expected_corrected": "embankment station",
+          "reason": "station_suffix",
+          "top3_preview": [
+            "embankment station"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 5,
+        "accepted": 5,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "euston square",
+      "gt_folder": "euston_square_station",
+      "variants": [
+        {
+          "input": "eus squ",
+          "expected_corrected": "euston square",
+          "reason": "shorten_words",
+          "top3_preview": [
+            "euston square",
+            "james s south",
+            "euston square station"
+          ]
+        },
+        {
+          "input": "euson squre",
+          "expected_corrected": "euston square",
+          "reason": "delete_char_multi",
+          "top3_preview": [
+            "euston square"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 7,
+        "accepted": 2,
+        "rejected": 5
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "euston",
+      "gt_folder": "euston_station",
+      "variants": [
+        {
+          "input": "euson",
+          "expected_corrected": "euston",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "euston",
+            "euston london",
+            "euston square"
+          ]
+        },
+        {
+          "input": "eutson",
+          "expected_corrected": "euston",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "euston",
+            "euston london",
+            "euston square"
+          ]
+        },
+        {
+          "input": "estn",
+          "expected_corrected": "euston",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "euston",
+            "south west",
+            "rye station"
+          ]
+        },
+        {
+          "input": "eusto",
+          "expected_corrected": "euston",
+          "reason": "prefix_first_token",
+          "top3_preview": [
+            "euston",
+            "euston london",
+            "euston square"
+          ]
+        },
+        {
+          "input": "euston stn",
+          "expected_corrected": "euston",
+          "reason": "station_suffix",
+          "top3_preview": [
+            "euston",
+            "euston station",
+            "euston london"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 5,
+        "accepted": 5,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "farringdon",
+      "gt_folder": "farringdon_station",
+      "variants": [
+        {
+          "input": "farrigdon",
+          "expected_corrected": "farringdon station",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "farringdon station"
+          ]
+        },
+        {
+          "input": "frrngdn",
+          "expected_corrected": "farringdon station",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "farringdon station"
+          ]
+        },
+        {
+          "input": "farri",
+          "expected_corrected": "farringdon station",
+          "reason": "prefix_first_token",
+          "top3_preview": [
+            "farringdon station"
+          ]
+        },
+        {
+          "input": "farringdon stn",
+          "expected_corrected": "farringdon station",
+          "reason": "station_suffix",
+          "top3_preview": [
+            "farringdon station"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 4,
+        "accepted": 4,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "fenchurch street",
+      "gt_folder": "fenchurch_street_station",
+      "variants": [
+        {
+          "input": "fencurch stret",
+          "expected_corrected": "fenchurch street",
+          "reason": "delete_char_multi",
+          "top3_preview": [
+            "fenchurch street",
+            "fenchurch street station"
+          ]
+        },
+        {
+          "input": "fencurch",
+          "expected_corrected": "fenchurch street",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "fenchurch street",
+            "fenchurch street station"
+          ]
+        },
+        {
+          "input": "fecnhurch",
+          "expected_corrected": "fenchurch street",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "fenchurch street",
+            "fenchurch street station"
+          ]
+        },
+        {
+          "input": "fnchrch",
+          "expected_corrected": "fenchurch street",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "fenchurch street",
+            "fenchurch street station"
+          ]
+        },
+        {
+          "input": "fench",
+          "expected_corrected": "fenchurch street",
+          "reason": "prefix_first_token",
+          "top3_preview": [
+            "fenchurch street",
+            "fenchurch street station",
+            "finchley station"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 7,
+        "accepted": 5,
+        "rejected": 1
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "gloucester road",
+      "gt_folder": "gloucester_road_station",
+      "variants": [
+        {
+          "input": "gloucster road",
+          "expected_corrected": "gloucester road",
+          "reason": "delete_char_multi",
+          "top3_preview": [
+            "gloucester road",
+            "gloucester road station"
+          ]
+        },
+        {
+          "input": "gloucster",
+          "expected_corrected": "gloucester road",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "gloucester road",
+            "gloucester road station"
+          ]
+        },
+        {
+          "input": "gluocester",
+          "expected_corrected": "gloucester road",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "gloucester road",
+            "gloucester road station"
+          ]
+        },
+        {
+          "input": "glouc",
+          "expected_corrected": "gloucester road",
+          "reason": "prefix_first_token",
+          "top3_preview": [
+            "gloucester road",
+            "gloucester road station"
+          ]
+        },
+        {
+          "input": "gloucester stn",
+          "expected_corrected": "gloucester road station",
+          "reason": "station_suffix",
+          "top3_preview": [
+            "gloucester road station"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 7,
+        "accepted": 5,
+        "rejected": 2
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "goodge street",
+      "gt_folder": "goodge_street_station",
+      "variants": [
+        {
+          "input": "googe stret",
+          "expected_corrected": "goodge street",
+          "reason": "delete_char_multi",
+          "top3_preview": [
+            "goodge street",
+            "goodge street station"
+          ]
+        },
+        {
+          "input": "googe",
+          "expected_corrected": "goodge street",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "goodge street",
+            "goodge street station"
+          ]
+        },
+        {
+          "input": "godoge",
+          "expected_corrected": "goodge street",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "goodge street",
+            "goodge street station"
+          ]
+        },
+        {
+          "input": "goodg",
+          "expected_corrected": "goodge street",
+          "reason": "prefix_first_token",
+          "top3_preview": [
+            "goodge street",
+            "goodge street station"
+          ]
+        },
+        {
+          "input": "goodge stn",
+          "expected_corrected": "goodge street",
+          "reason": "station_suffix",
+          "top3_preview": [
+            "goodge street",
+            "goodge street station"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 7,
+        "accepted": 5,
+        "rejected": 2
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "great portland street",
+      "gt_folder": "great_portland_street_station",
+      "variants": [
+        {
+          "input": "great portland st",
+          "expected_corrected": "great portland street",
+          "reason": "manual_abbrev_or_typo",
+          "top3_preview": [
+            "great portland street",
+            "great portland",
+            "great portland street station"
+          ]
+        },
+        {
+          "input": "grt portland street",
+          "expected_corrected": "great portland street",
+          "reason": "manual_abbrev_or_typo",
+          "top3_preview": [
+            "great portland street",
+            "portland street",
+            "great portland street station"
+          ]
+        },
+        {
+          "input": "great portand stret",
+          "expected_corrected": "great portland street",
+          "reason": "delete_char_multi",
+          "top3_preview": [
+            "great portland street",
+            "great portland street station"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 10,
+        "accepted": 3,
+        "rejected": 7
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "green park",
+      "gt_folder": "green_park_station",
+      "variants": [
+        {
+          "input": "green pk",
+          "expected_corrected": "green park",
+          "reason": "manual_abbrev_or_typo",
+          "top3_preview": [
+            "green park",
+            "green park station",
+            "green station"
+          ]
+        },
+        {
+          "input": "grn park",
+          "expected_corrected": "green park",
+          "reason": "manual_abbrev_or_typo",
+          "top3_preview": [
+            "green park",
+            "kilburn park",
+            "green park station"
+          ]
+        },
+        {
+          "input": "gre park",
+          "expected_corrected": "green park",
+          "reason": "shorten_words",
+          "top3_preview": [
+            "green park",
+            "green park station",
+            "kilburn park"
+          ]
+        },
+        {
+          "input": "gren",
+          "expected_corrected": "green park",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "green park",
+            "regent s",
+            "bethnal green"
+          ]
+        },
+        {
+          "input": "green",
+          "expected_corrected": "green park",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "green park",
+            "bethnal green",
+            "green station"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 8,
+        "accepted": 5,
+        "rejected": 1
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "high street kensington",
+      "gt_folder": "high_street_kensington_station",
+      "variants": [
+        {
+          "input": "high street kens",
+          "expected_corrected": "high street kensington",
+          "reason": "manual_abbrev_or_typo",
+          "top3_preview": [
+            "high street kensington",
+            "high street",
+            "high street kensington station"
+          ]
+        },
+        {
+          "input": "high stret kensigton",
+          "expected_corrected": "high street kensington",
+          "reason": "delete_char_multi",
+          "top3_preview": [
+            "high street kensington",
+            "high street kensington station"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 8,
+        "accepted": 2,
+        "rejected": 6
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "holborn",
+      "gt_folder": "holborn_station",
+      "variants": [
+        {
+          "input": "holorn",
+          "expected_corrected": "holborn",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "holborn",
+            "soho london",
+            "holborn london"
+          ]
+        },
+        {
+          "input": "hoblorn",
+          "expected_corrected": "holborn",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "holborn",
+            "holborn london",
+            "holborn station"
+          ]
+        },
+        {
+          "input": "hlbrn",
+          "expected_corrected": "holborn",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "holborn",
+            "holborn london",
+            "holborn station"
+          ]
+        },
+        {
+          "input": "holbo",
+          "expected_corrected": "holborn",
+          "reason": "prefix_first_token",
+          "top3_preview": [
+            "holborn",
+            "holborn london",
+            "holborn station"
+          ]
+        },
+        {
+          "input": "holborn stn",
+          "expected_corrected": "holborn",
+          "reason": "station_suffix",
+          "top3_preview": [
+            "holborn",
+            "holborn station",
+            "holborn london"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 5,
+        "accepted": 5,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "hyde park corner",
+      "gt_folder": "hyde_park_corner_station",
+      "variants": [
+        {
+          "input": "hyde park cor",
+          "expected_corrected": "hyde park corner",
+          "reason": "shorten_words",
+          "top3_preview": [
+            "hyde park corner",
+            "hyde park",
+            "hyde park corner station"
+          ]
+        },
+        {
+          "input": "hyde park corer",
+          "expected_corrected": "hyde park corner",
+          "reason": "delete_char_multi",
+          "top3_preview": [
+            "hyde park corner",
+            "hyde park",
+            "hyde park corner station"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 5,
+        "accepted": 2,
+        "rejected": 3
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "kennington",
+      "gt_folder": "kennington_station",
+      "variants": [
+        {
+          "input": "kennigton",
+          "expected_corrected": "kennington south",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "kennington south",
+            "kennington station",
+            "west kensington"
+          ]
+        },
+        {
+          "input": "knnngtn",
+          "expected_corrected": "kennington south",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "kennington south",
+            "kennington station",
+            "kennington south east"
+          ]
+        },
+        {
+          "input": "kenni",
+          "expected_corrected": "kennington south",
+          "reason": "prefix_first_token",
+          "top3_preview": [
+            "kennington south",
+            "kennington station",
+            "kennington south east"
+          ]
+        },
+        {
+          "input": "kennington stn",
+          "expected_corrected": "kennington station",
+          "reason": "station_suffix",
+          "top3_preview": [
+            "kennington station",
+            "kennington south",
+            "kensington station"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 4,
+        "accepted": 4,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "king s cross st pancras",
+      "gt_folder": "king_s_cross_st_pancras_station",
+      "variants": [
+        {
+          "input": "kings x",
+          "expected_corrected": "king s",
+          "reason": "high_risk_abbrev",
+          "top3_preview": [
+            "king s",
+            "kings cross",
+            "king s cross"
+          ]
+        },
+        {
+          "input": "kingx",
+          "expected_corrected": "king s",
+          "reason": "high_risk_abbrev",
+          "top3_preview": [
+            "king s",
+            "kings cross",
+            "king s cross"
+          ]
+        },
+        {
+          "input": "kingsx",
+          "expected_corrected": "king s",
+          "reason": "high_risk_abbrev",
+          "top3_preview": [
+            "king s",
+            "kings cross",
+            "king s cross"
+          ]
+        },
+        {
+          "input": "king cross st pancras",
+          "expected_corrected": "cross st pancras",
+          "reason": "manual_abbrev_or_typo",
+          "top3_preview": [
+            "cross st pancras",
+            "kings cross st pancras station",
+            "king s cross st pancras station"
+          ]
+        },
+        {
+          "input": "kings cross",
+          "expected_corrected": "kings cross",
+          "reason": "manual_abbrev_or_typo",
+          "top3_preview": [
+            "kings cross",
+            "king s cross",
+            "kings cross st"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 11,
+        "accepted": 5,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "knightsbridge",
+      "gt_folder": "knightsbridge_station",
+      "variants": [
+        {
+          "input": "knightbridge",
+          "expected_corrected": "knightsbridge",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "knightsbridge",
+            "knightsbridge london",
+            "knightsbridge station"
+          ]
+        },
+        {
+          "input": "kngihtsbridge",
+          "expected_corrected": "knightsbridge",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "knightsbridge",
+            "knightsbridge london",
+            "knightsbridge station"
+          ]
+        },
+        {
+          "input": "knigh",
+          "expected_corrected": "knightsbridge",
+          "reason": "prefix_first_token",
+          "top3_preview": [
+            "knightsbridge",
+            "knightsbridge london",
+            "knightsbridge station"
+          ]
+        },
+        {
+          "input": "knightsbridge stn",
+          "expected_corrected": "knightsbridge station",
+          "reason": "station_suffix",
+          "top3_preview": [
+            "knightsbridge station",
+            "knightsbridge",
+            "knightsbridge london"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 5,
+        "accepted": 4,
+        "rejected": 1
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "lambeth north",
+      "gt_folder": "lambeth_north_station",
+      "variants": [
+        {
+          "input": "lam nor",
+          "expected_corrected": "lambeth north",
+          "reason": "shorten_words",
+          "top3_preview": [
+            "lambeth north",
+            "lambeth north station"
+          ]
+        },
+        {
+          "input": "lameth north",
+          "expected_corrected": "lambeth north",
+          "reason": "delete_char_multi",
+          "top3_preview": [
+            "lambeth north",
+            "lambeth north station"
+          ]
+        },
+        {
+          "input": "lameth",
+          "expected_corrected": "lambeth north",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "lambeth north",
+            "lambeth north station",
+            "cleethorpes station"
+          ]
+        },
+        {
+          "input": "labmeth",
+          "expected_corrected": "lambeth north",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "lambeth north",
+            "lambeth north station"
+          ]
+        },
+        {
+          "input": "lmbth",
+          "expected_corrected": "lambeth north",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "lambeth north",
+            "lambeth north station"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 7,
+        "accepted": 5,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "lancaster gate",
+      "gt_folder": "lancaster_gate_station",
+      "variants": [
+        {
+          "input": "lancster gate",
+          "expected_corrected": "lancaster gate",
+          "reason": "delete_char_multi",
+          "top3_preview": [
+            "lancaster gate",
+            "lancaster gate station"
+          ]
+        },
+        {
+          "input": "lancster",
+          "expected_corrected": "lancaster gate",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "lancaster gate",
+            "lancaster gate station",
+            "portland street"
+          ]
+        },
+        {
+          "input": "lacnaster",
+          "expected_corrected": "lancaster gate",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "lancaster gate",
+            "lancaster gate station"
+          ]
+        },
+        {
+          "input": "lanca",
+          "expected_corrected": "lancaster gate",
+          "reason": "prefix_first_token",
+          "top3_preview": [
+            "lancaster gate",
+            "lancaster gate station",
+            "elephant castle"
+          ]
+        },
+        {
+          "input": "lancaster stn",
+          "expected_corrected": "lancaster gate",
+          "reason": "station_suffix",
+          "top3_preview": [
+            "lancaster gate",
+            "lancaster gate station"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 7,
+        "accepted": 5,
+        "rejected": 2
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "leicester square",
+      "gt_folder": "leicester_square_station",
+      "variants": [
+        {
+          "input": "leicster sq",
+          "expected_corrected": "leicester square",
+          "reason": "manual_abbrev_or_typo",
+          "top3_preview": [
+            "leicester square",
+            "leicester square station"
+          ]
+        },
+        {
+          "input": "leicester sq",
+          "expected_corrected": "leicester square",
+          "reason": "manual_abbrev_or_typo",
+          "top3_preview": [
+            "leicester square",
+            "leicester square station"
+          ]
+        },
+        {
+          "input": "lei squ",
+          "expected_corrected": "leicester square",
+          "reason": "shorten_words",
+          "top3_preview": [
+            "leicester square",
+            "leicester square station"
+          ]
+        },
+        {
+          "input": "leicster squre",
+          "expected_corrected": "leicester square",
+          "reason": "delete_char_multi",
+          "top3_preview": [
+            "leicester square",
+            "leicester square station"
+          ]
+        },
+        {
+          "input": "leicster",
+          "expected_corrected": "leicester square",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "leicester square",
+            "leicester square station"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 10,
+        "accepted": 5,
+        "rejected": 1
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "liverpool street",
+      "gt_folder": "liverpool_street_station",
+      "variants": [
+        {
+          "input": "livepool stret",
+          "expected_corrected": "liverpool street",
+          "reason": "delete_char_multi",
+          "top3_preview": [
+            "liverpool street",
+            "liverpool street station"
+          ]
+        },
+        {
+          "input": "livepool",
+          "expected_corrected": "liverpool street",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "liverpool street",
+            "liverpool street station"
+          ]
+        },
+        {
+          "input": "lievrpool",
+          "expected_corrected": "liverpool street",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "liverpool street",
+            "liverpool street station"
+          ]
+        },
+        {
+          "input": "lvrpl",
+          "expected_corrected": "liverpool street",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "liverpool street",
+            "liverpool street station"
+          ]
+        },
+        {
+          "input": "liver",
+          "expected_corrected": "liverpool street",
+          "reason": "prefix_first_token",
+          "top3_preview": [
+            "liverpool street",
+            "liverpool street station",
+            "silvertown station"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 7,
+        "accepted": 5,
+        "rejected": 1
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "london bridge",
+      "gt_folder": "london_bridge_station",
+      "variants": [
+        {
+          "input": "ldn bridge",
+          "expected_corrected": "london bridge",
+          "reason": "manual_abbrev_or_typo",
+          "top3_preview": [
+            "london bridge",
+            "london bridge station"
+          ]
+        },
+        {
+          "input": "ldn brg",
+          "expected_corrected": "london bridge",
+          "reason": "manual_abbrev_or_typo",
+          "top3_preview": [
+            "london bridge",
+            "london bridge station"
+          ]
+        },
+        {
+          "input": "lon bri",
+          "expected_corrected": "london bridge",
+          "reason": "shorten_words",
+          "top3_preview": [
+            "london bridge",
+            "london bridge station"
+          ]
+        },
+        {
+          "input": "lonon brige",
+          "expected_corrected": "london bridge",
+          "reason": "delete_char_multi",
+          "top3_preview": [
+            "london bridge"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 10,
+        "accepted": 4,
+        "rejected": 6
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "mansion house",
+      "gt_folder": "mansion_house_station",
+      "variants": [
+        {
+          "input": "man hou",
+          "expected_corrected": "mansion house",
+          "reason": "shorten_words",
+          "top3_preview": [
+            "mansion house",
+            "mansion house station"
+          ]
+        },
+        {
+          "input": "manion house",
+          "expected_corrected": "mansion house",
+          "reason": "delete_char_multi",
+          "top3_preview": [
+            "mansion house",
+            "mansion house station"
+          ]
+        },
+        {
+          "input": "manion",
+          "expected_corrected": "mansion house",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "mansion house",
+            "mansion house station",
+            "end station"
+          ]
+        },
+        {
+          "input": "masnion",
+          "expected_corrected": "mansion house",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "mansion house",
+            "mansion house station"
+          ]
+        },
+        {
+          "input": "mnsn",
+          "expected_corrected": "mansion house",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "mansion house",
+            "mansion house station",
+            "bermondsey london"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 7,
+        "accepted": 5,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "marble arch",
+      "gt_folder": "marble_arch_station",
+      "variants": [
+        {
+          "input": "mar arch",
+          "expected_corrected": "marble arch",
+          "reason": "shorten_words",
+          "top3_preview": [
+            "marble arch",
+            "marble arch station"
+          ]
+        },
+        {
+          "input": "marle arch",
+          "expected_corrected": "marble arch",
+          "reason": "delete_char_multi",
+          "top3_preview": [
+            "marble arch",
+            "marble arch station"
+          ]
+        },
+        {
+          "input": "mabrle",
+          "expected_corrected": "marble arch",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "marble arch",
+            "marble arch station",
+            "marylebone"
+          ]
+        },
+        {
+          "input": "mrbl",
+          "expected_corrected": "marble arch",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "marble arch",
+            "marble arch station"
+          ]
+        },
+        {
+          "input": "marbl",
+          "expected_corrected": "marble arch",
+          "reason": "prefix_first_token",
+          "top3_preview": [
+            "marble arch",
+            "marble arch station",
+            "marylebone"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 7,
+        "accepted": 5,
+        "rejected": 1
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "marylebone",
+      "gt_folder": "marylebone_station",
+      "variants": [
+        {
+          "input": "marylbone",
+          "expected_corrected": "marylebone",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "marylebone",
+            "marylebone london",
+            "marylebone station"
+          ]
+        },
+        {
+          "input": "mayrlebone",
+          "expected_corrected": "marylebone",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "marylebone",
+            "marylebone london",
+            "marylebone station"
+          ]
+        },
+        {
+          "input": "mrylbn",
+          "expected_corrected": "marylebone",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "marylebone",
+            "chancery lane",
+            "marylebone london"
+          ]
+        },
+        {
+          "input": "maryl",
+          "expected_corrected": "marylebone",
+          "reason": "prefix_first_token",
+          "top3_preview": [
+            "marylebone",
+            "marylebone london",
+            "marylebone station"
+          ]
+        },
+        {
+          "input": "marylebone stn",
+          "expected_corrected": "marylebone",
+          "reason": "station_suffix",
+          "top3_preview": [
+            "marylebone",
+            "marylebone station",
+            "marylebone london"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 5,
+        "accepted": 5,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "monument",
+      "gt_folder": "monument_station",
+      "variants": [
+        {
+          "input": "monuent",
+          "expected_corrected": "monument station",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "monument station"
+          ]
+        },
+        {
+          "input": "mounment",
+          "expected_corrected": "monument station",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "monument station"
+          ]
+        },
+        {
+          "input": "mnmnt",
+          "expected_corrected": "monument station",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "monument station",
+            "embankment station"
+          ]
+        },
+        {
+          "input": "monum",
+          "expected_corrected": "monument station",
+          "reason": "prefix_first_token",
+          "top3_preview": [
+            "monument station"
+          ]
+        },
+        {
+          "input": "monument stn",
+          "expected_corrected": "monument station",
+          "reason": "station_suffix",
+          "top3_preview": [
+            "monument station"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 5,
+        "accepted": 5,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "moorgate",
+      "gt_folder": "moorgate_station",
+      "variants": [
+        {
+          "input": "moorate",
+          "expected_corrected": "moorgate",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "moorgate",
+            "moorgate london",
+            "moorgate station"
+          ]
+        },
+        {
+          "input": "morogate",
+          "expected_corrected": "moorgate",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "moorgate",
+            "moorgate london",
+            "moorgate station"
+          ]
+        },
+        {
+          "input": "mrgt",
+          "expected_corrected": "moorgate",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "moorgate",
+            "moorgate london",
+            "moorgate station"
+          ]
+        },
+        {
+          "input": "moorg",
+          "expected_corrected": "moorgate",
+          "reason": "prefix_first_token",
+          "top3_preview": [
+            "moorgate",
+            "moorgate london",
+            "moorgate station"
+          ]
+        },
+        {
+          "input": "moorgate stn",
+          "expected_corrected": "moorgate",
+          "reason": "station_suffix",
+          "top3_preview": [
+            "moorgate",
+            "moorgate station",
+            "moorgate london"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 5,
+        "accepted": 5,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "old street",
+      "gt_folder": "old_street_station",
+      "variants": [
+        {
+          "input": "old str",
+          "expected_corrected": "old street",
+          "reason": "shorten_words",
+          "top3_preview": [
+            "old street",
+            "old street station",
+            "bond street"
+          ]
+        },
+        {
+          "input": "old stret",
+          "expected_corrected": "old street",
+          "reason": "delete_char_multi",
+          "top3_preview": [
+            "old street",
+            "old street station",
+            "liverpool street"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 2,
+        "accepted": 2,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "oxford circus",
+      "gt_folder": "oxford_circus_station",
+      "variants": [
+        {
+          "input": "oxford crcs",
+          "expected_corrected": "oxford circus",
+          "reason": "manual_abbrev_or_typo",
+          "top3_preview": [
+            "oxford circus",
+            "oxford circus station"
+          ]
+        },
+        {
+          "input": "oxfrd cirus",
+          "expected_corrected": "oxford circus",
+          "reason": "delete_char_multi",
+          "top3_preview": [
+            "oxford circus"
+          ]
+        },
+        {
+          "input": "oxfrd",
+          "expected_corrected": "oxford circus",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "oxford circus",
+            "oxford parkway",
+            "oxford station"
+          ]
+        },
+        {
+          "input": "oxofrd",
+          "expected_corrected": "oxford circus",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "oxford circus",
+            "oxford parkway",
+            "oxford station"
+          ]
+        },
+        {
+          "input": "oxfor",
+          "expected_corrected": "oxford circus",
+          "reason": "prefix_first_token",
+          "top3_preview": [
+            "oxford circus",
+            "oxford parkway",
+            "oxford station"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 9,
+        "accepted": 5,
+        "rejected": 3
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "paddington",
+      "gt_folder": "paddington_station",
+      "variants": [
+        {
+          "input": "paddigton",
+          "expected_corrected": "paddington",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "paddington",
+            "paddington london",
+            "paddington station"
+          ]
+        },
+        {
+          "input": "pddngtn",
+          "expected_corrected": "paddington",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "paddington",
+            "paddington london",
+            "paddington station"
+          ]
+        },
+        {
+          "input": "paddi",
+          "expected_corrected": "paddington",
+          "reason": "prefix_first_token",
+          "top3_preview": [
+            "paddington",
+            "paddington london",
+            "paddington station"
+          ]
+        },
+        {
+          "input": "paddington stn",
+          "expected_corrected": "paddington",
+          "reason": "station_suffix",
+          "top3_preview": [
+            "paddington",
+            "paddington station",
+            "paddington london"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 4,
+        "accepted": 4,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "piccadilly circus",
+      "gt_folder": "piccadilly_circus_station",
+      "variants": [
+        {
+          "input": "pic cir",
+          "expected_corrected": "piccadilly circus",
+          "reason": "shorten_words",
+          "top3_preview": [
+            "piccadilly circus",
+            "piccadilly circus station"
+          ]
+        },
+        {
+          "input": "piccailly cirus",
+          "expected_corrected": "piccadilly circus",
+          "reason": "delete_char_multi",
+          "top3_preview": [
+            "piccadilly circus",
+            "piccadilly circus station"
+          ]
+        },
+        {
+          "input": "piccailly",
+          "expected_corrected": "piccadilly circus",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "piccadilly circus",
+            "piccadilly circus station"
+          ]
+        },
+        {
+          "input": "piccadilly",
+          "expected_corrected": "piccadilly circus",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "piccadilly circus",
+            "piccadilly circus station"
+          ]
+        },
+        {
+          "input": "pccdlly",
+          "expected_corrected": "piccadilly circus",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "piccadilly circus",
+            "piccadilly circus station"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 7,
+        "accepted": 5,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "pimlico",
+      "gt_folder": "pimlico_station",
+      "variants": [
+        {
+          "input": "pimico",
+          "expected_corrected": "pimlico",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "pimlico",
+            "pimlico london",
+            "pimlico station"
+          ]
+        },
+        {
+          "input": "pilmico",
+          "expected_corrected": "pimlico",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "pimlico",
+            "pimlico london",
+            "pimlico station"
+          ]
+        },
+        {
+          "input": "pmlc",
+          "expected_corrected": "pimlico",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "pimlico",
+            "pimlico london",
+            "pimlico station"
+          ]
+        },
+        {
+          "input": "pimli",
+          "expected_corrected": "pimlico",
+          "reason": "prefix_first_token",
+          "top3_preview": [
+            "pimlico",
+            "pimlico london",
+            "pimlico station"
+          ]
+        },
+        {
+          "input": "pimlico stn",
+          "expected_corrected": "pimlico",
+          "reason": "station_suffix",
+          "top3_preview": [
+            "pimlico",
+            "pimlico station",
+            "pimlico london"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 5,
+        "accepted": 5,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "queensway",
+      "gt_folder": "queensway_station",
+      "variants": [
+        {
+          "input": "queesway",
+          "expected_corrected": "queensway station",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "queensway station"
+          ]
+        },
+        {
+          "input": "qnswy",
+          "expected_corrected": "queensway station",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "queensway station"
+          ]
+        },
+        {
+          "input": "queensway stn",
+          "expected_corrected": "queensway station",
+          "reason": "station_suffix",
+          "top3_preview": [
+            "queensway station",
+            "queen s"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 4,
+        "accepted": 3,
+        "rejected": 1
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "regent s park",
+      "gt_folder": "regent_s_park_station",
+      "variants": [
+        {
+          "input": "regent park",
+          "expected_corrected": "regents park",
+          "reason": "manual_abbrev_or_typo",
+          "top3_preview": [
+            "regents park",
+            "regent s park",
+            "regent s park london"
+          ]
+        },
+        {
+          "input": "regnts park",
+          "expected_corrected": "regents park",
+          "reason": "manual_abbrev_or_typo",
+          "top3_preview": [
+            "regents park",
+            "regent s park",
+            "regent s park london"
+          ]
+        },
+        {
+          "input": "regnt s park",
+          "expected_corrected": "regents park",
+          "reason": "delete_char_multi",
+          "top3_preview": [
+            "regents park",
+            "regent s park",
+            "regent s park london"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 10,
+        "accepted": 3,
+        "rejected": 7
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "russell square",
+      "gt_folder": "russell_square_station",
+      "variants": [
+        {
+          "input": "rus squ",
+          "expected_corrected": "russell square",
+          "reason": "shorten_words",
+          "top3_preview": [
+            "russell square",
+            "russell square station"
+          ]
+        },
+        {
+          "input": "rusell squre",
+          "expected_corrected": "russell square",
+          "reason": "delete_char_multi",
+          "top3_preview": [
+            "russell square"
+          ]
+        },
+        {
+          "input": "rusell",
+          "expected_corrected": "russell square",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "russell square",
+            "russell square station"
+          ]
+        },
+        {
+          "input": "russell",
+          "expected_corrected": "russell square",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "russell square",
+            "russell square station"
+          ]
+        },
+        {
+          "input": "rssll",
+          "expected_corrected": "russell square",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "russell square",
+            "russell square station"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 7,
+        "accepted": 5,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "sloane square",
+      "gt_folder": "sloane_square_station",
+      "variants": [
+        {
+          "input": "slo squ",
+          "expected_corrected": "sloane square",
+          "reason": "shorten_words",
+          "top3_preview": [
+            "sloane square",
+            "euston square",
+            "sloane square station"
+          ]
+        },
+        {
+          "input": "slone squre",
+          "expected_corrected": "sloane square",
+          "reason": "delete_char_multi",
+          "top3_preview": [
+            "sloane square"
+          ]
+        },
+        {
+          "input": "slone",
+          "expected_corrected": "sloane square",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "sloane square",
+            "sloane square station",
+            "blackfriars london"
+          ]
+        },
+        {
+          "input": "slaone",
+          "expected_corrected": "sloane square",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "sloane square",
+            "sloane square station",
+            "chancery lane"
+          ]
+        },
+        {
+          "input": "sloan",
+          "expected_corrected": "sloane square",
+          "reason": "prefix_first_token",
+          "top3_preview": [
+            "sloane square",
+            "sloane square station",
+            "dalston kingsland"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 7,
+        "accepted": 5,
+        "rejected": 1
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "south kensington",
+      "gt_folder": "south_kensington_station",
+      "variants": [
+        {
+          "input": "south ken",
+          "expected_corrected": "south kensington",
+          "reason": "manual_abbrev_or_typo",
+          "top3_preview": [
+            "south kensington",
+            "south kensington south",
+            "south kensington station"
+          ]
+        },
+        {
+          "input": "sou ken",
+          "expected_corrected": "south kensington",
+          "reason": "shorten_words",
+          "top3_preview": [
+            "south kensington",
+            "south kensington south",
+            "south kensington station"
+          ]
+        },
+        {
+          "input": "south kensigton",
+          "expected_corrected": "south kensington",
+          "reason": "delete_char_multi",
+          "top3_preview": [
+            "south kensington",
+            "south kensington south",
+            "south kensington station"
+          ]
+        },
+        {
+          "input": "south stn",
+          "expected_corrected": "south kensington",
+          "reason": "station_suffix",
+          "top3_preview": [
+            "south kensington",
+            "south bank london",
+            "south east london"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 9,
+        "accepted": 4,
+        "rejected": 5
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "southwark",
+      "gt_folder": "southwark_station",
+      "variants": [
+        {
+          "input": "soutwark",
+          "expected_corrected": "southwark station",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "southwark station"
+          ]
+        },
+        {
+          "input": "sotuhwark",
+          "expected_corrected": "southwark station",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "southwark station"
+          ]
+        },
+        {
+          "input": "sthwrk",
+          "expected_corrected": "southwark station",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "southwark station"
+          ]
+        },
+        {
+          "input": "southwark stn",
+          "expected_corrected": "southwark station",
+          "reason": "station_suffix",
+          "top3_preview": [
+            "southwark station"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 5,
+        "accepted": 4,
+        "rejected": 1
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "st james s park",
+      "gt_folder": "st_james_s_park_station",
+      "variants": [
+        {
+          "input": "st jamess park",
+          "expected_corrected": "st jamess park",
+          "reason": "manual_abbrev_or_typo",
+          "top3_preview": [
+            "st jamess park",
+            "jamess park",
+            "james s park"
+          ]
+        },
+        {
+          "input": "st jam s park",
+          "expected_corrected": "st jamess park",
+          "reason": "shorten_words",
+          "top3_preview": [
+            "st jamess park",
+            "s park"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 7,
+        "accepted": 2,
+        "rejected": 5
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "st paul s",
+      "gt_folder": "st_paul_s_station",
+      "variants": [
+        {
+          "input": "st pauls",
+          "expected_corrected": "st pauls",
+          "reason": "manual_abbrev_or_typo",
+          "top3_preview": [
+            "st pauls",
+            "st paul s",
+            "st paul"
+          ]
+        },
+        {
+          "input": "st pauls stn",
+          "expected_corrected": "st pauls",
+          "reason": "manual_abbrev_or_typo",
+          "top3_preview": [
+            "st pauls",
+            "st paul s",
+            "st pauls station"
+          ]
+        },
+        {
+          "input": "st pauls station",
+          "expected_corrected": "st pauls station",
+          "reason": "manual_abbrev_or_typo",
+          "top3_preview": [
+            "st pauls station",
+            "st paul s station",
+            "pauls station"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 3,
+        "accepted": 3,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "temple",
+      "gt_folder": "temple_station",
+      "variants": [
+        {
+          "input": "temle",
+          "expected_corrected": "temple",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "temple",
+            "temple london",
+            "temple station"
+          ]
+        },
+        {
+          "input": "tepmle",
+          "expected_corrected": "temple",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "temple",
+            "temple london",
+            "temple station"
+          ]
+        },
+        {
+          "input": "tmpl",
+          "expected_corrected": "temple",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "temple",
+            "temple london",
+            "temple station"
+          ]
+        },
+        {
+          "input": "templ",
+          "expected_corrected": "temple",
+          "reason": "prefix_first_token",
+          "top3_preview": [
+            "temple",
+            "temple london",
+            "temple station"
+          ]
+        },
+        {
+          "input": "temple stn",
+          "expected_corrected": "temple",
+          "reason": "station_suffix",
+          "top3_preview": [
+            "temple",
+            "temple station",
+            "temple london"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 5,
+        "accepted": 5,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "tottenham court road",
+      "gt_folder": "tottenham_court_road_station",
+      "variants": [
+        {
+          "input": "tot ct rd",
+          "expected_corrected": "tottenham court road",
+          "reason": "manual_abbrev_or_typo",
+          "top3_preview": [
+            "tottenham court road",
+            "tottenham court road station"
+          ]
+        },
+        {
+          "input": "tottenham crt rd",
+          "expected_corrected": "tottenham court",
+          "reason": "manual_abbrev_or_typo",
+          "top3_preview": [
+            "tottenham court",
+            "tottenham court road",
+            "tottenham court road station"
+          ]
+        },
+        {
+          "input": "tottnham court road",
+          "expected_corrected": "tottenham court road",
+          "reason": "delete_char_multi",
+          "top3_preview": [
+            "tottenham court road",
+            "tottenham court road station",
+            "court road"
+          ]
+        },
+        {
+          "input": "tottnham",
+          "expected_corrected": "tottenham court",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "tottenham court",
+            "tottenham court road",
+            "tottenham court road station"
+          ]
+        },
+        {
+          "input": "tottenham",
+          "expected_corrected": "tottenham court",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "tottenham court",
+            "tottenham court road",
+            "tottenham court road station"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 10,
+        "accepted": 5,
+        "rejected": 2
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "tower hill",
+      "gt_folder": "tower_hill_station",
+      "variants": [
+        {
+          "input": "tow hill",
+          "expected_corrected": "tower hill",
+          "reason": "shorten_words",
+          "top3_preview": [
+            "tower hill",
+            "tower hill station"
+          ]
+        },
+        {
+          "input": "toer",
+          "expected_corrected": "tower hill",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "tower hill",
+            "tower gateway",
+            "victoria"
+          ]
+        },
+        {
+          "input": "toewr",
+          "expected_corrected": "tower hill",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "tower hill",
+            "tower gateway",
+            "tower hill station"
+          ]
+        },
+        {
+          "input": "tower stn",
+          "expected_corrected": "tower hill station",
+          "reason": "station_suffix",
+          "top3_preview": [
+            "tower hill station",
+            "tower gateway station"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 5,
+        "accepted": 4,
+        "rejected": 1
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "vauxhall",
+      "gt_folder": "vauxhall_station",
+      "variants": [
+        {
+          "input": "vauxall",
+          "expected_corrected": "vauxhall",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "vauxhall",
+            "vauxhall london",
+            "vauxhall station"
+          ]
+        },
+        {
+          "input": "vaxuhall",
+          "expected_corrected": "vauxhall",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "vauxhall",
+            "vauxhall london",
+            "vauxhall station"
+          ]
+        },
+        {
+          "input": "vxhll",
+          "expected_corrected": "vauxhall",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "vauxhall",
+            "vauxhall london",
+            "vauxhall station"
+          ]
+        },
+        {
+          "input": "vauxh",
+          "expected_corrected": "vauxhall",
+          "reason": "prefix_first_token",
+          "top3_preview": [
+            "vauxhall",
+            "vauxhall london",
+            "vauxhall station"
+          ]
+        },
+        {
+          "input": "vauxhall stn",
+          "expected_corrected": "vauxhall",
+          "reason": "station_suffix",
+          "top3_preview": [
+            "vauxhall",
+            "vauxhall station",
+            "vauxhall london"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 5,
+        "accepted": 5,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "victoria",
+      "gt_folder": "victoria_station",
+      "variants": [
+        {
+          "input": "vic",
+          "expected_corrected": "victoria",
+          "reason": "manual_abbrev_or_typo",
+          "top3_preview": [
+            "victoria",
+            "victoria london",
+            "victoria station"
+          ]
+        },
+        {
+          "input": "victora",
+          "expected_corrected": "victoria",
+          "reason": "manual_abbrev_or_typo",
+          "top3_preview": [
+            "victoria",
+            "victoria london",
+            "victoria station"
+          ]
+        },
+        {
+          "input": "vict stn",
+          "expected_corrected": "victoria station",
+          "reason": "manual_abbrev_or_typo",
+          "top3_preview": [
+            "victoria station"
+          ]
+        },
+        {
+          "input": "victria",
+          "expected_corrected": "victoria",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "victoria",
+            "victoria london",
+            "victoria station"
+          ]
+        },
+        {
+          "input": "vitcoria",
+          "expected_corrected": "victoria",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "victoria",
+            "victoria london",
+            "victoria station"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 8,
+        "accepted": 5,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "warren street",
+      "gt_folder": "warren_street_station",
+      "variants": [
+        {
+          "input": "war str",
+          "expected_corrected": "warren street",
+          "reason": "shorten_words",
+          "top3_preview": [
+            "warren street",
+            "baker street",
+            "warren street station"
+          ]
+        },
+        {
+          "input": "waren stret",
+          "expected_corrected": "warren street",
+          "reason": "delete_char_multi",
+          "top3_preview": [
+            "warren street",
+            "warren street station"
+          ]
+        },
+        {
+          "input": "waren",
+          "expected_corrected": "warren street",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "warren street",
+            "warren street station",
+            "wareham station"
+          ]
+        },
+        {
+          "input": "warren",
+          "expected_corrected": "warren street",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "warren street",
+            "warren street station",
+            "edgware road"
+          ]
+        },
+        {
+          "input": "wrrn",
+          "expected_corrected": "warren street",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "warren street",
+            "warren street station"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 7,
+        "accepted": 5,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "waterloo east",
+      "gt_folder": "waterloo_east_station",
+      "variants": [
+        {
+          "input": "waterloo e",
+          "expected_corrected": "waterloo east",
+          "reason": "manual_abbrev_or_typo",
+          "top3_preview": [
+            "waterloo east",
+            "waterloo",
+            "waterloo east station"
+          ]
+        },
+        {
+          "input": "wloo east",
+          "expected_corrected": "waterloo east",
+          "reason": "manual_abbrev_or_typo",
+          "top3_preview": [
+            "waterloo east",
+            "waterloo east station"
+          ]
+        },
+        {
+          "input": "waterloo east stn",
+          "expected_corrected": "waterloo east station",
+          "reason": "manual_abbrev_or_typo",
+          "top3_preview": [
+            "waterloo east station",
+            "waterloo east",
+            "waterloo"
+          ]
+        },
+        {
+          "input": "wateloo east",
+          "expected_corrected": "waterloo east",
+          "reason": "delete_char_multi",
+          "top3_preview": [
+            "waterloo east",
+            "waterloo east station"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 10,
+        "accepted": 4,
+        "rejected": 6
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "waterloo",
+      "gt_folder": "waterloo_station",
+      "variants": [
+        {
+          "input": "wloo",
+          "expected_corrected": "waterloo",
+          "reason": "manual_abbrev_or_typo",
+          "top3_preview": [
+            "waterloo",
+            "johns wood",
+            "john s wood"
+          ]
+        },
+        {
+          "input": "wtaerloo",
+          "expected_corrected": "waterloo",
+          "reason": "manual_abbrev_or_typo",
+          "top3_preview": [
+            "waterloo",
+            "waterloo east",
+            "waterloo london"
+          ]
+        },
+        {
+          "input": "waterlo",
+          "expected_corrected": "waterloo",
+          "reason": "manual_abbrev_or_typo",
+          "top3_preview": [
+            "waterloo",
+            "waterloo east",
+            "waterloo london"
+          ]
+        },
+        {
+          "input": "wateloo",
+          "expected_corrected": "waterloo",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "waterloo",
+            "waterloo east",
+            "waterloo london"
+          ]
+        },
+        {
+          "input": "waetrloo",
+          "expected_corrected": "waterloo",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "waterloo",
+            "waterloo east",
+            "waterloo london"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 8,
+        "accepted": 5,
+        "rejected": 0
+      }
+    },
+    {
+      "category": "station",
+      "canonical_name": "westminster",
+      "gt_folder": "westminster_station",
+      "variants": [
+        {
+          "input": "westmnster",
+          "expected_corrected": "westminster",
+          "reason": "delete_char_first_token",
+          "top3_preview": [
+            "westminster",
+            "westminster london",
+            "westminster station"
+          ]
+        },
+        {
+          "input": "wetsminster",
+          "expected_corrected": "westminster",
+          "reason": "transpose_first_token",
+          "top3_preview": [
+            "westminster",
+            "westminster london",
+            "westminster station"
+          ]
+        },
+        {
+          "input": "wstmnstr",
+          "expected_corrected": "westminster",
+          "reason": "drop_vowels_first_token",
+          "top3_preview": [
+            "westminster",
+            "westminster london",
+            "westminster station"
+          ]
+        },
+        {
+          "input": "westm",
+          "expected_corrected": "westminster",
+          "reason": "prefix_first_token",
+          "top3_preview": [
+            "westminster",
+            "westminster london",
+            "westminster station"
+          ]
+        },
+        {
+          "input": "westminster stn",
+          "expected_corrected": "westminster station",
+          "reason": "station_suffix",
+          "top3_preview": [
+            "westminster station",
+            "westminster",
+            "westminster london"
+          ]
+        }
+      ],
+      "stats": {
+        "candidate_pool_size": 5,
+        "accepted": 5,
+        "rejected": 0
+      }
+    }
+  ],
+  "unmatched_examples": []
+}
