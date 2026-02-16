@@ -1474,10 +1474,51 @@ def _subsequence_similarity(q: str, cand: str) -> float:
     return 0.70 + 0.20 * density + 0.10 * coverage
 
 
+def _location_abbrev_override(q_plain: str) -> str:
+    s = _normalize_location_keyword(q_plain)
+    if not s:
+        return ""
+    s_compact = _compact_key(s)
+
+    # High-risk King's Cross abbreviations frequently collapse to "king s"
+    # and drift retrieval. Force them to the full station family anchor.
+    kings_cross_compacts = {
+        "kx",
+        "kingx",
+        "kingsx",
+        "kingscross",
+        "kingcross",
+        "kingscrossstpancras",
+        "kingcrossstpancras",
+        "kingsxstpancras",
+        "kingsxstp",
+        "kingscrossstn",
+        "kingscrossstation",
+    }
+    if s_compact in kings_cross_compacts:
+        return "kings cross st pancras"
+
+    if s in {"king s", "kings x", "king x", "k x"}:
+        return "kings cross st pancras"
+
+    if re.search(r"\b(kings?|king)\s*x\b", s):
+        return "kings cross st pancras"
+    if re.search(r"\bkx\b", s):
+        return "kings cross st pancras"
+    if re.search(r"\bkings?\s+cross\b", s):
+        return "kings cross st pancras"
+    if "pancras" in s and re.search(r"\bkings?|king\b", s):
+        return "kings cross st pancras"
+    return ""
+
+
 def _normalize_location_query_term(raw: str) -> Tuple[str, str, str]:
     q_plain = _normalize_location_keyword(raw)
     if not q_plain:
         return "", "", ""
+    override = _location_abbrev_override(q_plain)
+    if override:
+        q_plain = override
     # Drop accidental trailing digits in long non-postcode tokens, e.g.:
     # "wtaerloo0" -> "wtaerloo".
     if (
