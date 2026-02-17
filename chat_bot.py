@@ -7,8 +7,8 @@ def _resolve_new_root() -> Path:
     env = Path((__import__("os").environ.get("RENT_AGENT_ROOT") or "").strip())
     if env:
         return env
-    # Default sibling path: /workspace/rent-agent
-    return Path(__file__).resolve().parent.parent / "rent-agent"
+    # Default sibling path: /workspace/AI-assistant
+    return Path(__file__).resolve().parent.parent / "AI-assistant"
 
 
 def main() -> None:
