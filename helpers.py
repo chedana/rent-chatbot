@@ -1546,12 +1546,48 @@ def expand_location_keyword_candidates(raw: str, limit: int = 8, min_score: floa
     scored: Dict[str, float] = {}
 
     # exact
+    exact_hits: List[str] = []
     if q_plain in lookup_plain:
-        scored[_safe_text(lookup_plain[q_plain]).strip()] = 1.0
+        hit = _safe_text(lookup_plain[q_plain]).strip()
+        if hit:
+            exact_hits.append(hit)
     if q_slug in lookup_slug:
-        scored[_safe_text(lookup_slug[q_slug]).strip()] = max(scored.get(_safe_text(lookup_slug[q_slug]).strip(), 0.0), 1.0)
+        hit = _safe_text(lookup_slug[q_slug]).strip()
+        if hit:
+            exact_hits.append(hit)
     if q_compact in lookup_compact:
-        scored[_safe_text(lookup_compact[q_compact]).strip()] = max(scored.get(_safe_text(lookup_compact[q_compact]).strip(), 0.0), 1.0)
+        hit = _safe_text(lookup_compact[q_compact]).strip()
+        if hit:
+            exact_hits.append(hit)
+
+    # Short-circuit: if exact match exists, skip fuzzy expansion to avoid drift
+    # like "waterloo" -> "bakerloo".
+    exact_hits = list(dict.fromkeys([x for x in exact_hits if x]))
+    if exact_hits and 1.0 >= float(min_score):
+        ranked = [(alias, 1.0) for alias in exact_hits]
+        if _truthy_env("RENT_LOCATION_DEBUG_PRINT"):
+            debug_top = [
+                {"alias": alias, "score": 1.0}
+                for alias in ranked[: max(1, limit)]
+            ]
+            payload = {
+                "query": str(raw or ""),
+                "min_score": float(min_score),
+                "limit": int(limit),
+                "top": debug_top,
+                "mode": "exact_short_circuit",
+            }
+            msg = "location_candidate_dict " + json.dumps(payload, ensure_ascii=False)
+            try:
+                from log import log_message
+
+                log_message("INFO", msg)
+            except Exception:
+                print("[INFO] " + msg)
+        out = [alias for alias, _ in ranked if alias]
+        if limit > 0:
+            out = out[:limit]
+        return out
 
     # contains + distance score
     for ent in entries:
